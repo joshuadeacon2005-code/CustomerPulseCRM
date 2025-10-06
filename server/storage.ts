@@ -1,4 +1,8 @@
 import { 
+  type User,
+  type InsertUser,
+  type Sale,
+  type InsertSale,
   type Customer, 
   type InsertCustomer,
   type UpdateCustomer,
@@ -6,11 +10,34 @@ import {
   type InsertInteraction,
   type Segment,
   type DashboardStats,
-  type CustomerWithInteractions 
+  type CustomerWithInteractions,
+  type SalesmanStats,
+  type AdminDashboardStats,
+  users,
+  sales,
+  customers,
+  interactions,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc, gte, and, sql } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
+  sessionStore: session.Store;
+  
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  
+  getSales(): Promise<Sale[]>;
+  getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
+  createSale(sale: InsertSale): Promise<Sale>;
+  getSalesmanStats(): Promise<SalesmanStats[]>;
+  getAdminStats(): Promise<AdminDashboardStats>;
+  
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
@@ -27,157 +54,176 @@ export interface IStorage {
   getStats(): Promise<DashboardStats>;
 }
 
-export class MemStorage implements IStorage {
-  private customers: Map<string, Customer>;
-  private interactions: Map<string, Interaction>;
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
 
   constructor() {
-    this.customers = new Map();
-    this.interactions = new Map();
+    this.sessionStore = new PostgresSessionStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+    });
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async getSales(): Promise<Sale[]> {
+    return await db.select().from(sales).orderBy(desc(sales.date));
+  }
+
+  async getSalesBySalesman(salesmanId: string): Promise<Sale[]> {
+    return await db.select().from(sales).where(eq(sales.salesmanId, salesmanId)).orderBy(desc(sales.date));
+  }
+
+  async createSale(saleData: InsertSale): Promise<Sale> {
+    const [sale] = await db.insert(sales).values(saleData).returning();
+    return sale;
+  }
+
+  async getSalesmanStats(): Promise<SalesmanStats[]> {
+    const allSales = await db.select().from(sales);
+    const allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
+    
+    const statsMap = new Map<string, SalesmanStats>();
+    
+    for (const salesman of allSalesmen) {
+      const salesmanSales = allSales.filter(s => s.salesmanId === salesman.id);
+      const totalAmount = salesmanSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+      
+      statsMap.set(salesman.id, {
+        salesmanId: salesman.id,
+        salesmanName: salesman.name,
+        totalSales: salesmanSales.length,
+        totalAmount: totalAmount.toFixed(2),
+        recentSales: salesmanSales.slice(0, 5),
+      });
+    }
+    
+    return Array.from(statsMap.values());
+  }
+
+  async getAdminStats(): Promise<AdminDashboardStats> {
+    const allSales = await db.select().from(sales);
+    const totalRevenue = allSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+    const salesmenStats = await this.getSalesmanStats();
+    
+    return {
+      totalSales: allSales.length,
+      totalRevenue: totalRevenue.toFixed(2),
+      salesmenStats,
+    };
   }
 
   async getCustomers(): Promise<Customer[]> {
-    return Array.from(this.customers.values()).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return await db.select().from(customers).orderBy(desc(customers.createdAt));
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    return this.customers.get(id);
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
   }
 
   async getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined> {
-    const customer = this.customers.get(id);
+    const customer = await this.getCustomer(id);
     if (!customer) return undefined;
 
-    const interactions = await this.getInteractionsByCustomer(id);
+    const customerInteractions = await this.getInteractionsByCustomer(id);
     return {
       ...customer,
-      interactions: interactions.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      ),
+      interactions: customerInteractions,
     };
   }
 
-  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const id = randomUUID();
-    const customer: Customer = {
-      id,
-      name: insertCustomer.name,
-      email: insertCustomer.email,
-      phone: insertCustomer.phone,
-      stage: insertCustomer.stage || "lead",
-      assignedTo: insertCustomer.assignedTo || null,
-      leadScore: insertCustomer.leadScore || 0,
-      createdAt: new Date(),
-    };
-    this.customers.set(id, customer);
+  async createCustomer(customerData: InsertCustomer): Promise<Customer> {
+    const [customer] = await db.insert(customers).values(customerData).returning();
     return customer;
   }
 
   async updateCustomer(id: string, updateData: UpdateCustomer): Promise<Customer | undefined> {
-    const customer = this.customers.get(id);
-    if (!customer) return undefined;
-
-    const updatedCustomer: Customer = {
-      ...customer,
-      ...Object.fromEntries(
-        Object.entries(updateData).filter(([_, v]) => v !== undefined)
-      ),
-    };
-
-    this.customers.set(id, updatedCustomer);
-    return updatedCustomer;
+    const [customer] = await db
+      .update(customers)
+      .set(updateData)
+      .where(eq(customers.id, id))
+      .returning();
+    return customer;
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
-    const deleted = this.customers.delete(id);
-    
-    if (deleted) {
-      const customerInteractions = Array.from(this.interactions.entries())
-        .filter(([_, interaction]) => interaction.customerId === id);
-      customerInteractions.forEach(([interactionId]) => {
-        this.interactions.delete(interactionId);
-      });
-    }
-
-    return deleted;
+    await db.delete(interactions).where(eq(interactions.customerId, id));
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getInteractions(): Promise<Interaction[]> {
-    return Array.from(this.interactions.values()).sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    return await db.select().from(interactions).orderBy(desc(interactions.date));
   }
 
   async getInteractionsByCustomer(customerId: string): Promise<Interaction[]> {
-    return Array.from(this.interactions.values())
-      .filter(interaction => interaction.customerId === customerId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return await db
+      .select()
+      .from(interactions)
+      .where(eq(interactions.customerId, customerId))
+      .orderBy(desc(interactions.date));
   }
 
   async getRecentInteractions(limit: number = 10): Promise<Interaction[]> {
-    const interactions = await this.getInteractions();
-    return interactions.slice(0, limit);
+    return await db.select().from(interactions).orderBy(desc(interactions.date)).limit(limit);
   }
 
-  async createInteraction(insertInteraction: InsertInteraction): Promise<Interaction> {
-    const id = randomUUID();
-    const interaction: Interaction = {
-      id,
-      customerId: insertInteraction.customerId,
-      category: insertInteraction.category,
-      type: insertInteraction.type,
-      description: insertInteraction.description,
-      date: new Date(),
-    };
-    this.interactions.set(id, interaction);
-
-    await this.updateLeadScore(insertInteraction.customerId);
-
+  async createInteraction(interactionData: InsertInteraction): Promise<Interaction> {
+    const [interaction] = await db.insert(interactions).values(interactionData).returning();
+    await this.updateLeadScore(interactionData.customerId);
     return interaction;
   }
 
   private async updateLeadScore(customerId: string): Promise<void> {
-    const customer = this.customers.get(customerId);
+    const customer = await this.getCustomer(customerId);
     if (!customer) return;
 
-    const interactions = await this.getInteractionsByCustomer(customerId);
+    const customerInteractions = await this.getInteractionsByCustomer(customerId);
     
     let score = 0;
+    score += Math.min(customerInteractions.length * 5, 30);
     
-    score += Math.min(interactions.length * 5, 30);
-    
-    const salesInteractions = interactions.filter(i => i.category === "sales").length;
+    const salesInteractions = customerInteractions.filter(i => i.category === "sales").length;
     score += Math.min(salesInteractions * 10, 30);
     
-    const marketingInteractions = interactions.filter(i => i.category === "marketing").length;
+    const marketingInteractions = customerInteractions.filter(i => i.category === "marketing").length;
     score += Math.min(marketingInteractions * 3, 15);
     
-    const supportInteractions = interactions.filter(i => i.category === "support").length;
+    const supportInteractions = customerInteractions.filter(i => i.category === "support").length;
     score += Math.min(supportInteractions * 5, 15);
     
-    const recentInteractions = interactions.filter(i => {
-      const daysSince = (Date.now() - new Date(i.date).getTime()) / (1000 * 60 * 60 * 24);
-      return daysSince <= 7;
-    }).length;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentInteractions = customerInteractions.filter(i => new Date(i.date) >= sevenDaysAgo).length;
     score += Math.min(recentInteractions * 5, 10);
 
     score = Math.min(Math.max(score, 0), 100);
 
-    customer.leadScore = score;
-    this.customers.set(customerId, customer);
+    await this.updateCustomer(customerId, { leadScore: score });
   }
 
   async getSegments(): Promise<Segment[]> {
-    const customers = await this.getCustomers();
+    const allCustomers = await this.getCustomers();
     
     const segments: Segment[] = [
       {
         id: "high-value-leads",
         name: "High-Value Leads",
         description: "Leads with high engagement scores ready for conversion",
-        count: customers.filter(c => c.stage === "lead" && c.leadScore >= 71).length,
+        count: allCustomers.filter(c => c.stage === "lead" && c.leadScore >= 71).length,
         criteria: {
           stage: ["lead"],
           minScore: 71,
@@ -187,7 +233,7 @@ export class MemStorage implements IStorage {
         id: "active-prospects",
         name: "Active Prospects",
         description: "Prospects actively engaged in the sales process",
-        count: customers.filter(c => c.stage === "prospect").length,
+        count: allCustomers.filter(c => c.stage === "prospect").length,
         criteria: {
           stage: ["prospect"],
         },
@@ -196,7 +242,7 @@ export class MemStorage implements IStorage {
         id: "new-customers",
         name: "New Customers",
         description: "Recently converted customers",
-        count: customers.filter(c => c.stage === "customer").length,
+        count: allCustomers.filter(c => c.stage === "customer").length,
         criteria: {
           stage: ["customer"],
         },
@@ -205,7 +251,7 @@ export class MemStorage implements IStorage {
         id: "at-risk-leads",
         name: "At-Risk Leads",
         description: "Leads with low engagement that need attention",
-        count: customers.filter(c => c.stage === "lead" && c.leadScore <= 30).length,
+        count: allCustomers.filter(c => c.stage === "lead" && c.leadScore <= 30).length,
         criteria: {
           stage: ["lead"],
           maxScore: 30,
@@ -217,24 +263,24 @@ export class MemStorage implements IStorage {
   }
 
   async getStats(): Promise<DashboardStats> {
-    const customers = await this.getCustomers();
-    const interactions = await this.getInteractions();
+    const allCustomers = await this.getCustomers();
+    const allInteractions = await this.getInteractions();
     
-    const leadCount = customers.filter(c => c.stage === "lead").length;
-    const prospectCount = customers.filter(c => c.stage === "prospect").length;
-    const customerCount = customers.filter(c => c.stage === "customer").length;
+    const leadCount = allCustomers.filter(c => c.stage === "lead").length;
+    const prospectCount = allCustomers.filter(c => c.stage === "prospect").length;
+    const customerCount = allCustomers.filter(c => c.stage === "customer").length;
     
-    const averageLeadScore = customers.length > 0
-      ? customers.reduce((sum, c) => sum + c.leadScore, 0) / customers.length
+    const averageLeadScore = allCustomers.length > 0
+      ? allCustomers.reduce((sum, c) => sum + c.leadScore, 0) / allCustomers.length
       : 0;
     
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentInteractions = interactions.filter(
+    const recentInteractions = allInteractions.filter(
       i => new Date(i.date) >= sevenDaysAgo
     ).length;
 
     return {
-      totalCustomers: customers.length,
+      totalCustomers: allCustomers.length,
       leadCount,
       prospectCount,
       customerCount,
@@ -244,4 +290,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

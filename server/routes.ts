@@ -1,9 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  setupAuth(app);
   app.get("/api/customers", async (_req, res) => {
     try {
       const customers = await storage.getCustomers();
@@ -113,6 +115,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  app.post("/api/sales", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertSaleSchema.parse({
+        ...req.body,
+        salesmanId: req.user!.id,
+      });
+      const sale = await storage.createSale(validatedData);
+      res.status(201).json(sale);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid sale data", details: error });
+      }
+      res.status(500).json({ error: "Failed to create sale" });
+    }
+  });
+
+  app.get("/api/sales", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role === "admin") {
+        const sales = await storage.getSales();
+        res.json(sales);
+      } else {
+        const sales = await storage.getSalesBySalesman(req.user!.id);
+        res.json(sales);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch sales" });
+    }
+  });
+
+  app.get("/api/admin/stats", isAdmin, async (_req, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch admin stats" });
     }
   });
 
