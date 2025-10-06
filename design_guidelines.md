@@ -16,32 +16,35 @@
 
 ### A. Color Palette
 
+Inspired by Bloom and Grow Group's warm, welcoming brand identity.
+
 **Dark Mode (Primary):**
-- Background: 222 10% 10% (main canvas)
-- Surface: 222 10% 15% (cards, panels)
-- Surface Elevated: 222 10% 18% (modals, dropdowns)
-- Border: 222 10% 25%
-- Text Primary: 222 5% 95%
-- Text Secondary: 222 5% 70%
+- Background: 25 20% 12% (warm dark canvas)
+- Surface: 25 18% 16% (cards, panels)
+- Surface Elevated: 25 18% 20% (modals, dropdowns)
+- Border: 25 15% 25%
+- Text Primary: 30 10% 95%
+- Text Secondary: 30 8% 65%
 
 **Light Mode:**
-- Background: 222 10% 98%
-- Surface: 0 0% 100%
-- Border: 222 10% 90%
-- Text Primary: 222 10% 15%
-- Text Secondary: 222 10% 45%
+- Background: 30 40% 98% (warm, soft beige)
+- Surface: 0 0% 100% (white cards)
+- Border: 30 20% 88%
+- Text Primary: 25 30% 15%
+- Text Secondary: 25 20% 45%
 
 **Semantic Colors (Both Modes):**
-- Primary (Actions): 217 91% 60% (professional blue)
-- Success (Customer stage): 142 76% 45%
-- Warning (Prospect stage): 38 92% 50%
-- Info (Lead stage): 199 89% 48%
-- Danger (Critical items): 0 72% 51%
+- Primary (Actions): 18 85% 55% (vibrant orange - Bloom & Grow signature)
+- Secondary (Support): 175 45% 50% (teal - complementary accent)
+- Success (Customer stage): 175 45% 50% (teal)
+- Warning (Prospect stage): 45 90% 55% (golden yellow)
+- Info (Lead stage): 200 75% 50% (sky blue)
+- Danger (Critical items): 0 72% 51% (red)
 
 **Status-Specific Colors:**
-- Lead: 199 89% 48% (cool blue)
-- Prospect: 38 92% 50% (amber)
-- Customer: 142 76% 45% (green)
+- Lead: 200 75% 50% (sky blue)
+- Prospect: 45 90% 55% (golden yellow)
+- Customer: 175 45% 50% (teal)
 
 ### B. Typography
 
