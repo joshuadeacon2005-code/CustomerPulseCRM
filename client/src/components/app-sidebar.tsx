@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, BarChart3, Target, Filter } from "lucide-react";
+import { DollarSign, BarChart3, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,68 +12,48 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
-
-const navigation = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Customers",
-    url: "/customers",
-    icon: Users,
-  },
-  {
-    title: "Segments",
-    url: "/segments",
-    icon: Target,
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-  },
-];
-
-const filters = [
-  {
-    title: "All Leads",
-    url: "/customers?stage=lead",
-    icon: Filter,
-  },
-  {
-    title: "All Prospects",
-    url: "/customers?stage=prospect",
-    icon: Filter,
-  },
-  {
-    title: "All Customers",
-    url: "/customers?stage=customer",
-    icon: Filter,
-  },
-];
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
+
+  const salesmanNav = [
+    {
+      title: "Log Sales",
+      url: "/sales",
+      icon: DollarSign,
+    },
+  ];
+
+  const adminNav = [
+    {
+      title: "Admin Dashboard",
+      url: "/admin",
+      icon: BarChart3,
+    },
+  ];
+
+  const navigation = user?.role === "admin" ? adminNav : salesmanNav;
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <Users className="h-5 w-5 text-primary-foreground" />
+            <DollarSign className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-base font-semibold">CRM Tool</h2>
-            <p className="text-xs text-muted-foreground">Customer Management</p>
+            <h2 className="text-base font-semibold">Bloom & Grow</h2>
+            <p className="text-xs text-muted-foreground">Sales Management</p>
           </div>
         </div>
       </SidebarHeader>
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => {
@@ -81,7 +61,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.url} data-testid={`link-${item.title.toLowerCase()}`}>
+                      <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -92,30 +72,22 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Quick Filters</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filters.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url} data-testid={`link-filter-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
         <div className="text-xs text-muted-foreground">
-          Manage your customer relationships efficiently
+          Logged in as: {user?.name} ({user?.role})
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => logout()}
+          className="w-full"
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );
