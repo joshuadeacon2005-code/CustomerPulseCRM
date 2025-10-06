@@ -1,7 +1,26 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default("salesman"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const sales = pgTable("sales", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  salesmanId: varchar("salesman_id").notNull(),
+  customerName: text("customer_name").notNull(),
+  product: text("product").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  date: timestamp("date").notNull().defaultNow(),
+});
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -21,6 +40,26 @@ export const interactions = pgTable("interactions", {
   type: text("type").notNull(),
   description: text("description").notNull(),
   date: timestamp("date").notNull().defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  role: z.enum(["admin", "salesman"]).default("salesman"),
+  username: z.string().min(3).max(50),
+  password: z.string().min(6),
+  name: z.string().min(1),
+});
+
+export const insertSaleSchema = createInsertSchema(sales).omit({
+  id: true,
+  date: true,
+}).extend({
+  salesmanId: z.string().min(1),
+  customerName: z.string().min(1),
+  product: z.string().min(1),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
 });
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
@@ -47,12 +86,17 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
   type: z.string().min(1),
 });
 
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Sale = typeof sales.$inferSelect;
+export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type UpdateCustomer = z.infer<typeof updateCustomerSchema>;
 export type Interaction = typeof interactions.$inferSelect;
 export type InsertInteraction = z.infer<typeof insertInteractionSchema>;
 
+export type UserRole = "admin" | "salesman";
 export type CustomerStage = "lead" | "prospect" | "customer";
 export type InteractionCategory = "marketing" | "sales" | "support";
 
@@ -80,4 +124,18 @@ export type DashboardStats = {
   customerCount: number;
   averageLeadScore: number;
   recentInteractions: number;
+};
+
+export type SalesmanStats = {
+  salesmanId: string;
+  salesmanName: string;
+  totalSales: number;
+  totalAmount: string;
+  recentSales: Sale[];
+};
+
+export type AdminDashboardStats = {
+  totalSales: number;
+  totalRevenue: string;
+  salesmenStats: SalesmanStats[];
 };
