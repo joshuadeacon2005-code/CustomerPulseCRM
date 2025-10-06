@@ -1,0 +1,106 @@
+Replit Project Prompt: Customer Relationship Management (CRM) Tool
+
+Project Title: Customer Relationship Management (CRM) Tool
+
+Project Description:
+Create an interactive Customer Relationship Management (CRM) tool to track and manage customer interactions, leads, prospects, and customers throughout their journey. The CRM should enable users to record, update, and analyze customer information and interactions, making it easier to manage sales efforts, support queries, and targeted campaigns.
+
+Key Features to Implement:
+
+Customer Journey Tracking:
+
+Track customers through different stages of their journey: Lead → Prospect → Customer.
+
+Each stage should have unique attributes and behavior that can be updated.
+
+Interaction Recording:
+
+Log and record customer interactions in multiple categories such as:
+
+Marketing
+
+Sales
+
+Support/Queries
+
+Each interaction should have details such as the type, date, and description.
+
+Customer Segmentation:
+
+Based on the customer journey stage, interactions, and lead score, create customer segments.
+
+Segment customers for different actions such as targeted marketing campaigns or sales outreach.
+
+Lead Scoring:
+
+Implement a lead scoring system to evaluate the potential of each lead. Criteria for scoring might include:
+
+Frequency of interactions.
+
+Engagement level (e.g., email open rate, support tickets).
+
+Interaction types (e.g., sales call, email inquiry, demo request).
+
+Customizable lead scoring rules (e.g., positive/negative values for certain actions).
+
+Customer Management:
+
+Add New Customers: Capture basic information such as name, email, phone number.
+
+Update Customer Status: Transition leads from Lead → Prospect → Customer.
+
+Assign Sales Users: Based on customer segmentation or interactions, assign a specific sales representative or team.
+
+Customer History & Reporting:
+
+Allow users to view detailed customer profiles, including their journey, interactions, and total score.
+
+Basic reporting to show interactions history and lead scores for analysis.
+
+User Interface:
+
+Create a simple text-based user interface to interact with the CRM (you can build out a GUI later if desired).
+
+Options should include adding, updating, viewing customers, and logging interactions.
+
+Technology Stack:
+
+Backend: Python (for the logic and interaction handling)
+
+Frontend: Text-based UI (CLI-based, for now)
+
+Database: In-memory dictionaries and lists for quick prototyping. Can be replaced with a database (like SQLite or PostgreSQL) later if required.
+
+Deployment: Use Replit for quick prototyping and cloud hosting.
+
+Suggested User Flow:
+
+Main Menu: Allow users to choose from a set of options:
+
+Add customer
+
+Update customer status
+
+Add an interaction
+
+View customer details
+
+Exit the application
+
+Add Customer: Capture essential details such as name, email, phone, and initial status (Lead).
+
+Interaction Logging: Allow users to add a new interaction (Sales call, email, support ticket), specifying the type and details.
+
+Update Status: Customers should be able to be moved between stages: Lead, Prospect, or Customer.
+
+View Customer: Provide a detailed view of a customer, including their current stage, score, and interaction history.
+
+Optional Features (Future Enhancements):
+
+Database Integration: Use a real database to store and persist data (e.g., SQLite or PostgreSQL).
+
+Campaign Tracking: Link customer segments to campaigns or sales reps to automate outreach.
+
+Email Integration: Track email opens/clicks and integrate with email services (e.g., SendGrid).
+
+Reporting: Generate reports on customer status, sales performance, and lead scores.
