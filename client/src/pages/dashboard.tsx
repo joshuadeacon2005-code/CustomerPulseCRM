@@ -2,16 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, TrendingUp, Target, Activity, Plus, ArrowRight } from "lucide-react";
+import { Users, TrendingUp, Target, Activity, Plus, ArrowRight, Mail, Phone, MessageSquare } from "lucide-react";
 import { Link } from "wouter";
 import { DashboardStats, Interaction } from "@shared/schema";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const categoryIcons = {
-  marketing: "📧",
-  sales: "📞",
-  support: "💬",
+  marketing: Mail,
+  sales: Phone,
+  support: MessageSquare,
 };
 
 export default function Dashboard() {
@@ -172,35 +172,38 @@ export default function Dashboard() {
               </div>
             ) : recentInteractions && recentInteractions.length > 0 ? (
               <div className="space-y-3">
-                {recentInteractions.slice(0, 5).map((interaction) => (
-                  <div 
-                    key={interaction.id} 
-                    className="flex items-start gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
-                    data-testid={`item-recent-interaction-${interaction.id}`}
-                  >
-                    <div className="text-xl shrink-0">
-                      {categoryIcons[interaction.category as keyof typeof categoryIcons]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium text-sm truncate">{interaction.type}</p>
-                        <span className="text-xs text-muted-foreground font-mono shrink-0">
-                          {format(new Date(interaction.date), "MMM d")}
-                        </span>
+                {recentInteractions.slice(0, 5).map((interaction) => {
+                  const Icon = categoryIcons[interaction.category as keyof typeof categoryIcons];
+                  return (
+                    <div 
+                      key={interaction.id} 
+                      className="flex items-start gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
+                      data-testid={`item-recent-interaction-${interaction.id}`}
+                    >
+                      <div className="p-2 rounded-md bg-muted shrink-0">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                        {interaction.description}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium text-sm truncate">{interaction.type}</p>
+                          <span className="text-xs text-muted-foreground font-mono shrink-0">
+                            {format(new Date(interaction.date), "MMM d")}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          {interaction.description}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Activity className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">No interactions yet</p>
                 <Link href="/customers">
-                  <Button variant="outline" size="sm" className="mt-4">
+                  <Button variant="outline" size="sm" className="mt-4" data-testid="button-empty-add-customer">
                     Add Customer
                   </Button>
                 </Link>
