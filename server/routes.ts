@@ -6,7 +6,8 @@ import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
-  app.get("/api/customers", async (_req, res) => {
+  
+  app.get("/api/customers", isAuthenticated, async (_req, res) => {
     try {
       const customers = await storage.getCustomers();
       res.json(customers);
@@ -15,7 +16,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/customers/:id", async (req, res) => {
+  app.get("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
       const customer = await storage.getCustomerWithInteractions(req.params.id);
       if (!customer) {
@@ -27,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(validatedData);
@@ -40,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/customers/:id", async (req, res) => {
+  app.patch("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
       const validatedData = updateCustomerSchema.parse(req.body);
       const customer = await storage.updateCustomer(req.params.id, validatedData);
@@ -56,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/customers/:id", async (req, res) => {
+  app.delete("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteCustomer(req.params.id);
       if (!deleted) {
@@ -68,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/interactions", async (_req, res) => {
+  app.get("/api/interactions", isAuthenticated, async (_req, res) => {
     try {
       const interactions = await storage.getInteractions();
       res.json(interactions);
@@ -77,7 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/interactions/recent", async (req, res) => {
+  app.get("/api/interactions/recent", isAuthenticated, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const interactions = await storage.getRecentInteractions(limit);
@@ -87,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/interactions", async (req, res) => {
+  app.post("/api/interactions", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertInteractionSchema.parse(req.body);
       const interaction = await storage.createInteraction(validatedData);
@@ -100,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/segments", async (_req, res) => {
+  app.get("/api/segments", isAuthenticated, async (_req, res) => {
     try {
       const segments = await storage.getSegments();
       res.json(segments);
@@ -109,7 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/stats", async (_req, res) => {
+  app.get("/api/stats", isAuthenticated, async (_req, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);

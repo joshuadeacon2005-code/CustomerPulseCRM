@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as DbUser } from "@shared/schema";
+import { User as DbUser, insertUserSchema } from "@shared/schema";
 
 declare global {
   namespace Express {
@@ -72,14 +72,16 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      const existingUser = await storage.getUserByUsername(validatedData.username);
       if (existingUser) {
         return res.status(400).send("Username already exists");
       }
 
       const user = await storage.createUser({
-        ...req.body,
-        password: await hashPassword(req.body.password),
+        ...validatedData,
+        password: await hashPassword(validatedData.password),
       });
 
       const userWithoutPassword = { ...user };
@@ -90,6 +92,9 @@ export function setupAuth(app: Express) {
         res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid registration data", details: error });
+      }
       next(error);
     }
   });

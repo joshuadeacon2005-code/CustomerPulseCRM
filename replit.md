@@ -1,93 +1,109 @@
-# CRM Tool - Customer Relationship Management
+# Bloom & Grow Group - Sales Management CRM
 
 ## Overview
-A professional, full-featured Customer Relationship Management (CRM) tool built with React, Express, and TypeScript. The application helps businesses track and manage customer interactions, leads, prospects, and customers throughout their journey. Features include customer journey tracking, interaction logging, lead scoring, customer segmentation, and comprehensive analytics.
+A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and TypeScript. The application features role-based authentication where salesmen can log their sales and admins can view comprehensive statistics separated by salesman. The system uses PostgreSQL for data persistence and includes secure password hashing with session-based authentication.
 
 ## Recent Changes
-- **October 6, 2025**: Initial implementation of complete CRM system
-  - Implemented customer management with CRUD operations
-  - Built customer journey tracking (Lead → Prospect → Customer)
-  - Created interaction logging system for Marketing, Sales, and Support
-  - Developed lead scoring and customer segmentation features
-  - Added analytics dashboard with charts and visualizations
-  - Implemented dark/light mode with professional enterprise design
-  - Used in-memory storage for quick prototyping
+- **October 6, 2025**: Implemented authentication and sales tracking system
+  - Added PostgreSQL database with users and sales tables
+  - Implemented authentication system with passport-local and scrypt password hashing
+  - Created login/register pages with role selection (admin/salesman)
+  - Built sales logging page for salesmen to record transactions
+  - Developed admin dashboard showing per-salesman statistics
+  - Added role-based routing and protected routes
+  - Updated navigation to show appropriate links based on user role
+  - Implemented session management with PostgreSQL session store
 
 ## Project Architecture
 
 ### Frontend (React + TypeScript)
 - **Pages**:
-  - Dashboard: Overview stats, pipeline visualization, recent interactions
-  - Customers: Customer list with search/filter, add/edit forms, detail modal
-  - Segments: Customer segments based on stage, score, and interactions
-  - Analytics: Charts and visualizations for customer data analysis
+  - AuthPage (`/auth`): Login and registration forms with role selection
+  - SalesPage (`/sales`): Sales logging form and personal statistics (salesman only)
+  - AdminPage (`/admin`): Dashboard showing all salesmen statistics (admin only)
   
 - **Key Components**:
-  - `AppSidebar`: Navigation sidebar with main menu and quick filters
-  - `CustomerCard`: Card displaying customer info with stage badge and score
-  - `CustomerDetailModal`: Full customer profile with tabs for overview, interactions, and editing
-  - `CustomerForm`: Form for adding/editing customers
-  - `InteractionForm`: Form for logging customer interactions
-  - `StatCard`: Reusable stat display card for dashboard
-  - `ThemeProvider` / `ThemeToggle`: Dark/light mode management
+  - `AppSidebar`: Role-based navigation sidebar with logout button
+  - `ProtectedRoute`: HOC for protecting authenticated routes
+  - `AdminRoute`: HOC for protecting admin-only routes
+  - `useAuth`: Custom hook for authentication state and actions
 
 ### Backend (Express + TypeScript)
-- **Storage Interface** (`IStorage`): In-memory data management
+- **Authentication** (`auth.ts`):
+  - Passport-local strategy with scrypt password hashing
+  - Session management with PostgreSQL session store
+  - User serialization/deserialization
+  - Middleware: `isAuthenticated`, `isAdmin`
+
+- **Storage Interface** (`IStorage`): PostgreSQL database management
+  - User operations: getUser, getUserByUsername, createUser
+  - Sales operations: getSales, getSalesBySalesman, createSale, getSalesmanStats, getAdminStats
   - Customer operations: create, read, update, delete, list
   - Interaction operations: create, list by customer
-  - Segment generation based on customer data
-  - Statistics calculation
 
-- **API Routes** (to be implemented in Task 2):
-  - `GET /api/customers` - List all customers
-  - `GET /api/customers/:id` - Get customer with interactions
-  - `POST /api/customers` - Create new customer
-  - `PATCH /api/customers/:id` - Update customer
-  - `DELETE /api/customers/:id` - Delete customer
-  - `POST /api/interactions` - Log new interaction
-  - `GET /api/interactions/recent` - Get recent interactions
-  - `GET /api/segments` - Get customer segments
-  - `GET /api/stats` - Get dashboard statistics
+- **API Routes**:
+  - `POST /api/register` - Create new user account
+  - `POST /api/login` - Authenticate user
+  - `POST /api/logout` - End user session
+  - `GET /api/user` - Get current user (401 if not authenticated)
+  - `POST /api/sales` - Create new sale (authenticated)
+  - `GET /api/sales` - Get sales (filtered by salesman or all for admin)
+  - `GET /api/admin/stats` - Get admin dashboard statistics (admin only)
+  - Legacy CRM routes still available (customers, interactions, segments, stats)
 
 ### Data Models
+- **User**: id, username, password, name, role, createdAt
+- **Sale**: id, salesmanId, customerName, product, amount, description, date
 - **Customer**: id, name, email, phone, stage, assignedTo, leadScore, createdAt
 - **Interaction**: id, customerId, category, type, description, date
-- **Segment**: Auto-generated based on customer criteria
-- **DashboardStats**: Aggregated statistics for dashboard
+- **SalesmanStats**: salesmanId, salesmanName, totalSales, totalAmount, recentSales
+- **AdminDashboardStats**: totalSales, totalRevenue, salesmenStats
 
 ## Technology Stack
 - **Frontend**: React 18, TypeScript, Wouter (routing), TanStack Query (data fetching)
 - **UI**: Shadcn UI, Tailwind CSS, Radix UI primitives
-- **Charts**: Recharts
-- **Backend**: Express.js, TypeScript
-- **Storage**: In-memory (MemStorage) - can be upgraded to PostgreSQL
+- **Backend**: Express.js, TypeScript, Passport.js (authentication)
+- **Database**: PostgreSQL (Neon) with Drizzle ORM
+- **Session Store**: connect-pg-simple (PostgreSQL session storage)
+- **Password Hashing**: Node.js crypto (scrypt)
 - **Validation**: Zod with react-hook-form
 - **Date Handling**: date-fns
 
 ## Design System
+- **Brand**: Bloom & Grow Group
 - **Theme**: Dark mode primary, light mode available via toggle
-- **Colors**: Professional blue primary, semantic colors for stages (blue=lead, amber=prospect, green=customer)
-- **Typography**: Inter (UI/body), JetBrains Mono (code/timestamps)
-- **Spacing**: Consistent 4/6/8 unit spacing throughout
-- **Components**: Enterprise-grade with subtle hover states and smooth transitions
-- **Inspiration**: Linear, Notion, HubSpot CRM
+- **Colors**: Orange primary (18 85% 55%), Teal secondary (175 45% 50%)
+- **Typography**: Inter (UI/body)
+- **Spacing**: Consistent spacing following design guidelines
+- **Components**: Professional with subtle hover states and smooth transitions
 
-## Features Implemented (Task 1 - Frontend Complete)
-✅ Customer journey tracking through stages (Lead → Prospect → Customer)
-✅ Customer management (add, edit, view, delete operations)
-✅ Interaction logging with categories (Marketing, Sales, Support)
-✅ Lead scoring system (0-100 scale)
-✅ Customer segmentation based on stage and score
-✅ Dashboard with stats and pipeline overview
-✅ Analytics page with charts (pie, bar charts for distribution)
-✅ Search and filter functionality
-✅ Responsive design for mobile and desktop
+## Features Implemented
+✅ User authentication (login/register/logout)
+✅ Role-based access control (admin/salesman)
+✅ Password hashing with scrypt
+✅ Session management with PostgreSQL
+✅ Sales logging for salesmen
+✅ Personal statistics dashboard for salesmen
+✅ Admin dashboard with per-salesman statistics
+✅ Protected routes and role-based navigation
+✅ PostgreSQL database integration
 ✅ Dark/light mode theme switching
-✅ Professional, enterprise-grade UI following design guidelines
 
-## Next Steps
-- Task 2: Implement backend API routes and storage layer
-- Task 3: Connect frontend to backend, add error handling, test features
+## Authentication Flow
+1. User visits app → redirected to `/auth` if not logged in
+2. User can login or register with username/password and role
+3. After authentication:
+   - Salesmen are redirected to `/sales` to log sales and view their stats
+   - Admins are redirected to `/admin` to view all salesmen statistics
+4. Navigation sidebar shows appropriate links based on user role
+5. Logout button available in sidebar footer
+
+## Database Schema
+- **users**: Stores user accounts with hashed passwords and roles
+- **sales**: Stores sales transactions linked to salesmen
+- **customers**: Legacy CRM customer data (still available)
+- **interactions**: Legacy CRM interaction data (still available)
+- **session**: PostgreSQL session storage (managed by connect-pg-simple)
 
 ## User Preferences
 - Default theme: Dark mode
