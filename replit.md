@@ -4,6 +4,13 @@
 A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and TypeScript. The application features role-based authentication where salesmen can log their sales and admins can view comprehensive statistics separated by salesman. The system uses PostgreSQL for data persistence and includes secure password hashing with session-based authentication.
 
 ## Recent Changes
+- **October 7, 2025**: Enabled full CRM features and admin access
+  - Created admin account: AlexCEO (CEO access)
+  - Enabled complete CRM navigation for all users (Customers, Analytics, Segments)
+  - Added CRM pages to sidebar navigation for both admins and salesmen
+  - Registered all CRM routes in App.tsx with proper authentication protection
+  - Admins now have access to all pages including Sales tracking and Admin Dashboard
+
 - **October 6, 2025**: Implemented authentication and sales tracking system
   - Added PostgreSQL database with users and sales tables
   - Implemented authentication system with passport-local and scrypt password hashing
@@ -19,8 +26,11 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
 ### Frontend (React + TypeScript)
 - **Pages**:
   - AuthPage (`/auth`): Login and registration forms with role selection
-  - SalesPage (`/sales`): Sales logging form and personal statistics (salesman only)
+  - SalesPage (`/sales`): Sales logging form and personal statistics
   - AdminPage (`/admin`): Dashboard showing all salesmen statistics (admin only)
+  - CustomersPage (`/customers`): Customer relationship management with lead tracking
+  - AnalyticsPage (`/analytics`): CRM analytics and statistics dashboard
+  - SegmentsPage (`/segments`): Customer segmentation and targeting
   
 - **Key Components**:
   - `AppSidebar`: Role-based navigation sidebar with logout button
@@ -49,7 +59,16 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
   - `POST /api/sales` - Create new sale (authenticated)
   - `GET /api/sales` - Get sales (filtered by salesman or all for admin)
   - `GET /api/admin/stats` - Get admin dashboard statistics (admin only)
-  - Legacy CRM routes still available (customers, interactions, segments, stats)
+  - `GET /api/customers` - Get all customers (authenticated)
+  - `GET /api/customers/:id` - Get customer with interactions (authenticated)
+  - `POST /api/customers` - Create new customer (authenticated)
+  - `PATCH /api/customers/:id` - Update customer (authenticated)
+  - `DELETE /api/customers/:id` - Delete customer (authenticated)
+  - `GET /api/interactions` - Get all interactions (authenticated)
+  - `GET /api/interactions/recent` - Get recent interactions (authenticated)
+  - `POST /api/interactions` - Create new interaction (authenticated)
+  - `GET /api/segments` - Get customer segments (authenticated)
+  - `GET /api/stats` - Get CRM statistics (authenticated)
 
 ### Data Models
 - **User**: id, username, password, name, role, createdAt
@@ -85,6 +104,11 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
 ✅ Sales logging for salesmen
 ✅ Personal statistics dashboard for salesmen
 ✅ Admin dashboard with per-salesman statistics
+✅ Customer relationship management (add, edit, view customers)
+✅ Customer interaction tracking and logging
+✅ Analytics dashboard with CRM statistics
+✅ Customer segmentation and targeting
+✅ Lead scoring system
 ✅ Protected routes and role-based navigation
 ✅ PostgreSQL database integration
 ✅ Dark/light mode theme switching
@@ -101,8 +125,8 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
 ## Database Schema
 - **users**: Stores user accounts with hashed passwords and roles
 - **sales**: Stores sales transactions linked to salesmen
-- **customers**: Legacy CRM customer data (still available)
-- **interactions**: Legacy CRM interaction data (still available)
+- **customers**: Stores customer data with stages (lead/prospect/customer), lead scores, and assignments
+- **interactions**: Stores customer interactions categorized by marketing/sales/support
 - **session**: PostgreSQL session storage (managed by connect-pg-simple)
 
 ## User Preferences
