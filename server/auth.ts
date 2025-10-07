@@ -79,8 +79,11 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Security: Public registration is restricted to salesman role only
+      // CEO and regional_manager accounts must be created by admins via /api/admin/users
       const user = await storage.createUser({
         ...validatedData,
+        role: "salesman",
         password: await hashPassword(validatedData.password),
       });
 

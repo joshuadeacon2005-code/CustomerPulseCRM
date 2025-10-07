@@ -4,6 +4,36 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group built with React, Express, and TypeScript. The application features role-based authentication, customer journey management, brand assignment, monthly sales targets, action item tracking, performance reporting with budget vs actual tracking, and advanced analytics. The system uses PostgreSQL for data persistence and includes secure password hashing with session-based authentication.
 
 ## Recent Changes
+- **October 7, 2025**: Multi-Level Administrative Management System & Customer Deletion
+  - **Multi-Level Role System**:
+    - Updated role hierarchy: CEO → Regional Manager → Salesman
+    - Added managerId field to users table for team structure
+    - Implemented role-based data filtering across all features
+    - CEO sees ALL data, Regional Managers see their TEAM's data, Salesmen see only THEIR data
+  
+  - **Enhanced Monthly Targets**:
+    - Added support for both Personal and General targets
+    - Personal targets: specific to individual salespeople
+    - General targets: company/team-wide goals (salesmanId = null)
+    - CEOs and Regional Managers can set both types
+    - Salesmen can only set personal targets
+  
+  - **Security Enhancements**:
+    - Public registration restricted to salesman role only
+    - CEO and Regional Manager accounts must be created by admins
+    - Role-based authentication middleware (isAdmin, isCEO, isManager)
+  
+  - **Customer Deletion**:
+    - Added delete functionality with confirmation dialog
+    - Delete button in customer detail modal
+    - Removes customer and all associated data
+  
+  - **Frontend Role Management**:
+    - Role-based navigation (different menus for CEO, Regional Manager, Salesman)
+    - Manager assignment in admin user creation
+    - Personal vs General targets tabs in Monthly Targets page
+    - Role-based statistics in Admin Dashboard
+
 - **October 7, 2025**: Comprehensive CRM Enhancement - Added Advanced Features
   - **Backend Extensions**:
     - Added 5 new database tables: brands, customer_brands, monthly_targets, action_items, monthly_sales_tracking

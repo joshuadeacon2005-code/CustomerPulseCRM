@@ -100,7 +100,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 }).extend({
-  role: z.enum(["ceo", "regional_manager", "salesman"]).default("salesman"),
+  role: z.enum(["ceo", "regional_manager", "salesman"]).optional().default("salesman"),
   username: z.string().min(3).max(50),
   password: z.string().min(6),
   name: z.string().min(1),

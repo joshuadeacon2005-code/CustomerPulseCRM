@@ -31,7 +31,7 @@ export default function AuthPage() {
 
   const { data: users = [] } = useQuery<Omit<User, 'password'>[]>({
     queryKey: ["/api/users"],
-    enabled: registerData.role === "salesman",
+    enabled: false,
   });
 
   const managers = users.filter(u => u.role === "ceo" || u.role === "regional_manager");
@@ -67,19 +67,20 @@ export default function AuthPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Public registration is restricted to salesman role only
+      // Manager assignment can be done later by an admin
       const registrationData = {
         username: registerData.username,
         password: registerData.password,
         name: registerData.name,
-        role: registerData.role,
-        managerId: registerData.role === "salesman" && registerData.managerId ? registerData.managerId : undefined,
+        role: "salesman" as UserRole,
       };
 
       register(registrationData, {
         onSuccess: () => {
           toast({
             title: "Success",
-            description: "Account created successfully. Please log in.",
+            description: "Salesman account created successfully. Please log in.",
           });
           setRegisterData({
             username: "",
@@ -203,42 +204,6 @@ export default function AuthPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-role">Role</Label>
-                  <Select
-                    value={registerData.role}
-                    onValueChange={(value: UserRole) => setRegisterData({ ...registerData, role: value, managerId: "" })}
-                  >
-                    <SelectTrigger id="register-role" data-testid="select-role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ceo" data-testid="option-role-ceo">CEO</SelectItem>
-                      <SelectItem value="regional_manager" data-testid="option-role-regional-manager">Regional Manager</SelectItem>
-                      <SelectItem value="salesman" data-testid="option-role-salesman">Salesman</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {registerData.role === "salesman" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="register-manager">Manager</Label>
-                    <Select
-                      value={registerData.managerId}
-                      onValueChange={(value) => setRegisterData({ ...registerData, managerId: value })}
-                    >
-                      <SelectTrigger id="register-manager" data-testid="select-manager">
-                        <SelectValue placeholder="Select a manager" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {managers.map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id} data-testid={`option-manager-${manager.id}`}>
-                            {manager.name} ({getRoleDisplayName(manager.role as UserRole)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
                 <Button
                   type="submit"
                   className="w-full"
