@@ -17,6 +17,7 @@ import AnalyticsPage from "@/pages/analytics";
 import SegmentsPage from "@/pages/segments";
 import TargetsPage from "@/pages/targets";
 import TasksPage from "@/pages/tasks";
+import ReportsPage from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -74,6 +75,11 @@ function AuthenticatedApp() {
               <Route path="/tasks">
                 <ProtectedRoute>
                   <TasksPage />
+                </ProtectedRoute>
+              </Route>
+              <Route path="/reports">
+                <ProtectedRoute>
+                  <ReportsPage />
                 </ProtectedRoute>
               </Route>
               <Route component={NotFound} />

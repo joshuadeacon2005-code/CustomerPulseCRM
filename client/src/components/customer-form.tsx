@@ -1,6 +1,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCustomerSchema, updateCustomerSchema, type Customer, type InsertCustomer, type UpdateCustomer } from "@shared/schema";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -8,9 +10,15 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -18,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface CustomerFormProps {
   customer?: Customer;
@@ -35,141 +44,407 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
-      stage: customer.stage,
+      stage: customer.stage as "lead" | "prospect" | "customer",
       assignedTo: customer.assignedTo || "",
       leadScore: customer.leadScore,
+      personalNotes: customer.personalNotes || "",
+      registeredWithBC: customer.registeredWithBC,
+      ordersViaBC: customer.ordersViaBC,
+      firstOrderDate: customer.firstOrderDate ?? undefined,
+      storeAddress: customer.storeAddress || "",
+      retailerType: customer.retailerType ?? undefined,
+      quarterlySoftTarget: customer.quarterlySoftTarget || "",
+      lastContactDate: customer.lastContactDate ?? undefined,
     } : {
       name: "",
       email: "",
       phone: "",
-      stage: "lead",
+      stage: "lead" as "lead" | "prospect" | "customer",
       assignedTo: "",
       leadScore: 0,
+      personalNotes: "",
+      registeredWithBC: false,
+      ordersViaBC: false,
+      firstOrderDate: undefined,
+      storeAddress: "",
+      retailerType: undefined,
+      quarterlySoftTarget: "",
+      lastContactDate: undefined,
     },
   });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="John Doe" 
-                  {...field} 
-                  data-testid="input-customer-name"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input 
-                  type="email" 
-                  placeholder="john@example.com" 
-                  {...field} 
-                  data-testid="input-customer-email"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone</FormLabel>
-              <FormControl>
-                <Input 
-                  type="tel" 
-                  placeholder="+1 (555) 123-4567" 
-                  {...field} 
-                  data-testid="input-customer-phone"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="stage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stage</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
+          
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <SelectTrigger data-testid="select-customer-stage">
-                    <SelectValue placeholder="Select a stage" />
-                  </SelectTrigger>
+                  <Input 
+                    placeholder="John Doe" 
+                    {...field} 
+                    data-testid="input-customer-name"
+                  />
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="lead">Lead</SelectItem>
-                  <SelectItem value="prospect">Prospect</SelectItem>
-                  <SelectItem value="customer">Customer</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="assignedTo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Assigned To</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Sales Rep Name" 
-                  {...field} 
-                  value={field.value || ""}
-                  data-testid="input-customer-assigned"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="john@example.com" 
+                    {...field} 
+                    data-testid="input-customer-email"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="leadScore"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lead Score (0-100)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  min="0" 
-                  max="100" 
-                  {...field}
-                  value={field.value || 0}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                  data-testid="input-customer-score"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="tel" 
+                    placeholder="+1 (555) 123-4567" 
+                    {...field} 
+                    data-testid="input-customer-phone"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Lead Management */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Lead Management</h3>
+
+          <FormField
+            control={form.control}
+            name="stage"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Stage</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-customer-stage">
+                      <SelectValue placeholder="Select a stage" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="lead">Lead</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="assignedTo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assigned To</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Sales Rep Name" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-customer-assigned"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="leadScore"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Lead Score (0-100)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    max="100" 
+                    {...field}
+                    value={field.value || 0}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    data-testid="input-customer-score"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Business Information */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Business Information</h3>
+
+          <FormField
+            control={form.control}
+            name="registeredWithBC"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Registered with BC</FormLabel>
+                  <FormDescription>
+                    Is this customer registered with BC?
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid="switch-registered-bc"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="ordersViaBC"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Orders via BC</FormLabel>
+                  <FormDescription>
+                    Does this customer order via BC?
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid="switch-orders-bc"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="firstOrderDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>First Order Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                        data-testid="button-first-order-date"
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ?? undefined}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="retailerType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Retailer Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-retailer-type">
+                      <SelectValue placeholder="Select retailer type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Retail Store">Retail Store</SelectItem>
+                    <SelectItem value="Online">Online</SelectItem>
+                    <SelectItem value="Wholesale">Wholesale</SelectItem>
+                    <SelectItem value="Distributor">Distributor</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="storeAddress"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Store Address</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Enter store address"
+                    className="resize-none"
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-store-address"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Sales & Tracking */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Sales & Tracking</h3>
+
+          <FormField
+            control={form.control}
+            name="quarterlySoftTarget"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Quarterly Soft Target</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Enter quarterly soft target details"
+                    className="resize-none"
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-quarterly-target"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="lastContactDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Last Contact Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                        data-testid="button-last-contact-date"
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ?? undefined}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Can be automatically updated from visit interactions
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Notes */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
+
+          <FormField
+            control={form.control}
+            name="personalNotes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Personal Notes</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Add personal notes about this customer"
+                    className="resize-none min-h-[100px]"
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-personal-notes"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="flex gap-2 justify-end pt-4">
           <Button 
