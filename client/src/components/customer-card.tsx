@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Customer } from "@shared/schema";
+import { Customer, CustomerWithBrands } from "@shared/schema";
 import { Mail, Phone, User, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 interface CustomerCardProps {
-  customer: Customer;
+  customer: Customer | CustomerWithBrands;
   onClick: () => void;
 }
 

@@ -9,8 +9,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/customers", isAuthenticated, async (_req, res) => {
     try {
-      const customers = await storage.getCustomers();
-      res.json(customers);
+      const customersWithBrands = await storage.getCustomers();
+      res.json(customersWithBrands);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch customers" });
     }

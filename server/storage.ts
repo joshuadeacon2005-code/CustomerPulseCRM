@@ -26,6 +26,7 @@ import {
   type InsertMonthlySalesTracking,
   type UpdateMonthlySalesTracking,
   type CustomerWithDetails,
+  type CustomerWithBrands,
   type ActionItemWithCustomer,
   users,
   sales,
@@ -57,7 +58,7 @@ export interface IStorage {
   getSalesmanStats(): Promise<SalesmanStats[]>;
   getAdminStats(): Promise<AdminDashboardStats>;
   
-  getCustomers(): Promise<Customer[]>;
+  getCustomers(): Promise<CustomerWithBrands[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
   getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined>;
@@ -168,8 +169,20 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getCustomers(): Promise<Customer[]> {
-    return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  async getCustomers(): Promise<CustomerWithBrands[]> {
+    const allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
+    
+    const customersWithBrands = await Promise.all(
+      allCustomers.map(async (customer) => {
+        const customerBrandsList = await this.getCustomerBrands(customer.id);
+        return {
+          ...customer,
+          brands: customerBrandsList,
+        };
+      })
+    );
+    
+    return customersWithBrands;
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {

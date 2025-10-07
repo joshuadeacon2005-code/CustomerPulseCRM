@@ -18,13 +18,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, Users as UsersIcon, Filter } from "lucide-react";
-import { Customer, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Users as UsersIcon, Filter, X } from "lucide-react";
+import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Customers() {
   const [location] = useLocation();
@@ -33,12 +48,19 @@ export default function Customers() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilterLocal, setStageFilterLocal] = useState<string>(stageFilter || "all");
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
+  const [retailerTypeFilter, setRetailerTypeFilter] = useState<string>("all");
+  const [isBrandSelectOpen, setIsBrandSelectOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
   const { toast } = useToast();
 
-  const { data: customers, isLoading } = useQuery<Customer[]>({
+  const { data: customers, isLoading } = useQuery<CustomerWithBrands[]>({
     queryKey: ["/api/customers"],
+  });
+
+  const { data: brands, isLoading: isLoadingBrands } = useQuery<Brand[]>({
+    queryKey: ["/api/brands"],
   });
 
   const { data: selectedCustomerDetail } = useQuery<CustomerWithDetails>({
@@ -111,11 +133,19 @@ export default function Customers() {
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm);
+    
     const matchesStage = stageFilterLocal === "all" || customer.stage === stageFilterLocal;
-    return matchesSearch && matchesStage;
+    
+    const matchesBrand = brandFilter.length === 0 || 
+      customer.brands.some(brand => brandFilter.includes(brand.id));
+    
+    const matchesRetailerType = retailerTypeFilter === "all" || 
+      customer.retailerType === retailerTypeFilter;
+    
+    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType;
   });
 
-  const handleCustomerClick = (customer: Customer) => {
+  const handleCustomerClick = (customer: CustomerWithBrands) => {
     setSelectedCustomer(customer as CustomerWithDetails);
   };
 
@@ -128,6 +158,29 @@ export default function Customers() {
   const handleAddInteraction = (data: InsertInteraction) => {
     addInteractionMutation.mutate(data);
   };
+
+  const handleToggleBrand = (brandId: string) => {
+    setBrandFilter(prev => 
+      prev.includes(brandId) 
+        ? prev.filter(id => id !== brandId)
+        : [...prev, brandId]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setStageFilterLocal("all");
+    setBrandFilter([]);
+    setRetailerTypeFilter("all");
+  };
+
+  const activeFilterCount = 
+    (searchTerm ? 1 : 0) +
+    (stageFilterLocal !== "all" ? 1 : 0) +
+    (brandFilter.length > 0 ? 1 : 0) +
+    (retailerTypeFilter !== "all" ? 1 : 0);
+
+  const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
   return (
     <div className="space-y-6">
@@ -148,7 +201,7 @@ export default function Customers() {
       </div>
 
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -160,19 +213,111 @@ export default function Customers() {
                 data-testid="input-search-customers"
               />
             </div>
-            <Select value={stageFilterLocal} onValueChange={setStageFilterLocal}>
-              <SelectTrigger className="w-full sm:w-48" data-testid="select-filter-stage">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stages</SelectItem>
-                <SelectItem value="lead">Leads</SelectItem>
-                <SelectItem value="prospect">Prospects</SelectItem>
-                <SelectItem value="customer">Customers</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap flex-1">
+              <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+              
+              <Select value={stageFilterLocal} onValueChange={setStageFilterLocal}>
+                <SelectTrigger className="w-full sm:w-40" data-testid="select-filter-stage">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stages</SelectItem>
+                  <SelectItem value="lead">Leads</SelectItem>
+                  <SelectItem value="prospect">Prospects</SelectItem>
+                  <SelectItem value="customer">Customers</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Popover open={isBrandSelectOpen} onOpenChange={setIsBrandSelectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-48 justify-start"
+                    data-testid="select-brand-filter"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    {brandFilter.length === 0 ? (
+                      "All Brands"
+                    ) : (
+                      <span className="truncate">
+                        {brandFilter.length} brand{brandFilter.length > 1 ? 's' : ''} selected
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search brands..." />
+                    <CommandList>
+                      <CommandEmpty>
+                        {isLoadingBrands ? "Loading brands..." : "No brands found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {brands?.map((brand) => (
+                          <CommandItem
+                            key={brand.id}
+                            onSelect={() => handleToggleBrand(brand.id)}
+                          >
+                            <Checkbox
+                              checked={brandFilter.includes(brand.id)}
+                              className="mr-2"
+                            />
+                            {brand.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              <Select value={retailerTypeFilter} onValueChange={setRetailerTypeFilter}>
+                <SelectTrigger className="w-full sm:w-44" data-testid="select-retailer-filter">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Retailer Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Retail Store">Retail Store</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
+                  <SelectItem value="Wholesale">Wholesale</SelectItem>
+                  <SelectItem value="Distributor">Distributor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {activeFilterCount > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="no-default-hover-elevate">
+                  {activeFilterCount} active filter{activeFilterCount > 1 ? 's' : ''}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  data-testid="button-clear-filters"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear all
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {selectedBrandNames.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Selected brands:</span>
+              {selectedBrandNames.map((name) => (
+                <Badge key={name} variant="outline" className="no-default-hover-elevate">
+                  {name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -198,11 +343,11 @@ export default function Customers() {
             <UsersIcon className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-semibold mb-2">No customers found</h3>
             <p className="text-muted-foreground mb-6">
-              {searchTerm || stageFilterLocal !== "all"
+              {activeFilterCount > 0
                 ? "Try adjusting your search or filters"
                 : "Get started by adding your first customer"}
             </p>
-            {!searchTerm && stageFilterLocal === "all" && (
+            {activeFilterCount === 0 && (
               <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-first-customer">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Customer
