@@ -70,7 +70,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  app.post("/api/admin/users", isAdmin, async (req, res, next) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
@@ -87,13 +87,10 @@ export function setupAuth(app: Express) {
       const userWithoutPassword = { ...user };
       delete (userWithoutPassword as any).password;
 
-      req.login(userWithoutPassword, (err) => {
-        if (err) return next(err);
-        res.status(201).json(userWithoutPassword);
-      });
+      res.status(201).json(userWithoutPassword);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
-        return res.status(400).json({ error: "Invalid registration data", details: error });
+        return res.status(400).json({ error: "Invalid user data", details: error });
       }
       next(error);
     }
