@@ -345,12 +345,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/stats", isAdmin, async (_req, res) => {
+  app.get("/api/admin/stats", isAdmin, async (req, res) => {
     try {
-      const stats = await storage.getAdminStats();
+      const stats = await storage.getAdminStats(req.user!.id, req.user!.role as UserRole);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get("/api/users", isAuthenticated, async (req, res) => {
+    try {
+      const users = await storage.getUsers(req.user!.id, req.user!.role as UserRole);
+      const usersWithoutPasswords = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   });
 

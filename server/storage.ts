@@ -58,8 +58,8 @@ export interface IStorage {
   getSales(userId: string, userRole: UserRole): Promise<Sale[]>;
   getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
-  getSalesmanStats(): Promise<SalesmanStats[]>;
-  getAdminStats(): Promise<AdminDashboardStats>;
+  getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]>;
+  getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats>;
   
   getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
@@ -175,9 +175,18 @@ export class DatabaseStorage implements IStorage {
     return sale;
   }
 
-  async getSalesmanStats(): Promise<SalesmanStats[]> {
+  async getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]> {
     const allSales = await db.select().from(sales);
-    const allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
+    
+    let allSalesmen: User[];
+    if (userRole === "ceo") {
+      allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
+    } else if (userRole === "regional_manager") {
+      allSalesmen = await this.getTeamMembers(userId);
+    } else {
+      const user = await this.getUser(userId);
+      allSalesmen = user ? [user] : [];
+    }
     
     const statsMap = new Map<string, SalesmanStats>();
     
@@ -197,13 +206,29 @@ export class DatabaseStorage implements IStorage {
     return Array.from(statsMap.values());
   }
 
-  async getAdminStats(): Promise<AdminDashboardStats> {
-    const allSales = await db.select().from(sales);
-    const totalRevenue = allSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
-    const salesmenStats = await this.getSalesmanStats();
+  async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
+    let relevantSales: Sale[];
+    
+    if (userRole === "ceo") {
+      relevantSales = await db.select().from(sales);
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      
+      if (teamMemberIds.length === 0) {
+        relevantSales = [];
+      } else {
+        relevantSales = await db.select().from(sales).where(inArray(sales.salesmanId, teamMemberIds));
+      }
+    } else {
+      relevantSales = await db.select().from(sales).where(eq(sales.salesmanId, userId));
+    }
+    
+    const totalRevenue = relevantSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+    const salesmenStats = await this.getSalesmanStats(userId, userRole);
     
     return {
-      totalSales: allSales.length,
+      totalSales: relevantSales.length,
       totalRevenue: totalRevenue.toFixed(2),
       salesmenStats,
     };

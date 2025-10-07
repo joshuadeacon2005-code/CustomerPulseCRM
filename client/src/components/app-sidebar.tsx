@@ -14,50 +14,26 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import type { UserRole } from "@shared/schema";
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
-  const salesmanNav = [
-    {
-      title: "Log Sales",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
-      title: "Customers",
-      url: "/customers",
-      icon: Users,
-    },
-    {
-      title: "Action Items",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
-    },
-    {
-      title: "Sales Reports",
-      url: "/reports",
-      icon: FileText,
-    },
-    {
-      title: "Analytics",
-      url: "/analytics",
-      icon: PieChart,
-    },
-    {
-      title: "Segments",
-      url: "/segments",
-      icon: Target,
-    },
-  ];
+  const getRoleDisplayName = (role: UserRole): string => {
+    switch (role) {
+      case "ceo":
+        return "CEO";
+      case "regional_manager":
+        return "Regional Manager";
+      case "salesman":
+        return "Salesman";
+      default:
+        return role;
+    }
+  };
 
-  const adminNav = [
+  const ceoNav = [
     {
       title: "Admin Dashboard",
       url: "/admin",
@@ -74,9 +50,14 @@ export function AppSidebar() {
       icon: Users,
     },
     {
-      title: "Action Items",
-      url: "/tasks",
-      icon: CheckSquare,
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
     },
     {
       title: "Monthly Targets",
@@ -84,9 +65,27 @@ export function AppSidebar() {
       icon: TrendingUp,
     },
     {
+      title: "Action Items",
+      url: "/tasks",
+      icon: CheckSquare,
+    },
+    {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
+    },
+  ];
+
+  const regionalManagerNav = [
+    {
+      title: "Admin Dashboard",
+      url: "/admin",
+      icon: BarChart3,
+    },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
     },
     {
       title: "Analytics",
@@ -98,9 +97,67 @@ export function AppSidebar() {
       url: "/segments",
       icon: Target,
     },
+    {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
+    },
+    {
+      title: "Action Items",
+      url: "/tasks",
+      icon: CheckSquare,
+    },
+    {
+      title: "Sales Reports",
+      url: "/reports",
+      icon: FileText,
+    },
   ];
 
-  const navigation = user?.role === "admin" ? adminNav : salesmanNav;
+  const salesmanNav = [
+    {
+      title: "Log Sales",
+      url: "/sales",
+      icon: DollarSign,
+    },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
+    },
+    {
+      title: "Action Items",
+      url: "/tasks",
+      icon: CheckSquare,
+    },
+    {
+      title: "Sales Reports",
+      url: "/reports",
+      icon: FileText,
+    },
+  ];
+
+  const getNavigationForRole = (role: UserRole | undefined) => {
+    if (!role) return salesmanNav;
+    
+    switch (role) {
+      case "ceo":
+        return ceoNav;
+      case "regional_manager":
+        return regionalManagerNav;
+      case "salesman":
+        return salesmanNav;
+      default:
+        return salesmanNav;
+    }
+  };
+
+  const navigation = getNavigationForRole(user?.role as UserRole);
 
   return (
     <Sidebar>
@@ -141,7 +198,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 space-y-2">
         <div className="text-xs text-muted-foreground">
-          Logged in as: {user?.name} ({user?.role})
+          Logged in as: {user?.name} ({user?.role ? getRoleDisplayName(user.role as UserRole) : ''})
         </div>
         <Button
           variant="outline"

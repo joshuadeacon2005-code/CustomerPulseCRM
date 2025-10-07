@@ -2,19 +2,20 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertMonthlyTargetSchema } from "@shared/schema";
-import type { MonthlyTarget } from "@shared/schema";
+import type { MonthlyTarget, UserRole } from "@shared/schema";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Edit, TrendingUp } from "lucide-react";
+import { Edit, TrendingUp, Target as TargetIcon } from "lucide-react";
 
 const months = [
   { value: 1, label: "Jan" },
@@ -42,6 +43,9 @@ export default function TargetsPage() {
   
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [editingTarget, setEditingTarget] = useState<MonthlyTarget | null>(null);
+  const [targetView, setTargetView] = useState<"personal" | "general">("personal");
+
+  const canSetGeneralTargets = user?.role === "ceo" || user?.role === "regional_manager";
 
   const { data: targets = [], isLoading } = useQuery<MonthlyTarget[]>({
     queryKey: ["/api/targets"],
@@ -52,9 +56,23 @@ export default function TargetsPage() {
     [targets, currentYear]
   );
 
+  const personalTargets = useMemo(() => 
+    currentYearTargets.filter(t => t.targetType === "personal"),
+    [currentYearTargets]
+  );
+
+  const generalTargets = useMemo(() => 
+    currentYearTargets.filter(t => t.targetType === "general"),
+    [currentYearTargets]
+  );
+
   const selectedMonthTarget = useMemo(() => 
-    currentYearTargets.find(t => t.month === selectedMonth && t.year === currentYear),
-    [currentYearTargets, selectedMonth, currentYear]
+    currentYearTargets.find(t => 
+      t.month === selectedMonth && 
+      t.year === currentYear && 
+      t.targetType === targetView
+    ),
+    [currentYearTargets, selectedMonth, currentYear, targetView]
   );
 
   const form = useForm<FormValues>({
@@ -63,35 +81,43 @@ export default function TargetsPage() {
       month: selectedMonth,
       year: currentYear,
       targetAmount: "",
+      targetType: targetView,
     },
   });
 
-  // Update form when selected month changes or when editing a target
   useMemo(() => {
     if (editingTarget) {
       form.reset({
         month: editingTarget.month,
         year: editingTarget.year,
         targetAmount: editingTarget.targetAmount,
+        targetType: editingTarget.targetType as "personal" | "general",
       });
     } else if (selectedMonthTarget) {
       form.reset({
         month: selectedMonthTarget.month,
         year: selectedMonthTarget.year,
         targetAmount: selectedMonthTarget.targetAmount,
+        targetType: selectedMonthTarget.targetType as "personal" | "general",
       });
     } else {
       form.reset({
         month: selectedMonth,
         year: currentYear,
         targetAmount: "",
+        targetType: targetView as "personal" | "general",
       });
     }
-  }, [selectedMonth, selectedMonthTarget, editingTarget, currentYear, form]);
+  }, [selectedMonth, selectedMonthTarget, editingTarget, currentYear, targetView, form]);
 
   const createTargetMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const response = await apiRequest("POST", "/api/targets", data);
+      const requestData = {
+        ...data,
+        targetType: targetView,
+        salesmanId: targetView === "general" ? null : undefined,
+      };
+      const response = await apiRequest("POST", "/api/targets", requestData);
       return response.json();
     },
     onSuccess: () => {
@@ -100,6 +126,7 @@ export default function TargetsPage() {
         month: selectedMonth,
         year: currentYear,
         targetAmount: "",
+        targetType: targetView,
       });
       setEditingTarget(null);
       toast({
@@ -155,14 +182,23 @@ export default function TargetsPage() {
   const handleEditTarget = (target: MonthlyTarget) => {
     setEditingTarget(target);
     setSelectedMonth(target.month);
+    setTargetView(target.targetType as "personal" | "general");
   };
 
-  const totalTargetAmount = currentYearTargets.reduce(
+  const totalPersonalTargets = personalTargets.reduce(
+    (sum, target) => sum + parseFloat(target.targetAmount),
+    0
+  );
+
+  const totalGeneralTargets = generalTargets.reduce(
     (sum, target) => sum + parseFloat(target.targetAmount),
     0
   );
 
   const monthName = months.find(m => m.value === selectedMonth)?.label || "";
+
+  const displayTargets = targetView === "personal" ? personalTargets : generalTargets;
+  const totalTargetAmount = targetView === "personal" ? totalPersonalTargets : totalGeneralTargets;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -178,6 +214,19 @@ export default function TargetsPage() {
           </span>
         </div>
       </div>
+
+      {canSetGeneralTargets && (
+        <Tabs value={targetView} onValueChange={(v) => setTargetView(v as "personal" | "general")}>
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="personal" data-testid="tab-personal-targets">
+              Personal Targets
+            </TabsTrigger>
+            <TabsTrigger value="general" data-testid="tab-general-targets">
+              General Targets
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       <Tabs value={selectedMonth.toString()} onValueChange={(v) => {
         setSelectedMonth(parseInt(v));
@@ -199,13 +248,14 @@ export default function TargetsPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>
-              {selectedMonthTarget || editingTarget ? `Edit Target for ${monthName}` : `Set Target for ${monthName}`}
+            <CardTitle className="flex items-center gap-2">
+              {selectedMonthTarget || editingTarget ? `Edit ${targetView === "general" ? "General" : "Personal"} Target for ${monthName}` : `Set ${targetView === "general" ? "General" : "Personal"} Target for ${monthName}`}
+              {targetView === "general" && <TargetIcon className="h-5 w-5" />}
             </CardTitle>
             <CardDescription>
               {selectedMonthTarget || editingTarget 
-                ? `Update your sales target for ${monthName} ${currentYear}`
-                : `Set your sales target for ${monthName} ${currentYear}`
+                ? `Update your ${targetView} sales target for ${monthName} ${currentYear}`
+                : `Set your ${targetView} sales target for ${monthName} ${currentYear}`
               }
             </CardDescription>
           </CardHeader>
@@ -231,7 +281,7 @@ export default function TargetsPage() {
                 type="submit"
                 className="w-full"
                 disabled={createTargetMutation.isPending || updateTargetMutation.isPending}
-                data-testid="button-save-target"
+                data-testid={targetView === "general" ? "button-add-general-target" : "button-save-target"}
               >
                 {createTargetMutation.isPending || updateTargetMutation.isPending
                   ? "Saving..."
@@ -263,6 +313,12 @@ export default function TargetsPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Type</span>
+                  <Badge variant={selectedMonthTarget.targetType === "general" ? "default" : "secondary"} data-testid="badge-target-type">
+                    {selectedMonthTarget.targetType === "general" ? "General" : "Personal"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Target Amount</span>
                   <span className="text-2xl font-bold text-primary" data-testid="text-selected-target">
                     ${parseFloat(selectedMonthTarget.targetAmount).toFixed(2)}
@@ -271,7 +327,7 @@ export default function TargetsPage() {
               </div>
             ) : (
               <div className="text-center text-muted-foreground py-8" data-testid="text-no-target">
-                No target set for {monthName} {currentYear}
+                No {targetView} target set for {monthName} {currentYear}
               </div>
             )}
           </CardContent>
@@ -280,8 +336,8 @@ export default function TargetsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Targets for {currentYear}</CardTitle>
-          <CardDescription>View and manage all your monthly targets</CardDescription>
+          <CardTitle>All {targetView === "general" ? "General" : "Personal"} Targets for {currentYear}</CardTitle>
+          <CardDescription>View and manage all your {targetView} monthly targets</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -290,9 +346,9 @@ export default function TargetsPage() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : currentYearTargets.length === 0 ? (
+          ) : displayTargets.length === 0 ? (
             <div className="text-center text-muted-foreground py-8" data-testid="text-no-targets">
-              No targets set for {currentYear} yet
+              No {targetView} targets set for {currentYear} yet
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -301,12 +357,13 @@ export default function TargetsPage() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-semibold">Month</th>
                     <th className="text-left py-3 px-4 font-semibold">Year</th>
+                    <th className="text-left py-3 px-4 font-semibold">Type</th>
                     <th className="text-right py-3 px-4 font-semibold">Target Amount</th>
                     <th className="text-right py-3 px-4 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {currentYearTargets
+                  {displayTargets
                     .sort((a, b) => a.month - b.month)
                     .map((target) => {
                       const monthLabel = months.find(m => m.value === target.month)?.label || "";
@@ -321,6 +378,14 @@ export default function TargetsPage() {
                           </td>
                           <td className="py-3 px-4" data-testid={`text-year-${target.id}`}>
                             {target.year}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge 
+                              variant={target.targetType === "general" ? "default" : "secondary"}
+                              data-testid={`badge-target-type-${target.id}`}
+                            >
+                              {target.targetType === "general" ? "General" : "Personal"}
+                            </Badge>
                           </td>
                           <td className="py-3 px-4 text-right font-semibold" data-testid={`text-amount-${target.id}`}>
                             ${parseFloat(target.targetAmount).toFixed(2)}
