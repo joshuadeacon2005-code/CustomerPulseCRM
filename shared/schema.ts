@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull().default("salesman"),
+  managerId: varchar("manager_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -66,7 +67,8 @@ export const customerBrands = pgTable("customer_brands", {
 
 export const monthlyTargets = pgTable("monthly_targets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  salesmanId: varchar("salesman_id").notNull(),
+  salesmanId: varchar("salesman_id"),
+  targetType: text("target_type").notNull().default("personal"),
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
@@ -98,10 +100,11 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 }).extend({
-  role: z.enum(["admin", "salesman"]).default("salesman"),
+  role: z.enum(["ceo", "regional_manager", "salesman"]).default("salesman"),
   username: z.string().min(3).max(50),
   password: z.string().min(6),
   name: z.string().min(1),
+  managerId: z.string().optional().nullable(),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
@@ -154,9 +157,11 @@ export const insertMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit
   id: true,
   createdAt: true,
 }).extend({
+  targetType: z.enum(["personal", "general"]).default("personal"),
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
   targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  salesmanId: z.string().optional().nullable(),
 });
 
 export const updateMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit({
@@ -211,7 +216,7 @@ export type MonthlySalesTracking = typeof monthlySalesTracking.$inferSelect;
 export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTrackingSchema>;
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
 
-export type UserRole = "admin" | "salesman";
+export type UserRole = "ceo" | "regional_manager" | "salesman";
 export type CustomerStage = "lead" | "prospect" | "customer";
 export type InteractionCategory = "marketing" | "sales" | "support";
 
