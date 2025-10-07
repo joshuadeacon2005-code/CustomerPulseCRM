@@ -1,9 +1,35 @@
 # Bloom & Grow Group - Sales Management CRM
 
 ## Overview
-A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and TypeScript. The application features role-based authentication where salesmen can log their sales and admins can view comprehensive statistics separated by salesman. The system uses PostgreSQL for data persistence and includes secure password hashing with session-based authentication.
+A comprehensive sales-focused CRM tool for Bloom & Grow Group built with React, Express, and TypeScript. The application features role-based authentication, customer journey management, brand assignment, monthly sales targets, action item tracking, performance reporting with budget vs actual tracking, and advanced analytics. The system uses PostgreSQL for data persistence and includes secure password hashing with session-based authentication.
 
 ## Recent Changes
+- **October 7, 2025**: Comprehensive CRM Enhancement - Added Advanced Features
+  - **Backend Extensions**:
+    - Added 5 new database tables: brands, customer_brands, monthly_targets, action_items, monthly_sales_tracking
+    - Extended customers table with 8 new fields: personalNotes, registeredWithBC, ordersViaBC, firstOrderDate, storeAddress, retailerType, quarterlySoftTarget, lastContactDate
+    - Implemented 20+ new storage methods for complete CRM functionality
+    - Created 15+ new API routes for brands, targets, tasks, and sales tracking
+  
+  - **New Pages**:
+    - Monthly Targets Page (`/targets`): Salespeople can set their monthly sales targets
+    - Action Items Page (`/tasks`): To-do list with status filtering (overdue/today/upcoming) and color coding
+    - Sales Reports Page (`/reports`): Monthly sales tracking with budget vs actual and variance calculations
+  
+  - **Enhanced Components**:
+    - CustomerForm: Added all 8 new fields (BC registration toggles, date pickers, store info, retailer type, personal notes)
+    - CustomerDetailModal: Rebuilt with 5-tab interface (Overview, Brands, Action Items, Sales Tracking, Interactions)
+    - CustomersPage: Advanced filtering with brand multi-select and retailer type filters
+    - Brand Management: Multi-brand assignment per customer with inline brand creation
+  
+  - **Key Features**:
+    - Brand assignment system with many-to-many relationships
+    - Monthly sales targets per salesperson with target tracking
+    - Action items with status-based organization and visit/call logging
+    - Monthly sales tracking per customer with budget vs actual variance
+    - Enhanced customer data tracking (BC marketplace integration, retailer types, quarterly targets)
+    - Optimized backend queries to prevent N+1 issues (brands included in customer fetch)
+
 - **October 7, 2025**: Enabled full CRM features and admin access
   - Created admin account: AlexCEO (CEO access)
   - Enabled complete CRM navigation for all users (Customers, Analytics, Segments)
@@ -28,15 +54,21 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
   - AuthPage (`/auth`): Login and registration forms with role selection
   - SalesPage (`/sales`): Sales logging form and personal statistics
   - AdminPage (`/admin`): Dashboard showing all salesmen statistics (admin only)
-  - CustomersPage (`/customers`): Customer relationship management with lead tracking
+  - CustomersPage (`/customers`): Customer relationship management with advanced filtering (brand, retailer type)
   - AnalyticsPage (`/analytics`): CRM analytics and statistics dashboard
   - SegmentsPage (`/segments`): Customer segmentation and targeting
+  - MonthlyTargetsPage (`/targets`): Set and track monthly sales targets per salesperson
+  - ActionItemsPage (`/tasks`): To-do list with status-based filtering and color coding
+  - SalesReportsPage (`/reports`): Monthly sales tracking with budget vs actual reporting
   
 - **Key Components**:
   - `AppSidebar`: Role-based navigation sidebar with logout button
   - `ProtectedRoute`: HOC for protecting authenticated routes
   - `AdminRoute`: HOC for protecting admin-only routes
   - `useAuth`: Custom hook for authentication state and actions
+  - `CustomerForm`: Comprehensive form with 8 new fields (BC registration, dates, store info, etc.)
+  - `CustomerDetailModal`: 5-tab interface (Overview, Brands, Action Items, Sales Tracking, Interactions)
+  - `CustomerCard`: Display card showing customer info with brand badges
 
 ### Backend (Express + TypeScript)
 - **Authentication** (`auth.ts`):
@@ -46,37 +78,40 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
   - Middleware: `isAuthenticated`, `isAdmin`
 
 - **Storage Interface** (`IStorage`): PostgreSQL database management
-  - User operations: getUser, getUserByUsername, createUser
-  - Sales operations: getSales, getSalesBySalesman, createSale, getSalesmanStats, getAdminStats
-  - Customer operations: create, read, update, delete, list
-  - Interaction operations: create, list by customer
+  - **User operations**: getUser, getUserByUsername, createUser
+  - **Sales operations**: getSales, getSalesBySalesman, createSale, getSalesmanStats, getAdminStats
+  - **Customer operations**: create, read, update, delete, list (with brands), getCustomerWithDetails
+  - **Interaction operations**: create, list by customer
+  - **Brand operations**: createBrand, getBrands, assignBrandToCustomer, removeBrandFromCustomer, getCustomerBrands
+  - **Target operations**: setMonthlyTarget, getMonthlyTargets, getMonthlyTarget
+  - **Action Item operations**: createActionItem, getActionItems, markActionItemComplete
+  - **Sales Tracking operations**: createMonthlySales, getMonthlySales, updateMonthlySalesActual
 
 - **API Routes**:
-  - `POST /api/register` - Create new user account
-  - `POST /api/login` - Authenticate user
-  - `POST /api/logout` - End user session
-  - `GET /api/user` - Get current user (401 if not authenticated)
-  - `POST /api/sales` - Create new sale (authenticated)
-  - `GET /api/sales` - Get sales (filtered by salesman or all for admin)
-  - `GET /api/admin/stats` - Get admin dashboard statistics (admin only)
-  - `GET /api/customers` - Get all customers (authenticated)
-  - `GET /api/customers/:id` - Get customer with interactions (authenticated)
-  - `POST /api/customers` - Create new customer (authenticated)
-  - `PATCH /api/customers/:id` - Update customer (authenticated)
-  - `DELETE /api/customers/:id` - Delete customer (authenticated)
-  - `GET /api/interactions` - Get all interactions (authenticated)
-  - `GET /api/interactions/recent` - Get recent interactions (authenticated)
-  - `POST /api/interactions` - Create new interaction (authenticated)
-  - `GET /api/segments` - Get customer segments (authenticated)
-  - `GET /api/stats` - Get CRM statistics (authenticated)
+  - **Auth**: POST /api/register, POST /api/login, POST /api/logout, GET /api/user
+  - **Sales**: POST /api/sales, GET /api/sales, GET /api/admin/stats
+  - **Customers**: GET /api/customers (with brands), GET /api/customers/:id, POST /api/customers, PATCH /api/customers/:id, DELETE /api/customers/:id
+  - **Interactions**: GET /api/interactions, GET /api/interactions/recent, POST /api/interactions
+  - **Segments**: GET /api/segments, GET /api/stats
+  - **Brands**: GET /api/brands, POST /api/brands, GET /api/customers/:id/brands, POST /api/customers/:id/brands, DELETE /api/customers/:customerId/brands/:brandId
+  - **Targets**: GET /api/monthly-targets, POST /api/monthly-targets, GET /api/monthly-targets/:userId/:year/:month
+  - **Action Items**: GET /api/action-items, POST /api/action-items, PATCH /api/action-items/:id/complete
+  - **Sales Tracking**: GET /api/monthly-sales, POST /api/monthly-sales, PATCH /api/monthly-sales/:id
 
 ### Data Models
 - **User**: id, username, password, name, role, createdAt
 - **Sale**: id, salesmanId, customerName, product, amount, description, date
-- **Customer**: id, name, email, phone, stage, assignedTo, leadScore, createdAt
+- **Customer**: id, name, email, phone, stage, assignedTo, leadScore, personalNotes, registeredWithBC, ordersViaBC, firstOrderDate, storeAddress, retailerType, quarterlySoftTarget, lastContactDate, createdAt
 - **Interaction**: id, customerId, category, type, description, date
+- **Brand**: id, name, description, createdAt
+- **CustomerBrand**: customerId, brandId (junction table)
+- **MonthlyTarget**: id, userId, month, year, targetAmount, createdAt
+- **ActionItem**: id, customerId, description, status, dueDate, visitDate, createdAt
+- **MonthlySalesTracking**: id, customerId, month, year, budget, actual, createdAt
 - **SalesmanStats**: salesmanId, salesmanName, totalSales, totalAmount, recentSales
 - **AdminDashboardStats**: totalSales, totalRevenue, salesmenStats
+- **CustomerWithBrands**: Customer + brands[]
+- **CustomerWithDetails**: Customer + brands[] + actionItems[] + monthlySales[]
 
 ## Technology Stack
 - **Frontend**: React 18, TypeScript, Wouter (routing), TanStack Query (data fetching)
@@ -109,6 +144,15 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
 ✅ Analytics dashboard with CRM statistics
 ✅ Customer segmentation and targeting
 ✅ Lead scoring system
+✅ **Brand management with multi-brand assignment per customer**
+✅ **Monthly sales targets per salesperson**
+✅ **Action items/to-do list with status tracking (overdue/today/upcoming)**
+✅ **Monthly sales tracking (budget vs actual) with variance calculations**
+✅ **Enhanced customer fields (BC registration, retailer type, store address, personal notes, etc.)**
+✅ **Advanced filtering (brand multi-select, retailer type)**
+✅ **Visit/call logging with action item creation**
+✅ **Customer detail modal with 5-tab interface**
+✅ **Performance reporting with budget vs actual tracking**
 ✅ Protected routes and role-based navigation
 ✅ PostgreSQL database integration
 ✅ Dark/light mode theme switching
@@ -125,12 +169,17 @@ A sales-focused CRM tool for Bloom & Grow Group built with React, Express, and T
 ## Database Schema
 - **users**: Stores user accounts with hashed passwords and roles
 - **sales**: Stores sales transactions linked to salesmen
-- **customers**: Stores customer data with stages (lead/prospect/customer), lead scores, and assignments
+- **customers**: Stores customer data with stages (lead/prospect/customer), lead scores, assignments, and 8 enhanced fields
 - **interactions**: Stores customer interactions categorized by marketing/sales/support
+- **brands**: Stores brand information (name, description)
+- **customer_brands**: Junction table for many-to-many customer-brand relationships
+- **monthly_targets**: Stores monthly sales targets per salesperson
+- **action_items**: Stores action items/tasks with status tracking
+- **monthly_sales_tracking**: Stores monthly sales budget and actual per customer
 - **session**: PostgreSQL session storage (managed by connect-pg-simple)
 
 ## User Preferences
 - Default theme: Dark mode
 - Design approach: Enterprise CRM (inspired by Linear/Notion/HubSpot)
 - Information density: High (business productivity tool)
-- Primary use case: Sales team customer relationship management
+- Primary use case: Sales team customer relationship management with comprehensive tracking and reporting
