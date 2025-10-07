@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, Users as UsersIcon, Filter } from "lucide-react";
-import { Customer, CustomerWithInteractions, InsertCustomer, UpdateCustomer, InsertInteraction } from "@shared/schema";
+import { Customer, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,14 +34,14 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilterLocal, setStageFilterLocal] = useState<string>(stageFilter || "all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithInteractions | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
 
-  const { data: selectedCustomerDetail } = useQuery<CustomerWithInteractions>({
+  const { data: selectedCustomerDetail } = useQuery<CustomerWithDetails>({
     queryKey: ["/api/customers", selectedCustomer?.id],
     enabled: !!selectedCustomer?.id,
   });
@@ -116,7 +116,7 @@ export default function Customers() {
   });
 
   const handleCustomerClick = (customer: Customer) => {
-    setSelectedCustomer(customer as CustomerWithInteractions);
+    setSelectedCustomer(customer as CustomerWithDetails);
   };
 
   const handleUpdateCustomer = (data: UpdateCustomer) => {
