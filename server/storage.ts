@@ -13,10 +13,29 @@ import {
   type CustomerWithInteractions,
   type SalesmanStats,
   type AdminDashboardStats,
+  type Brand,
+  type InsertBrand,
+  type CustomerBrand,
+  type InsertCustomerBrand,
+  type MonthlyTarget,
+  type InsertMonthlyTarget,
+  type UpdateMonthlyTarget,
+  type ActionItem,
+  type InsertActionItem,
+  type MonthlySalesTracking,
+  type InsertMonthlySalesTracking,
+  type UpdateMonthlySalesTracking,
+  type CustomerWithDetails,
+  type ActionItemWithCustomer,
   users,
   sales,
   customers,
   interactions,
+  brands,
+  customerBrands,
+  monthlyTargets,
+  actionItems,
+  monthlySalesTracking,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
@@ -41,6 +60,7 @@ export interface IStorage {
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
+  getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: UpdateCustomer): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
@@ -49,6 +69,28 @@ export interface IStorage {
   getInteractionsByCustomer(customerId: string): Promise<Interaction[]>;
   getRecentInteractions(limit?: number): Promise<Interaction[]>;
   createInteraction(interaction: InsertInteraction): Promise<Interaction>;
+  
+  getBrands(): Promise<Brand[]>;
+  getBrand(id: string): Promise<Brand | undefined>;
+  createBrand(brand: InsertBrand): Promise<Brand>;
+  deleteBrand(id: string): Promise<boolean>;
+  
+  getCustomerBrands(customerId: string): Promise<Brand[]>;
+  assignBrandToCustomer(customerId: string, brandId: string): Promise<CustomerBrand>;
+  removeBrandFromCustomer(customerId: string, brandId: string): Promise<boolean>;
+  
+  getMonthlyTargets(salesmanId?: string): Promise<MonthlyTarget[]>;
+  createMonthlyTarget(target: InsertMonthlyTarget): Promise<MonthlyTarget>;
+  updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined>;
+  
+  getActionItems(filter?: "all" | "overdue" | "today" | "upcoming"): Promise<ActionItemWithCustomer[]>;
+  getActionItemsByCustomer(customerId: string): Promise<ActionItem[]>;
+  createActionItem(item: InsertActionItem): Promise<ActionItem>;
+  completeActionItem(id: string): Promise<ActionItem | undefined>;
+  
+  getMonthlySales(customerId?: string): Promise<MonthlySalesTracking[]>;
+  createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
+  updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
   
   getSegments(): Promise<Segment[]>;
   getStats(): Promise<DashboardStats>;
@@ -213,6 +255,218 @@ export class DatabaseStorage implements IStorage {
     score = Math.min(Math.max(score, 0), 100);
 
     await this.updateCustomer(customerId, { leadScore: score });
+  }
+
+  async getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined> {
+    const customer = await this.getCustomer(id);
+    if (!customer) return undefined;
+
+    const customerInteractions = await this.getInteractionsByCustomer(id);
+    const customerBrandsList = await this.getCustomerBrands(id);
+    const customerActionItems = await this.getActionItemsByCustomer(id);
+    const customerMonthlySales = await this.getMonthlySales(id);
+
+    return {
+      ...customer,
+      interactions: customerInteractions,
+      brands: customerBrandsList,
+      actionItems: customerActionItems,
+      monthlySales: customerMonthlySales,
+    };
+  }
+
+  async getBrands(): Promise<Brand[]> {
+    return await db.select().from(brands).orderBy(brands.name);
+  }
+
+  async getBrand(id: string): Promise<Brand | undefined> {
+    const [brand] = await db.select().from(brands).where(eq(brands.id, id));
+    return brand;
+  }
+
+  async createBrand(brandData: InsertBrand): Promise<Brand> {
+    const [brand] = await db.insert(brands).values(brandData).returning();
+    return brand;
+  }
+
+  async deleteBrand(id: string): Promise<boolean> {
+    await db.delete(customerBrands).where(eq(customerBrands.brandId, id));
+    const result = await db.delete(brands).where(eq(brands.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getCustomerBrands(customerId: string): Promise<Brand[]> {
+    const customerBrandsList = await db
+      .select()
+      .from(customerBrands)
+      .where(eq(customerBrands.customerId, customerId));
+    
+    const brandIds = customerBrandsList.map(cb => cb.brandId);
+    if (brandIds.length === 0) return [];
+
+    const brandList = await db
+      .select()
+      .from(brands)
+      .where(sql`${brands.id} = ANY(${brandIds})`);
+    
+    return brandList;
+  }
+
+  async assignBrandToCustomer(customerId: string, brandId: string): Promise<CustomerBrand> {
+    const [customerBrand] = await db
+      .insert(customerBrands)
+      .values({ customerId, brandId })
+      .returning();
+    return customerBrand;
+  }
+
+  async removeBrandFromCustomer(customerId: string, brandId: string): Promise<boolean> {
+    const result = await db
+      .delete(customerBrands)
+      .where(
+        and(
+          eq(customerBrands.customerId, customerId),
+          eq(customerBrands.brandId, brandId)
+        )
+      );
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getMonthlyTargets(salesmanId?: string): Promise<MonthlyTarget[]> {
+    if (salesmanId) {
+      return await db
+        .select()
+        .from(monthlyTargets)
+        .where(eq(monthlyTargets.salesmanId, salesmanId))
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+    }
+    return await db
+      .select()
+      .from(monthlyTargets)
+      .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+  }
+
+  async createMonthlyTarget(targetData: InsertMonthlyTarget): Promise<MonthlyTarget> {
+    const [target] = await db.insert(monthlyTargets).values(targetData).returning();
+    return target;
+  }
+
+  async updateMonthlyTarget(id: string, updateData: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined> {
+    const [target] = await db
+      .update(monthlyTargets)
+      .set(updateData)
+      .where(eq(monthlyTargets.id, id))
+      .returning();
+    return target;
+  }
+
+  async getActionItems(filter: "all" | "overdue" | "today" | "upcoming" = "all"): Promise<ActionItemWithCustomer[]> {
+    let items: ActionItem[] = [];
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    if (filter === "all") {
+      items = await db
+        .select()
+        .from(actionItems)
+        .orderBy(actionItems.dueDate);
+    } else if (filter === "overdue") {
+      items = await db
+        .select()
+        .from(actionItems)
+        .where(
+          and(
+            sql`${actionItems.dueDate} < ${now}`,
+            sql`${actionItems.completedAt} IS NULL`
+          )
+        )
+        .orderBy(actionItems.dueDate);
+    } else if (filter === "today") {
+      items = await db
+        .select()
+        .from(actionItems)
+        .where(
+          and(
+            sql`${actionItems.dueDate} >= ${todayStart}`,
+            sql`${actionItems.dueDate} <= ${todayEnd}`,
+            sql`${actionItems.completedAt} IS NULL`
+          )
+        )
+        .orderBy(actionItems.dueDate);
+    } else if (filter === "upcoming") {
+      items = await db
+        .select()
+        .from(actionItems)
+        .where(
+          and(
+            sql`${actionItems.dueDate} > ${todayEnd}`,
+            sql`${actionItems.completedAt} IS NULL`
+          )
+        )
+        .orderBy(actionItems.dueDate);
+    }
+
+    const itemsWithCustomer: ActionItemWithCustomer[] = [];
+    for (const item of items) {
+      const customer = await this.getCustomer(item.customerId);
+      itemsWithCustomer.push({
+        ...item,
+        customerName: customer?.name || "Unknown",
+      });
+    }
+
+    return itemsWithCustomer;
+  }
+
+  async getActionItemsByCustomer(customerId: string): Promise<ActionItem[]> {
+    return await db
+      .select()
+      .from(actionItems)
+      .where(eq(actionItems.customerId, customerId))
+      .orderBy(actionItems.dueDate);
+  }
+
+  async createActionItem(itemData: InsertActionItem): Promise<ActionItem> {
+    const [item] = await db.insert(actionItems).values(itemData).returning();
+    return item;
+  }
+
+  async completeActionItem(id: string): Promise<ActionItem | undefined> {
+    const [item] = await db
+      .update(actionItems)
+      .set({ completedAt: new Date() })
+      .where(eq(actionItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async getMonthlySales(customerId?: string): Promise<MonthlySalesTracking[]> {
+    if (customerId) {
+      return await db
+        .select()
+        .from(monthlySalesTracking)
+        .where(eq(monthlySalesTracking.customerId, customerId))
+        .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
+    }
+    return await db
+      .select()
+      .from(monthlySalesTracking)
+      .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
+  }
+
+  async createMonthlySales(salesData: InsertMonthlySalesTracking): Promise<MonthlySalesTracking> {
+    const [sales] = await db.insert(monthlySalesTracking).values(salesData).returning();
+    return sales;
+  }
+
+  async updateMonthlySales(id: string, updateData: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined> {
+    const [sales] = await db
+      .update(monthlySalesTracking)
+      .set(updateData)
+      .where(eq(monthlySalesTracking.id, id))
+      .returning();
+    return sales;
   }
 
   async getSegments(): Promise<Segment[]> {
