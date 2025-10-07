@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +31,11 @@ export function AppSidebar() {
       icon: Users,
     },
     {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
+    },
+    {
       title: "Analytics",
       url: "/analytics",
       icon: PieChart,
@@ -57,6 +62,11 @@ export function AppSidebar() {
       title: "Customers",
       url: "/customers",
       icon: Users,
+    },
+    {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
     },
     {
       title: "Analytics",
