@@ -1,6 +1,7 @@
 import { 
   type User,
   type InsertUser,
+  type UserRole,
   type Sale,
   type InsertSale,
   type Customer, 
@@ -39,7 +40,7 @@ import {
   monthlySalesTracking,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, sql } from "drizzle-orm";
+import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -51,14 +52,16 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getTeamMembers(userId: string): Promise<User[]>;
+  getUsers(userId: string, userRole: UserRole): Promise<User[]>;
   
-  getSales(): Promise<Sale[]>;
+  getSales(userId: string, userRole: UserRole): Promise<Sale[]>;
   getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
   getSalesmanStats(): Promise<SalesmanStats[]>;
   getAdminStats(): Promise<AdminDashboardStats>;
   
-  getCustomers(): Promise<CustomerWithBrands[]>;
+  getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
   getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined>;
@@ -80,16 +83,16 @@ export interface IStorage {
   assignBrandToCustomer(customerId: string, brandId: string): Promise<CustomerBrand>;
   removeBrandFromCustomer(customerId: string, brandId: string): Promise<boolean>;
   
-  getMonthlyTargets(salesmanId?: string): Promise<MonthlyTarget[]>;
+  getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]>;
   createMonthlyTarget(target: InsertMonthlyTarget): Promise<MonthlyTarget>;
   updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined>;
   
-  getActionItems(filter?: "all" | "overdue" | "today" | "upcoming"): Promise<ActionItemWithCustomer[]>;
+  getActionItems(userId: string, userRole: UserRole, filter?: "all" | "overdue" | "today" | "upcoming"): Promise<ActionItemWithCustomer[]>;
   getActionItemsByCustomer(customerId: string): Promise<ActionItem[]>;
   createActionItem(item: InsertActionItem): Promise<ActionItem>;
   completeActionItem(id: string): Promise<ActionItem | undefined>;
   
-  getMonthlySales(customerId?: string): Promise<MonthlySalesTracking[]>;
+  getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]>;
   createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
   
@@ -122,8 +125,45 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getSales(): Promise<Sale[]> {
-    return await db.select().from(sales).orderBy(desc(sales.date));
+  async getTeamMembers(userId: string): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.managerId, userId));
+  }
+
+  async getUsers(userId: string, userRole: UserRole): Promise<User[]> {
+    if (userRole === "ceo") {
+      return await db.select().from(users);
+    } else if (userRole === "regional_manager") {
+      return await this.getTeamMembers(userId);
+    } else {
+      const user = await this.getUser(userId);
+      return user ? [user] : [];
+    }
+  }
+
+  async getSales(userId: string, userRole: UserRole): Promise<Sale[]> {
+    if (userRole === "ceo") {
+      return await db.select().from(sales).orderBy(desc(sales.date));
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      if (allUserIds.length === 0) {
+        return [];
+      }
+      
+      return await db
+        .select()
+        .from(sales)
+        .where(inArray(sales.salesmanId, allUserIds))
+        .orderBy(desc(sales.date));
+    } else {
+      return await db
+        .select()
+        .from(sales)
+        .where(eq(sales.salesmanId, userId))
+        .orderBy(desc(sales.date));
+    }
   }
 
   async getSalesBySalesman(salesmanId: string): Promise<Sale[]> {
@@ -169,8 +209,32 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getCustomers(): Promise<CustomerWithBrands[]> {
-    const allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
+  async getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]> {
+    let allCustomers: Customer[];
+    
+    if (userRole === "ceo") {
+      allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      if (allUserIds.length === 0) {
+        allCustomers = [];
+      } else {
+        allCustomers = await db
+          .select()
+          .from(customers)
+          .where(inArray(customers.assignedTo, allUserIds))
+          .orderBy(desc(customers.createdAt));
+      }
+    } else {
+      allCustomers = await db
+        .select()
+        .from(customers)
+        .where(eq(customers.assignedTo, userId))
+        .orderBy(desc(customers.createdAt));
+    }
     
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
@@ -277,7 +341,11 @@ export class DatabaseStorage implements IStorage {
     const customerInteractions = await this.getInteractionsByCustomer(id);
     const customerBrandsList = await this.getCustomerBrands(id);
     const customerActionItems = await this.getActionItemsByCustomer(id);
-    const customerMonthlySales = await this.getMonthlySales(id);
+    const customerMonthlySales = await db
+      .select()
+      .from(monthlySalesTracking)
+      .where(eq(monthlySalesTracking.customerId, id))
+      .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
 
     return {
       ...customer,
@@ -345,18 +413,39 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async getMonthlyTargets(salesmanId?: string): Promise<MonthlyTarget[]> {
-    if (salesmanId) {
+  async getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]> {
+    if (userRole === "ceo") {
       return await db
         .select()
         .from(monthlyTargets)
-        .where(eq(monthlyTargets.salesmanId, salesmanId))
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      return await db
+        .select()
+        .from(monthlyTargets)
+        .where(
+          or(
+            inArray(monthlyTargets.salesmanId, allUserIds),
+            eq(monthlyTargets.targetType, "general")
+          )
+        )
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+    } else {
+      return await db
+        .select()
+        .from(monthlyTargets)
+        .where(
+          or(
+            eq(monthlyTargets.salesmanId, userId),
+            eq(monthlyTargets.targetType, "general")
+          )
+        )
         .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
     }
-    return await db
-      .select()
-      .from(monthlyTargets)
-      .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
   }
 
   async createMonthlyTarget(targetData: InsertMonthlyTarget): Promise<MonthlyTarget> {
@@ -373,16 +462,45 @@ export class DatabaseStorage implements IStorage {
     return target;
   }
 
-  async getActionItems(filter: "all" | "overdue" | "today" | "upcoming" = "all"): Promise<ActionItemWithCustomer[]> {
-    let items: ActionItem[] = [];
+  async getActionItems(userId: string, userRole: UserRole, filter: "all" | "overdue" | "today" | "upcoming" = "all"): Promise<ActionItemWithCustomer[]> {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    let allowedCustomerIds: string[];
+    
+    if (userRole === "ceo") {
+      const allCustomers = await db.select().from(customers);
+      allowedCustomerIds = allCustomers.map(c => c.id);
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      const teamCustomers = await db
+        .select()
+        .from(customers)
+        .where(inArray(customers.assignedTo, allUserIds));
+      allowedCustomerIds = teamCustomers.map(c => c.id);
+    } else {
+      const ownCustomers = await db
+        .select()
+        .from(customers)
+        .where(eq(customers.assignedTo, userId));
+      allowedCustomerIds = ownCustomers.map(c => c.id);
+    }
+
+    if (allowedCustomerIds.length === 0) {
+      return [];
+    }
+
+    let items: ActionItem[] = [];
 
     if (filter === "all") {
       items = await db
         .select()
         .from(actionItems)
+        .where(inArray(actionItems.customerId, allowedCustomerIds))
         .orderBy(actionItems.dueDate);
     } else if (filter === "overdue") {
       items = await db
@@ -390,6 +508,7 @@ export class DatabaseStorage implements IStorage {
         .from(actionItems)
         .where(
           and(
+            inArray(actionItems.customerId, allowedCustomerIds),
             sql`${actionItems.dueDate} < ${now}`,
             sql`${actionItems.completedAt} IS NULL`
           )
@@ -401,6 +520,7 @@ export class DatabaseStorage implements IStorage {
         .from(actionItems)
         .where(
           and(
+            inArray(actionItems.customerId, allowedCustomerIds),
             sql`${actionItems.dueDate} >= ${todayStart}`,
             sql`${actionItems.dueDate} <= ${todayEnd}`,
             sql`${actionItems.completedAt} IS NULL`
@@ -413,6 +533,7 @@ export class DatabaseStorage implements IStorage {
         .from(actionItems)
         .where(
           and(
+            inArray(actionItems.customerId, allowedCustomerIds),
             sql`${actionItems.dueDate} > ${todayEnd}`,
             sql`${actionItems.completedAt} IS NULL`
           )
@@ -454,7 +575,7 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async getMonthlySales(customerId?: string): Promise<MonthlySalesTracking[]> {
+  async getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]> {
     if (customerId) {
       return await db
         .select()
@@ -462,9 +583,38 @@ export class DatabaseStorage implements IStorage {
         .where(eq(monthlySalesTracking.customerId, customerId))
         .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
     }
+
+    let allowedCustomerIds: string[];
+    
+    if (userRole === "ceo") {
+      const allCustomers = await db.select().from(customers);
+      allowedCustomerIds = allCustomers.map(c => c.id);
+    } else if (userRole === "regional_manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      const teamCustomers = await db
+        .select()
+        .from(customers)
+        .where(inArray(customers.assignedTo, allUserIds));
+      allowedCustomerIds = teamCustomers.map(c => c.id);
+    } else {
+      const ownCustomers = await db
+        .select()
+        .from(customers)
+        .where(eq(customers.assignedTo, userId));
+      allowedCustomerIds = ownCustomers.map(c => c.id);
+    }
+
+    if (allowedCustomerIds.length === 0) {
+      return [];
+    }
+
     return await db
       .select()
       .from(monthlySalesTracking)
+      .where(inArray(monthlySalesTracking.customerId, allowedCustomerIds))
       .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
   }
 
@@ -483,7 +633,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSegments(): Promise<Segment[]> {
-    const allCustomers = await this.getCustomers();
+    const allCustomers = await db.select().from(customers);
     
     const segments: Segment[] = [
       {
@@ -530,7 +680,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStats(): Promise<DashboardStats> {
-    const allCustomers = await this.getCustomers();
+    const allCustomers = await db.select().from(customers);
     const allInteractions = await this.getInteractions();
     
     const leadCount = allCustomers.filter(c => c.stage === "lead").length;

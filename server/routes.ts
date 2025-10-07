@@ -1,15 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, updateMonthlySalesTrackingSchema } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, updateMonthlySalesTrackingSchema, type UserRole } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   
-  app.get("/api/customers", isAuthenticated, async (_req, res) => {
+  app.get("/api/customers", isAuthenticated, async (req, res) => {
     try {
-      const customersWithBrands = await storage.getCustomers();
+      const customersWithBrands = await storage.getCustomers(req.user!.id, req.user!.role as UserRole);
       res.json(customersWithBrands);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch customers" });
@@ -193,10 +193,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/targets", isAuthenticated, async (req, res) => {
     try {
       if (req.user) {
-        const targets = await storage.getMonthlyTargets(req.user.id);
+        const targets = await storage.getMonthlyTargets(req.user.id, req.user.role as UserRole);
         res.json(targets);
       } else {
-        const targets = await storage.getMonthlyTargets();
+        const targets = await storage.getMonthlyTargets(req.user!.id, req.user!.role as UserRole);
         res.json(targets);
       }
     } catch (error) {
@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/action-items", isAuthenticated, async (req, res) => {
     try {
       const filter = (req.query.filter as "all" | "overdue" | "today" | "upcoming") || "all";
-      const actionItems = await storage.getActionItems(filter);
+      const actionItems = await storage.getActionItems(req.user!.id, req.user!.role as UserRole, filter);
       res.json(actionItems);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch action items" });
@@ -279,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/monthly-sales", isAuthenticated, async (req, res) => {
     try {
       const customerId = req.query.customerId as string | undefined;
-      const monthlySales = await storage.getMonthlySales(customerId);
+      const monthlySales = await storage.getMonthlySales(req.user!.id, req.user!.role as UserRole, customerId);
       res.json(monthlySales);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly sales" });
@@ -334,7 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sales", isAuthenticated, async (req, res) => {
     try {
       if (req.user!.role === "admin") {
-        const sales = await storage.getSales();
+        const sales = await storage.getSales(req.user!.id, req.user!.role as UserRole);
         res.json(sales);
       } else {
         const sales = await storage.getSalesBySalesman(req.user!.id);
