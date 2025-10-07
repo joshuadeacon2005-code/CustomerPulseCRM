@@ -4,6 +4,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,6 +72,7 @@ import {
   Target,
   Tag,
   DollarSign,
+  Trash2,
 } from "lucide-react";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { useState } from "react";
@@ -228,6 +240,27 @@ export function CustomerDetailModal({
     },
   });
 
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/customers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      onClose();
+      toast({ 
+        title: "Customer deleted",
+        description: "The customer has been successfully deleted." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete customer", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
+    },
+  });
+
   if (!customer) return null;
 
   const handleUpdate = (data: UpdateCustomer) => {
@@ -283,15 +316,48 @@ export function CustomerDetailModal({
               </div>
             </div>
             {!isEditing && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                data-testid="button-edit-customer"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-customer"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      data-testid="button-delete-customer"
+                      disabled={deleteCustomerMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {deleteCustomerMutation.isPending ? "Deleting..." : "Delete"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this customer? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        data-testid="button-confirm-delete"
+                        onClick={() => deleteCustomerMutation.mutate(customer.id)}
+                        className="bg-destructive text-destructive-foreground hover-elevate"
+                      >
+                        Delete Customer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
