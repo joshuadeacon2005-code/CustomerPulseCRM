@@ -29,6 +29,11 @@ export function AppSidebar() {
 
   const adminNav = [
     {
+      title: "Log Sales",
+      url: "/sales",
+      icon: DollarSign,
+    },
+    {
       title: "Admin Dashboard",
       url: "/admin",
       icon: BarChart3,
