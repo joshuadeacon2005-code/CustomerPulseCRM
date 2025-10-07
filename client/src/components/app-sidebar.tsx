@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,18 +25,48 @@ export function AppSidebar() {
       url: "/sales",
       icon: DollarSign,
     },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
+    },
   ];
 
   const adminNav = [
+    {
+      title: "Admin Dashboard",
+      url: "/admin",
+      icon: BarChart3,
+    },
     {
       title: "Log Sales",
       url: "/sales",
       icon: DollarSign,
     },
     {
-      title: "Admin Dashboard",
-      url: "/admin",
-      icon: BarChart3,
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
     },
   ];
 

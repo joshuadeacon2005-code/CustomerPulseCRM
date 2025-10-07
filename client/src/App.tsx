@@ -12,6 +12,9 @@ import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/auth";
 import SalesPage from "@/pages/sales";
 import AdminPage from "@/pages/admin";
+import CustomersPage from "@/pages/customers";
+import AnalyticsPage from "@/pages/analytics";
+import SegmentsPage from "@/pages/segments";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -45,6 +48,21 @@ function AuthenticatedApp() {
                 <AdminRoute>
                   <AdminPage />
                 </AdminRoute>
+              </Route>
+              <Route path="/customers">
+                <ProtectedRoute>
+                  <CustomersPage />
+                </ProtectedRoute>
+              </Route>
+              <Route path="/analytics">
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              </Route>
+              <Route path="/segments">
+                <ProtectedRoute>
+                  <SegmentsPage />
+                </ProtectedRoute>
               </Route>
               <Route component={NotFound} />
             </Switch>
