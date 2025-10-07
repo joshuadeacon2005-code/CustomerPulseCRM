@@ -1,0 +1,37 @@
+Build a CRM application that supports the following features, with clear functionality and user interface elements:
+
+Assign Brands to Customers
+Implement a dropdown list for selecting brands associated with each customer.
+Allow dynamic addition of new brands to this list as the assortment expands.
+Monthly Sales Target Setting
+Include a numeric input field where each salesperson can enter their sales target for each month.
+This field should be required and clearly labeled for easy entry.
+Quarterly Soft Target
+Provide a text area for account managers to add a quarterly soft target statement, e.g., "Expand Skip Hop into Zoo collection."
+Visit/Call Updates & Action Points
+Implement a date field that updates each time a visit or call occurs, automatically tracking the latest activity date.
+Add an editable section for action points or tasks that need completion—these should be linked to the date and optional due date.
+Personal Info Field
+Create a flexible text input area for personal notes about customers, e.g., "has 3 kids," "loves Tim Tams."
+Registration with BC
+Include a Yes/No toggle or checkbox indicating whether the customer is registered with BC.
+Orders Placed through BC
+Add a Yes/No toggle to specify if the customer’s orders are placed via BC.
+First Order Date
+Provide a date picker for recording the date of the first order placed by the customer.
+Customer Information Fields
+Fields for customer name, store addresses, retailer type, and other relevant info, with the ability to classify the customer via integration or lookup from Netsuite.
+Monthly Sales Targets: Budget & Actual
+Separate fields to input the sales budget and actual results for each month, for performance tracking.
+Access & Security  
+
+Enable supervisor login to view customer info filtered by account manager, sales executive, or customer.
+Implement search functionality to filter customers by brand (e.g., Skip Hop), account manager, and date ranges.
+Provide reporting features:
+Search for customers who ordered specific brands
+View sales budget and actual results by retailer and by month
+To-Do List & Action Management  
+
+Create a feature where the sales team can generate a to-do list from action points.
+When an action point is marked complete, it should no longer appear or be generated.
+Tasks should be date-sensitive: overdue, due today, or scheduled for the future, with appropriate status updating.
