@@ -191,6 +191,8 @@ export function AppSidebar() {
     if (!role) return salesmanNav;
     
     switch (role) {
+      case "ceo":
+        return ceoNav;
       case "admin":
         return adminNav;
       case "manager":
