@@ -380,6 +380,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUser(id);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  app.patch("/api/sales/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sale = await storage.updateSale(id, req.body);
+      if (sale) {
+        res.json(sale);
+      } else {
+        res.status(404).json({ error: "Sale not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update sale" });
+    }
+  });
+
+  app.delete("/api/sales/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSale(id);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Sale not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete sale" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
