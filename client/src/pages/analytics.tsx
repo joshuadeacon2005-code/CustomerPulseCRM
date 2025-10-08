@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DashboardStats, Customer } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { DashboardStats, Customer, User, UserRole } from "@shared/schema";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Users, Target, Activity } from "lucide-react";
+import { TrendingUp, Users as UsersIcon, Target, Activity, UserCheck, Building2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
 
 const STAGE_COLORS = {
   lead: "hsl(var(--chart-4))",
@@ -12,6 +14,8 @@ const STAGE_COLORS = {
 };
 
 export default function Analytics() {
+  const { user: currentUser } = useAuth();
+  
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/stats"],
   });
@@ -19,6 +23,38 @@ export default function Analytics() {
   const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
+
+  const { data: users, isLoading: usersLoading } = useQuery<Omit<User, 'password'>[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Create user ID to name mapping
+  const userMap = users?.reduce((acc, user) => {
+    acc[user.id] = user.name;
+    return acc;
+  }, {} as Record<string, string>);
+
+  // Build team structure for CEOs and Regional Managers
+  const teamStructure = users?.reduce((acc, user) => {
+    if (user.role === "regional_manager") {
+      const teamMembers = users.filter(u => u.managerId === user.id);
+      const teamCustomers = customers?.filter(c => 
+        c.assignedTo === user.id || teamMembers.some(m => m.id === c.assignedTo)
+      ) || [];
+      
+      acc.push({
+        manager: user,
+        members: teamMembers,
+        customerCount: teamCustomers.length,
+      });
+    }
+    return acc;
+  }, [] as Array<{ manager: Omit<User, 'password'>, members: Omit<User, 'password'>[], customerCount: number }>);
+
+  // Individual salespeople (including those without a manager)
+  const individualSalespeople = users?.filter(u => 
+    u.role === "salesman" && !u.managerId
+  ) || [];
 
   const stageData = [
     { name: "Leads", value: stats?.leadCount || 0, fill: STAGE_COLORS.lead },
@@ -39,9 +75,11 @@ export default function Analytics() {
     { name: "High (71-100)", value: scoreDistribution?.high || 0, fill: STAGE_COLORS.customer },
   ];
 
+  // Fix: Use user names instead of IDs
   const assignmentData = customers?.reduce((acc, customer) => {
-    if (customer.assignedTo) {
-      acc[customer.assignedTo] = (acc[customer.assignedTo] || 0) + 1;
+    if (customer.assignedTo && userMap) {
+      const userName = userMap[customer.assignedTo] || customer.assignedTo;
+      acc[userName] = (acc[userName] || 0) + 1;
     }
     return acc;
   }, {} as Record<string, number>);
@@ -50,7 +88,9 @@ export default function Analytics() {
     ? Object.entries(assignmentData).map(([name, count]) => ({ name, count }))
     : [];
 
-  if (statsLoading || customersLoading) {
+  const isLoading = statsLoading || customersLoading || usersLoading;
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -66,12 +106,22 @@ export default function Analytics() {
     );
   }
 
+  const isCEO = currentUser?.role === "ceo" || currentUser?.role === "admin";
+  const isManager = currentUser?.role === "regional_manager";
+
+  // Filter team structure based on role
+  const visibleTeams = isManager 
+    ? teamStructure?.filter(team => team.manager.id === currentUser?.id) 
+    : teamStructure;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-analytics-title">Analytics</h1>
         <p className="text-muted-foreground mt-1">
           Analyze customer data, lead scores, and sales performance
+          {isCEO && " across all teams"}
+          {isManager && " for your team"}
         </p>
       </div>
 
@@ -79,10 +129,10 @@ export default function Analytics() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Total Customers</h3>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <UsersIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalCustomers || 0}</div>
+            <div className="text-2xl font-bold" data-testid="text-total-customers">{stats?.totalCustomers || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Across all stages</p>
           </CardContent>
         </Card>
@@ -93,7 +143,7 @@ export default function Analytics() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.averageLeadScore?.toFixed(1) || 0}</div>
+            <div className="text-2xl font-bold" data-testid="text-avg-lead-score">{stats?.averageLeadScore?.toFixed(1) || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Out of 100</p>
           </CardContent>
         </Card>
@@ -104,7 +154,7 @@ export default function Analytics() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold" data-testid="text-conversion-rate">
               {stats?.totalCustomers 
                 ? ((stats.customerCount / stats.totalCustomers) * 100).toFixed(1)
                 : 0}%
@@ -119,11 +169,90 @@ export default function Analytics() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.recentInteractions || 0}</div>
+            <div className="text-2xl font-bold" data-testid="text-recent-activity">{stats?.recentInteractions || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Last 7 days</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Team Structure - Only for CEO and Regional Managers */}
+      {(isCEO || isManager) && visibleTeams && visibleTeams.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Team Structure & Performance
+            </CardTitle>
+            <CardDescription>
+              {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {visibleTeams.map((team) => (
+              <div key={team.manager.id} className="space-y-3 pb-4 border-b last:border-0 last:pb-0" data-testid={`team-${team.manager.id}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserCheck className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <h3 className="font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
+                      <p className="text-sm text-muted-foreground">Regional Manager</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold" data-testid={`text-team-customers-${team.manager.id}`}>{team.customerCount}</div>
+                    <p className="text-xs text-muted-foreground">Team Customers</p>
+                  </div>
+                </div>
+                
+                {team.members.length > 0 && (
+                  <div className="ml-8 space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Team Members:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {team.members.map((member) => {
+                        const memberCustomers = customers?.filter(c => c.assignedTo === member.id).length || 0;
+                        return (
+                          <Badge 
+                            key={member.id} 
+                            variant="secondary" 
+                            className="gap-2"
+                            data-testid={`badge-member-${member.id}`}
+                          >
+                            <span>{member.name}</span>
+                            <span className="text-muted-foreground">({memberCustomers})</span>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {/* Individual salespeople without teams */}
+            {isCEO && individualSalespeople.length > 0 && (
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-semibold text-muted-foreground">Independent Salespeople</h3>
+                <div className="flex flex-wrap gap-2">
+                  {individualSalespeople.map((person) => {
+                    const personCustomers = customers?.filter(c => c.assignedTo === person.id).length || 0;
+                    return (
+                      <Badge 
+                        key={person.id} 
+                        variant="outline" 
+                        className="gap-2"
+                        data-testid={`badge-independent-${person.id}`}
+                      >
+                        <span>{person.name}</span>
+                        <span className="text-muted-foreground">({personCustomers})</span>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -191,6 +320,7 @@ export default function Analytics() {
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg">Customers by Sales Rep</CardTitle>
+              <CardDescription>Customer distribution across team members</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -206,7 +336,7 @@ export default function Analytics() {
                     type="category"
                     stroke="hsl(var(--muted-foreground))"
                     tick={{ fill: 'hsl(var(--foreground))' }}
-                    width={120}
+                    width={150}
                   />
                   <Tooltip 
                     contentStyle={{ 
