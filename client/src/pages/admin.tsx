@@ -6,11 +6,39 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminPage() {
@@ -23,6 +51,14 @@ export default function AdminPage() {
     role: "salesman" as UserRole,
     managerId: "",
   });
+  const [editSaleDialog, setEditSaleDialog] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editSaleData, setEditSaleData] = useState({
+    customerName: "",
+    product: "",
+    amount: "",
+    date: "",
+  });
 
   const { data: stats, isLoading: isLoadingStats } = useQuery<AdminDashboardStats>({
     queryKey: ["/api/admin/stats"],
@@ -30,6 +66,10 @@ export default function AdminPage() {
 
   const { data: allUsers = [] } = useQuery<Omit<User, 'password'>[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: allSales = [] } = useQuery<Sale[]>({
+    queryKey: ["/api/sales"],
   });
 
   const managers = allUsers.filter(u => u.role === "ceo" || u.role === "regional_manager");
@@ -90,6 +130,91 @@ export default function AdminPage() {
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     createUserMutation.mutate(newUser);
+  };
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateSaleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await apiRequest("PATCH", `/api/sales/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Sale updated successfully",
+      });
+      setEditSaleDialog(false);
+      setEditingSale(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update sale",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (saleId: string) => {
+      return await apiRequest("DELETE", `/api/sales/${saleId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Sale deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete sale",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setEditSaleData({
+      customerName: sale.customerName,
+      product: sale.product,
+      amount: sale.amount,
+      date: new Date(sale.date).toISOString().split('T')[0],
+    });
+    setEditSaleDialog(true);
+  };
+
+  const handleUpdateSale = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSale) return;
+    updateSaleMutation.mutate({
+      id: editingSale.id,
+      data: editSaleData,
+    });
   };
 
   if (isLoadingStats) {
@@ -316,6 +441,254 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            All Users
+          </CardTitle>
+          <CardDescription>Manage system users</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {allUsers.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No users found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Manager</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allUsers.map((user) => {
+                  const managerUser = user.managerId ? getUserById(user.managerId) : null;
+                  return (
+                    <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
+                      <TableCell className="font-medium" data-testid={`text-user-name-${user.id}`}>
+                        {user.name}
+                      </TableCell>
+                      <TableCell data-testid={`text-user-username-${user.id}`}>
+                        {user.username}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" data-testid={`badge-user-role-${user.id}`}>
+                          {getRoleDisplayName(user.role as UserRole)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground" data-testid={`text-user-manager-${user.id}`}>
+                        {managerUser ? managerUser.name : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={user.id === currentUser?.id}
+                              data-testid={`button-delete-user-${user.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {user.name}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid="button-cancel-delete-user">Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteUserMutation.mutate(user.id)}
+                                data-testid="button-confirm-delete-user"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            All Sales
+          </CardTitle>
+          <CardDescription>Edit and manage sales records</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {allSales.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No sales found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Salesperson</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allSales.map((sale) => {
+                  const salesperson = allUsers.find(u => u.id === sale.salesmanId);
+                  return (
+                    <TableRow key={sale.id} data-testid={`sale-row-${sale.id}`}>
+                      <TableCell data-testid={`text-sale-date-${sale.id}`}>
+                        {format(new Date(sale.date), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell data-testid={`text-sale-salesman-${sale.id}`}>
+                        {salesperson?.name || "Unknown"}
+                      </TableCell>
+                      <TableCell data-testid={`text-sale-customer-${sale.id}`}>
+                        {sale.customerName}
+                      </TableCell>
+                      <TableCell data-testid={`text-sale-product-${sale.id}`}>
+                        {sale.product}
+                      </TableCell>
+                      <TableCell data-testid={`text-sale-amount-${sale.id}`}>
+                        ${parseFloat(sale.amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditSale(sale)}
+                            data-testid={`button-edit-sale-${sale.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                data-testid={`button-delete-sale-${sale.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Sale</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this sale? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel data-testid="button-cancel-delete-sale">Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteSaleMutation.mutate(sale.id)}
+                                  data-testid="button-confirm-delete-sale"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={editSaleDialog} onOpenChange={setEditSaleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Sale</DialogTitle>
+            <DialogDescription>Update the sale details</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateSale} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-customer">Customer Name</Label>
+              <Input
+                id="edit-customer"
+                data-testid="input-edit-customer"
+                value={editSaleData.customerName}
+                onChange={(e) => setEditSaleData({ ...editSaleData, customerName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-product">Product</Label>
+              <Input
+                id="edit-product"
+                data-testid="input-edit-product"
+                value={editSaleData.product}
+                onChange={(e) => setEditSaleData({ ...editSaleData, product: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">Amount</Label>
+              <Input
+                id="edit-amount"
+                data-testid="input-edit-amount"
+                type="number"
+                step="0.01"
+                value={editSaleData.amount}
+                onChange={(e) => setEditSaleData({ ...editSaleData, amount: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-date">Date</Label>
+              <Input
+                id="edit-date"
+                data-testid="input-edit-date"
+                type="date"
+                value={editSaleData.date}
+                onChange={(e) => setEditSaleData({ ...editSaleData, date: e.target.value })}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditSaleDialog(false)}
+                data-testid="button-cancel-edit-sale"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateSaleMutation.isPending}
+                data-testid="button-save-edit-sale"
+              >
+                {updateSaleMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
