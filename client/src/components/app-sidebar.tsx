@@ -78,7 +78,7 @@ export function AppSidebar() {
 
   const managerNav = [
     {
-      title: "Admin Dashboard",
+      title: "Manager Dashboard",
       url: "/admin",
       icon: BarChart3,
     },
