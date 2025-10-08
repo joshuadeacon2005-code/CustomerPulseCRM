@@ -397,13 +397,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/sales/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const sale = await storage.updateSale(id, req.body);
+      const updateData = { ...req.body };
+      
+      // Convert and validate date string to Date object if present
+      if (updateData.date && typeof updateData.date === 'string') {
+        const dateObj = new Date(updateData.date);
+        if (isNaN(dateObj.getTime())) {
+          return res.status(400).json({ error: "Invalid date format" });
+        }
+        updateData.date = dateObj;
+      }
+      
+      const sale = await storage.updateSale(id, updateData);
       if (sale) {
         res.json(sale);
       } else {
         res.status(404).json({ error: "Sale not found" });
       }
     } catch (error) {
+      console.error("Error updating sale:", error);
       res.status(500).json({ error: "Failed to update sale" });
     }
   });
