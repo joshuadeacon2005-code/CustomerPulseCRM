@@ -34,7 +34,7 @@ export default function AuthPage() {
     enabled: false,
   });
 
-  const managers = users.filter(u => u.role === "ceo" || u.role === "regional_manager");
+  const managers = users.filter(u => u.role === "admin" || u.role === "manager");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

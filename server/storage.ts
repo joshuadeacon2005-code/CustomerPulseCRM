@@ -1,10 +1,10 @@
-import { 
+import {
   type User,
   type InsertUser,
   type UserRole,
   type Sale,
   type InsertSale,
-  type Customer, 
+  type Customer,
   type InsertCustomer,
   type UpdateCustomer,
   type Interaction,
@@ -48,14 +48,14 @@ const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   sessionStore: session.Store;
-  
+
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<boolean>;
   getTeamMembers(userId: string): Promise<User[]>;
   getUsers(userId: string, userRole: UserRole): Promise<User[]>;
-  
+
   getSales(userId: string, userRole: UserRole): Promise<Sale[]>;
   getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
@@ -63,7 +63,7 @@ export interface IStorage {
   deleteSale(id: string): Promise<boolean>;
   getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]>;
   getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats>;
-  
+
   getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
@@ -71,34 +71,34 @@ export interface IStorage {
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: UpdateCustomer): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
-  
+
   getInteractions(): Promise<Interaction[]>;
   getInteractionsByCustomer(customerId: string): Promise<Interaction[]>;
   getRecentInteractions(limit?: number): Promise<Interaction[]>;
   createInteraction(interaction: InsertInteraction): Promise<Interaction>;
-  
+
   getBrands(): Promise<Brand[]>;
   getBrand(id: string): Promise<Brand | undefined>;
   createBrand(brand: InsertBrand): Promise<Brand>;
   deleteBrand(id: string): Promise<boolean>;
-  
+
   getCustomerBrands(customerId: string): Promise<Brand[]>;
   assignBrandToCustomer(customerId: string, brandId: string): Promise<CustomerBrand>;
   removeBrandFromCustomer(customerId: string, brandId: string): Promise<boolean>;
-  
+
   getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]>;
   createMonthlyTarget(target: InsertMonthlyTarget): Promise<MonthlyTarget>;
   updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined>;
-  
+
   getActionItems(userId: string, userRole: UserRole, filter?: "all" | "overdue" | "today" | "upcoming"): Promise<ActionItemWithCustomer[]>;
   getActionItemsByCustomer(customerId: string): Promise<ActionItem[]>;
   createActionItem(item: InsertActionItem): Promise<ActionItem>;
   completeActionItem(id: string): Promise<ActionItem | undefined>;
-  
+
   getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]>;
   createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
-  
+
   getSegments(): Promise<Segment[]>;
   getStats(): Promise<DashboardStats>;
 }
@@ -160,11 +160,11 @@ export class DatabaseStorage implements IStorage {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
-      
+
       if (allUserIds.length === 0) {
         return [];
       }
-      
+
       return await db
         .select()
         .from(sales)
@@ -200,7 +200,7 @@ export class DatabaseStorage implements IStorage {
 
   async getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]> {
     const allSales = await db.select().from(sales);
-    
+
     let allSalesmen: User[];
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
@@ -211,13 +211,13 @@ export class DatabaseStorage implements IStorage {
       const user = await this.getUser(userId);
       allSalesmen = user ? [user] : [];
     }
-    
+
     const statsMap = new Map<string, SalesmanStats>();
-    
+
     for (const salesman of allSalesmen) {
       const salesmanSales = allSales.filter(s => s.salesmanId === salesman.id);
       const totalAmount = salesmanSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
-      
+
       statsMap.set(salesman.id, {
         salesmanId: salesman.id,
         salesmanName: salesman.name,
@@ -226,20 +226,20 @@ export class DatabaseStorage implements IStorage {
         recentSales: salesmanSales.slice(0, 5),
       });
     }
-    
+
     return Array.from(statsMap.values());
   }
 
   async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
     let relevantSales: Sale[];
-    
+
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       relevantSales = await db.select().from(sales);
     } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
-      
+
       if (teamMemberIds.length === 0) {
         relevantSales = [];
       } else {
@@ -248,10 +248,10 @@ export class DatabaseStorage implements IStorage {
     } else {
       relevantSales = await db.select().from(sales).where(eq(sales.salesmanId, userId));
     }
-    
+
     const totalRevenue = relevantSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
     const salesmenStats = await this.getSalesmanStats(userId, userRole);
-    
+
     return {
       totalSales: relevantSales.length,
       totalRevenue: totalRevenue.toFixed(2),
@@ -261,17 +261,17 @@ export class DatabaseStorage implements IStorage {
 
   async getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]> {
     let allCustomers: Customer[];
-    
+
     // Treat 'admin' role as 'ceo' for data visibility
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
-    
+
     if (effectiveRole === "ceo") {
       allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
     } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
-      
+
       if (allUserIds.length === 0) {
         allCustomers = [];
       } else {
@@ -288,7 +288,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(customers.assignedTo, userId))
         .orderBy(desc(customers.createdAt));
     }
-    
+
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
         const customerBrandsList = await this.getCustomerBrands(customer.id);
@@ -298,7 +298,7 @@ export class DatabaseStorage implements IStorage {
         };
       })
     );
-    
+
     return customersWithBrands;
   }
 
@@ -365,19 +365,19 @@ export class DatabaseStorage implements IStorage {
     if (!customer) return;
 
     const customerInteractions = await this.getInteractionsByCustomer(customerId);
-    
+
     let score = 0;
     score += Math.min(customerInteractions.length * 5, 30);
-    
+
     const salesInteractions = customerInteractions.filter(i => i.category === "sales").length;
     score += Math.min(salesInteractions * 10, 30);
-    
+
     const marketingInteractions = customerInteractions.filter(i => i.category === "marketing").length;
     score += Math.min(marketingInteractions * 3, 15);
-    
+
     const supportInteractions = customerInteractions.filter(i => i.category === "support").length;
     score += Math.min(supportInteractions * 5, 15);
-    
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recentInteractions = customerInteractions.filter(i => new Date(i.date) >= sevenDaysAgo).length;
     score += Math.min(recentInteractions * 5, 10);
@@ -434,7 +434,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(customerBrands)
       .where(eq(customerBrands.customerId, customerId));
-    
+
     const brandIds = customerBrandsList.map(cb => cb.brandId);
     if (brandIds.length === 0) return [];
 
@@ -442,7 +442,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(brands)
       .where(sql`${brands.id} = ANY(${brandIds})`);
-    
+
     return brandList;
   }
 
@@ -477,7 +477,7 @@ export class DatabaseStorage implements IStorage {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
-      
+
       return await db
         .select()
         .from(monthlyTargets)
@@ -502,36 +502,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createMonthlyTarget(targetData: InsertMonthlyTarget): Promise<MonthlyTarget> {
-    const [target] = await db.insert(monthlyTargets).values(targetData).returning();
-    return target;
-  }
-
-  async updateMonthlyTarget(id: string, updateData: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined> {
-    const [target] = await db
-      .update(monthlyTargets)
-      .set(updateData)
-      .where(eq(monthlyTargets.id, id))
-      .returning();
-    return target;
-  }
-
   async getActionItems(userId: string, userRole: UserRole, filter: "all" | "overdue" | "today" | "upcoming" = "all"): Promise<ActionItemWithCustomer[]> {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
     let allowedCustomerIds: string[];
-    
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
-    if (effectiveRole === "ceo") {
+
+    if (userRole === "admin") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
-    } else if (effectiveRole === "regional_manager") {
+    } else if (userRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
-      
+
       const teamCustomers = await db
         .select()
         .from(customers)
@@ -640,7 +625,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     let allowedCustomerIds: string[];
-    
+
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       const allCustomers = await db.select().from(customers);
@@ -649,7 +634,7 @@ export class DatabaseStorage implements IStorage {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
-      
+
       const teamCustomers = await db
         .select()
         .from(customers)
@@ -690,7 +675,7 @@ export class DatabaseStorage implements IStorage {
 
   async getSegments(): Promise<Segment[]> {
     const allCustomers = await db.select().from(customers);
-    
+
     const segments: Segment[] = [
       {
         id: "high-value-leads",
@@ -738,15 +723,15 @@ export class DatabaseStorage implements IStorage {
   async getStats(): Promise<DashboardStats> {
     const allCustomers = await db.select().from(customers);
     const allInteractions = await this.getInteractions();
-    
+
     const leadCount = allCustomers.filter(c => c.stage === "lead").length;
     const prospectCount = allCustomers.filter(c => c.stage === "prospect").length;
     const customerCount = allCustomers.filter(c => c.stage === "customer").length;
-    
+
     const averageLeadScore = allCustomers.length > 0
       ? allCustomers.reduce((sum, c) => sum + c.leadScore, 0) / allCustomers.length
       : 0;
-    
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const recentInteractions = allInteractions.filter(
       i => new Date(i.date) >= sevenDaysAgo

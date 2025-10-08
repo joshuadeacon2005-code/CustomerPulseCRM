@@ -36,7 +36,7 @@ export default function Analytics() {
 
   // Build team structure for CEOs and Regional Managers
   const teamStructure = users?.reduce((acc, user) => {
-    if (user.role === "regional_manager") {
+    if (user.role === "manager") {
       const teamMembers = users.filter(u => u.managerId === user.id);
       const teamCustomers = customers?.filter(c => 
         c.assignedTo === user.id || teamMembers.some(m => m.id === c.assignedTo)
@@ -106,8 +106,8 @@ export default function Analytics() {
     );
   }
 
-  const isCEO = currentUser?.role === "ceo" || currentUser?.role === "admin";
-  const isManager = currentUser?.role === "regional_manager";
+  const isCEO = currentUser?.role === "admin";
+  const isManager = currentUser?.role === "manager";
 
   // Filter team structure based on role
   const visibleTeams = isManager 
@@ -195,7 +195,7 @@ export default function Analytics() {
                     <UserCheck className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <h3 className="font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
-                      <p className="text-sm text-muted-foreground">Regional Manager</p>
+                      <p className="text-sm text-muted-foreground">Manager</p>
                     </div>
                   </div>
                   <div className="text-right">

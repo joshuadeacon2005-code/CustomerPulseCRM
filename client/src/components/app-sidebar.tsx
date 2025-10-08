@@ -22,10 +22,10 @@ export function AppSidebar() {
 
   const getRoleDisplayName = (role: UserRole): string => {
     switch (role) {
-      case "ceo":
-        return "CEO";
-      case "regional_manager":
-        return "Regional Manager";
+      case "admin":
+        return "Admin";
+      case "manager":
+        return "Manager";
       case "salesman":
         return "Salesman";
       default:
@@ -33,7 +33,7 @@ export function AppSidebar() {
     }
   };
 
-  const ceoNav = [
+  const adminNav = [
     {
       title: "Admin Dashboard",
       url: "/admin",
@@ -76,7 +76,7 @@ export function AppSidebar() {
     },
   ];
 
-  const regionalManagerNav = [
+  const managerNav = [
     {
       title: "Admin Dashboard",
       url: "/admin",
@@ -146,10 +146,10 @@ export function AppSidebar() {
     if (!role) return salesmanNav;
     
     switch (role) {
-      case "ceo":
-        return ceoNav;
-      case "regional_manager":
-        return regionalManagerNav;
+      case "admin":
+        return adminNav;
+      case "manager":
+        return managerNav;
       case "salesman":
         return salesmanNav;
       default:

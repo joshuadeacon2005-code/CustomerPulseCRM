@@ -72,7 +72,7 @@ export default function AdminPage() {
     queryKey: ["/api/sales"],
   });
 
-  const managers = allUsers.filter(u => u.role === "ceo" || u.role === "regional_manager");
+  const managers = allUsers.filter(u => u.role === "admin" || u.role === "manager");
 
   const getUserById = (userId: string | null) => {
     if (!userId) return null;
@@ -81,10 +81,10 @@ export default function AdminPage() {
 
   const getRoleDisplayName = (role: UserRole): string => {
     switch (role) {
-      case "ceo":
-        return "CEO";
-      case "regional_manager":
-        return "Regional Manager";
+      case "admin":
+        return "Admin";
+      case "manager":
+        return "Manager";
       case "salesman":
         return "Salesman";
       default:
@@ -230,7 +230,7 @@ export default function AdminPage() {
       <div>
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          {currentUser?.role === "ceo" ? "Manage all users and view company-wide statistics" : "Manage your team and view team statistics"}
+          {currentUser?.role === "admin" ? "Manage all users and view company-wide statistics" : "Manage your team and view team statistics"}
         </p>
       </div>
 
@@ -288,8 +288,8 @@ export default function AdminPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ceo" data-testid="option-new-ceo">CEO</SelectItem>
-                    <SelectItem value="regional_manager" data-testid="option-new-regional-manager">Regional Manager</SelectItem>
+                    <SelectItem value="admin" data-testid="option-new-admin">Admin</SelectItem>
+                    <SelectItem value="manager" data-testid="option-new-manager">Manager</SelectItem>
                     <SelectItem value="salesman" data-testid="option-new-salesman">Salesman</SelectItem>
                   </SelectContent>
                 </Select>
@@ -331,7 +331,7 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>Total Sales</CardTitle>
             <CardDescription>
-              {currentUser?.role === "ceo" ? "All sales across all team members" : "Sales from your team"}
+              {currentUser?.role === "admin" ? "All sales across all team members" : "Sales from your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -345,7 +345,7 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>Total Revenue</CardTitle>
             <CardDescription>
-              {currentUser?.role === "ceo" ? "Total revenue across all team members" : "Revenue from your team"}
+              {currentUser?.role === "admin" ? "Total revenue across all team members" : "Revenue from your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -360,14 +360,14 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UsersIcon className="h-5 w-5" />
-            {currentUser?.role === "ceo" ? "All Salespeople Performance" : "Team Performance"}
+            {currentUser?.role === "admin" ? "All Salespeople Performance" : "Team Performance"}
           </CardTitle>
           <CardDescription>Individual performance statistics</CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.salesmenStats.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              {currentUser?.role === "ceo" ? "No salespeople registered yet" : "No team members yet"}
+              {currentUser?.role === "admin" ? "No salespeople registered yet" : "No team members yet"}
             </div>
           ) : (
             <div className="space-y-6">
