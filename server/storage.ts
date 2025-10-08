@@ -52,12 +52,15 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  deleteUser(id: string): Promise<boolean>;
   getTeamMembers(userId: string): Promise<User[]>;
   getUsers(userId: string, userRole: UserRole): Promise<User[]>;
   
   getSales(userId: string, userRole: UserRole): Promise<Sale[]>;
   getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
+  updateSale(id: string, sale: Partial<InsertSale>): Promise<Sale | undefined>;
+  deleteSale(id: string): Promise<boolean>;
   getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]>;
   getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats>;
   
@@ -125,6 +128,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
   async getTeamMembers(userId: string): Promise<User[]> {
     return await db.select().from(users).where(eq(users.managerId, userId));
   }
@@ -178,6 +186,16 @@ export class DatabaseStorage implements IStorage {
   async createSale(saleData: InsertSale): Promise<Sale> {
     const [sale] = await db.insert(sales).values(saleData).returning();
     return sale;
+  }
+
+  async updateSale(id: string, saleData: Partial<InsertSale>): Promise<Sale | undefined> {
+    const [sale] = await db.update(sales).set(saleData).where(eq(sales.id, id)).returning();
+    return sale;
+  }
+
+  async deleteSale(id: string): Promise<boolean> {
+    const result = await db.delete(sales).where(eq(sales.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]> {
