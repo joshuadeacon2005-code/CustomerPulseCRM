@@ -34,7 +34,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
     return <Redirect to="/auth" />;
   }
 
-  if (user.role !== "admin" && user.role !== "manager") {
+  if (user.role !== "ceo" && user.role !== "admin" && user.role !== "manager") {
     return <Redirect to="/sales" />;
   }
 

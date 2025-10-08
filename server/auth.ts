@@ -165,7 +165,7 @@ export function isAuthenticated(req: any, res: any, next: any) {
 }
 
 export function isAdmin(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "manager")) {
+  if (req.isAuthenticated() && (req.user?.role === "ceo" || req.user?.role === "admin" || req.user?.role === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Admin access required");

@@ -111,8 +111,10 @@ export default function AuthPage() {
     switch (role) {
       case "ceo":
         return "CEO";
-      case "regional_manager":
-        return "Regional Manager";
+      case "admin":
+        return "Admin";
+      case "manager":
+        return "Manager";
       case "salesman":
         return "Salesman";
       default:
