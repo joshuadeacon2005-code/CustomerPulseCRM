@@ -134,7 +134,10 @@ export class DatabaseStorage implements IStorage {
     if (effectiveRole === "ceo") {
       return await db.select().from(users);
     } else if (effectiveRole === "regional_manager") {
-      return await this.getTeamMembers(userId);
+      // Include the manager themselves along with their team members
+      const manager = await this.getUser(userId);
+      const teamMembers = await this.getTeamMembers(userId);
+      return manager ? [manager, ...teamMembers] : teamMembers;
     } else {
       const user = await this.getUser(userId);
       return user ? [user] : [];
