@@ -358,7 +358,7 @@ export default function Customers() {
       )}
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent data-testid="modal-add-customer">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="modal-add-customer">
           <DialogHeader>
             <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
