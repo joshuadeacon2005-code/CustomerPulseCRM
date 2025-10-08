@@ -22,6 +22,8 @@ export function AppSidebar() {
 
   const getRoleDisplayName = (role: UserRole): string => {
     switch (role) {
+      case "ceo":
+        return "CEO";
       case "admin":
         return "Admin";
       case "manager":
@@ -32,6 +34,49 @@ export function AppSidebar() {
         return role;
     }
   };
+
+  const ceoNav = [
+    {
+      title: "Admin Dashboard",
+      url: "/admin",
+      icon: BarChart3,
+    },
+    {
+      title: "Log Sales",
+      url: "/sales",
+      icon: DollarSign,
+    },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
+    },
+    {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
+    },
+    {
+      title: "Action Items",
+      url: "/tasks",
+      icon: CheckSquare,
+    },
+    {
+      title: "Sales Reports",
+      url: "/reports",
+      icon: FileText,
+    },
+  ];
 
   const adminNav = [
     {
