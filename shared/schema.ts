@@ -100,7 +100,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 }).extend({
-  role: z.enum(["ceo", "regional_manager", "salesman"]).optional().default("salesman"),
+  role: z.enum(["admin", "ceo", "regional_manager", "salesman"]).optional().default("salesman"),
   username: z.string().min(3).max(50),
   password: z.string().min(6),
   name: z.string().min(1),
@@ -216,7 +216,7 @@ export type MonthlySalesTracking = typeof monthlySalesTracking.$inferSelect;
 export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTrackingSchema>;
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
 
-export type UserRole = "ceo" | "regional_manager" | "salesman";
+export type UserRole = "admin" | "ceo" | "regional_manager" | "salesman";
 export type CustomerStage = "lead" | "prospect" | "customer";
 export type InteractionCategory = "marketing" | "sales" | "support";
 

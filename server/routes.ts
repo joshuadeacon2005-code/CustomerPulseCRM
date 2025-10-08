@@ -31,7 +31,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/customers", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertCustomerSchema.parse(req.body);
-      const customer = await storage.createCustomer(validatedData);
+      
+      // Always assign customer to current user (ignore any provided assignedTo value)
+      // This ensures assignedTo always contains a valid user ID, never a name
+      const customerData = {
+        ...validatedData,
+        assignedTo: req.user!.id
+      };
+      
+      const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
@@ -44,7 +52,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
       const validatedData = updateCustomerSchema.parse(req.body);
-      const customer = await storage.updateCustomer(req.params.id, validatedData);
+      
+      // Remove assignedTo from updates - it should not be changed via this endpoint
+      // If we need to reassign customers, create a separate endpoint with proper validation
+      const { assignedTo, ...updateData } = validatedData;
+      
+      const customer = await storage.updateCustomer(req.params.id, updateData);
       if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
       }

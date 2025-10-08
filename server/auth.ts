@@ -165,21 +165,21 @@ export function isAuthenticated(req: any, res: any, next: any) {
 }
 
 export function isAdmin(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "ceo" || req.user?.role === "regional_manager")) {
+  if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "ceo" || req.user?.role === "regional_manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Admin access required");
 }
 
 export function isCEO(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && req.user?.role === "ceo") {
+  if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "ceo")) {
     return next();
   }
   res.status(403).send("Forbidden: CEO access required");
 }
 
 export function isManager(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "ceo" || req.user?.role === "regional_manager")) {
+  if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "ceo" || req.user?.role === "regional_manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Manager access required");

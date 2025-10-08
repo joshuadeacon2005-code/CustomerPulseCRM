@@ -130,9 +130,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsers(userId: string, userRole: UserRole): Promise<User[]> {
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       return await db.select().from(users);
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       return await this.getTeamMembers(userId);
     } else {
       const user = await this.getUser(userId);
@@ -141,9 +142,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSales(userId: string, userRole: UserRole): Promise<Sale[]> {
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       return await db.select().from(sales).orderBy(desc(sales.date));
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -179,9 +181,10 @@ export class DatabaseStorage implements IStorage {
     const allSales = await db.select().from(sales);
     
     let allSalesmen: User[];
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       allSalesmen = await this.getTeamMembers(userId);
     } else {
       const user = await this.getUser(userId);
@@ -209,9 +212,10 @@ export class DatabaseStorage implements IStorage {
   async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
     let relevantSales: Sale[];
     
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       relevantSales = await db.select().from(sales);
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       
@@ -237,9 +241,12 @@ export class DatabaseStorage implements IStorage {
   async getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]> {
     let allCustomers: Customer[];
     
-    if (userRole === "ceo") {
+    // Treat 'admin' role as 'ceo' for data visibility
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    
+    if (effectiveRole === "ceo") {
       allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -439,12 +446,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]> {
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       return await db
         .select()
         .from(monthlyTargets)
         .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -494,10 +502,11 @@ export class DatabaseStorage implements IStorage {
 
     let allowedCustomerIds: string[];
     
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -611,10 +620,11 @@ export class DatabaseStorage implements IStorage {
 
     let allowedCustomerIds: string[];
     
-    if (userRole === "ceo") {
+    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
-    } else if (userRole === "regional_manager") {
+    } else if (effectiveRole === "regional_manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
