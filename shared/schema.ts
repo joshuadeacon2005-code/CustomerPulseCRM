@@ -274,3 +274,18 @@ export type AdminDashboardStats = {
   totalRevenue: string;
   salesmenStats: SalesmanStats[];
 };
+
+export type UserDetails = {
+  user: Omit<User, 'password'>;
+  manager: Omit<User, 'password'> | null;
+  monthlyTargets: MonthlyTarget[];
+  actionItems: ActionItemWithCustomer[];
+  sales: Sale[];
+  metrics: {
+    totalSales: number;
+    totalRevenue: number;
+    averageSale: number;
+    pendingActionItems: number;
+    completedActionItems: number;
+  };
+};

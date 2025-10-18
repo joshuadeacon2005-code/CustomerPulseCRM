@@ -407,6 +407,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/user-details/:userId", isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userDetails = await storage.getUserDetails(req.user!.id, req.user!.role as UserRole, userId);
+      if (!userDetails) {
+        return res.status(404).json({ error: "User not found or unauthorized" });
+      }
+      res.json(userDetails);
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      res.status(500).json({ error: "Failed to fetch user details" });
+    }
+  });
+
   app.patch("/api/sales/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;

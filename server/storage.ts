@@ -29,6 +29,7 @@ import {
   type CustomerWithDetails,
   type CustomerWithBrands,
   type ActionItemWithCustomer,
+  type UserDetails,
   users,
   sales,
   customers,
@@ -102,6 +103,7 @@ export interface IStorage {
 
   getSegments(): Promise<Segment[]>;
   getStats(): Promise<DashboardStats>;
+  getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -834,6 +836,97 @@ export class DatabaseStorage implements IStorage {
       customerCount,
       averageLeadScore,
       recentInteractions,
+    };
+  }
+
+  async getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null> {
+    // Authorization: check if requesting user has access to target user
+    const effectiveRole = requestingUserRole === "admin" ? "ceo" : requestingUserRole;
+    
+    if (effectiveRole === "manager") {
+      // Managers can only view their direct team members
+      const targetUser = await this.getUser(targetUserId);
+      if (!targetUser || (targetUser.managerId !== requestingUserId && targetUserId !== requestingUserId)) {
+        return null; // Not authorized
+      }
+    } else if (effectiveRole === "salesman") {
+      // Salesmen can only view their own details
+      if (targetUserId !== requestingUserId) {
+        return null; // Not authorized
+      }
+    }
+    // CEO can view anyone
+
+    // Fetch user information
+    const targetUser = await this.getUser(targetUserId);
+    if (!targetUser) {
+      return null;
+    }
+
+    // Remove password from user object
+    const { password, ...userWithoutPassword } = targetUser;
+
+    // Fetch manager if exists
+    let manager: Omit<User, 'password'> | null = null;
+    if (targetUser.managerId) {
+      const managerUser = await this.getUser(targetUser.managerId);
+      if (managerUser) {
+        const { password: _, ...managerWithoutPassword } = managerUser;
+        manager = managerWithoutPassword;
+      }
+    }
+
+    // Fetch monthly targets (both personal and general)
+    const allTargets = await db.select().from(monthlyTargets);
+    const userTargets = allTargets.filter(t => 
+      t.salesmanId === targetUserId || 
+      (t.targetType === "general" && (t.salesmanId === null || t.salesmanId === targetUserId))
+    );
+
+    // Fetch action items with customer names
+    const userActionItems = await db
+      .select({
+        id: actionItems.id,
+        customerId: actionItems.customerId,
+        description: actionItems.description,
+        dueDate: actionItems.dueDate,
+        completedAt: actionItems.completedAt,
+        createdBy: actionItems.createdBy,
+        visitDate: actionItems.visitDate,
+        createdAt: actionItems.createdAt,
+        customerName: customers.name,
+      })
+      .from(actionItems)
+      .leftJoin(customers, eq(actionItems.customerId, customers.id))
+      .where(eq(actionItems.createdBy, targetUserId));
+
+    // Fetch sales
+    const userSales = await db
+      .select()
+      .from(sales)
+      .where(eq(sales.salesmanId, targetUserId))
+      .orderBy(desc(sales.date));
+
+    // Calculate metrics
+    const totalSales = userSales.length;
+    const totalRevenue = userSales.reduce((sum, s) => sum + parseFloat(s.amount), 0);
+    const averageSale = totalSales > 0 ? totalRevenue / totalSales : 0;
+    const pendingActionItems = userActionItems.filter(a => !a.completedAt).length;
+    const completedActionItems = userActionItems.filter(a => a.completedAt).length;
+
+    return {
+      user: userWithoutPassword,
+      manager,
+      monthlyTargets: userTargets,
+      actionItems: userActionItems,
+      sales: userSales,
+      metrics: {
+        totalSales,
+        totalRevenue,
+        averageSale,
+        pendingActionItems,
+        completedActionItems,
+      },
     };
   }
 }
