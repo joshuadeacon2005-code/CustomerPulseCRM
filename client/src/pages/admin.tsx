@@ -37,15 +37,17 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole, Sale } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale, UserDetails } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
@@ -72,6 +74,11 @@ export default function AdminPage() {
 
   const { data: allSales = [] } = useQuery<Sale[]>({
     queryKey: ["/api/sales"],
+  });
+
+  const { data: userDetails, isLoading: isLoadingUserDetails } = useQuery<UserDetails>({
+    queryKey: ["/api/admin/user-details", selectedUserId],
+    enabled: !!selectedUserId && userDetailsOpen,
   });
 
   const managers = allUsers.filter(u => u.role === "admin" || u.role === "manager");
@@ -575,35 +582,48 @@ export default function AdminPage() {
                         {managerUser ? managerUser.name : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={isCurrentUser}
-                              data-testid={`button-delete-user-${user.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {user.name}? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel data-testid="button-cancel-delete-user">Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteUserMutation.mutate(user.id)}
-                                data-testid="button-confirm-delete-user"
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedUserId(user.id);
+                              setUserDetailsOpen(true);
+                            }}
+                            data-testid={`button-view-user-${user.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={isCurrentUser}
+                                data-testid={`button-delete-user-${user.id}`}
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {user.name}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel data-testid="button-cancel-delete-user">Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteUserMutation.mutate(user.id)}
+                                  data-testid="button-confirm-delete-user"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -813,6 +833,197 @@ export default function AdminPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={userDetailsOpen} onOpenChange={setUserDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>User Performance Details</DialogTitle>
+            <DialogDescription>
+              Comprehensive overview of user performance and activity
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingUserDetails ? (
+            <div className="py-8 text-center text-muted-foreground">Loading user details...</div>
+          ) : userDetails ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">User Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Name</p>
+                      <p className="font-medium" data-testid="text-detail-user-name">{userDetails.user.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Username</p>
+                      <p className="font-medium" data-testid="text-detail-user-username">{userDetails.user.username}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Role</p>
+                      <Badge variant="outline" data-testid="badge-detail-user-role">
+                        {getRoleDisplayName(userDetails.user.role as UserRole)}
+                      </Badge>
+                    </div>
+                    {userDetails.manager && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Manager</p>
+                        <p className="font-medium" data-testid="text-detail-user-manager">{userDetails.manager.name}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Performance Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Total Sales</span>
+                      <span className="font-medium" data-testid="text-detail-total-sales">{userDetails.metrics.totalSales}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Total Revenue</span>
+                      <span className="font-medium" data-testid="text-detail-total-revenue">${userDetails.metrics.totalRevenue.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Average Sale</span>
+                      <span className="font-medium" data-testid="text-detail-average-sale">${userDetails.metrics.averageSale.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Pending Actions</span>
+                      <span className="font-medium" data-testid="text-detail-pending-actions">{userDetails.metrics.pendingActionItems}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Completed Actions</span>
+                      <span className="font-medium" data-testid="text-detail-completed-actions">{userDetails.metrics.completedActionItems}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Monthly Targets</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {userDetails.monthlyTargets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No targets set</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userDetails.monthlyTargets.map((target) => (
+                        <div
+                          key={target.id}
+                          className="flex justify-between items-center p-2 bg-muted rounded-md"
+                          data-testid={`target-${target.id}`}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">
+                              {format(new Date(target.year, target.month - 1), "MMMM yyyy")}
+                            </p>
+                            <p className="text-xs text-muted-foreground capitalize">{target.targetType}</p>
+                          </div>
+                          <p className="font-bold" data-testid={`text-target-amount-${target.id}`}>
+                            ${parseFloat(target.targetAmount).toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Action Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {userDetails.actionItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No action items</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userDetails.actionItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex justify-between items-start p-3 bg-muted rounded-md gap-4"
+                          data-testid={`action-item-${item.id}`}
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium" data-testid={`text-action-description-${item.id}`}>
+                              {item.description}
+                            </p>
+                            {item.customerName && (
+                              <p className="text-xs text-muted-foreground mt-1" data-testid={`text-action-customer-${item.id}`}>
+                                Customer: {item.customerName}
+                              </p>
+                            )}
+                            {item.dueDate && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Due: {format(new Date(item.dueDate), "MMM dd, yyyy")}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant={item.completedAt ? "outline" : "default"} data-testid={`badge-action-status-${item.id}`}>
+                            {item.completedAt ? "Completed" : "Pending"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sales History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {userDetails.sales.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No sales recorded</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userDetails.sales.slice(0, 10).map((sale) => (
+                        <div
+                          key={sale.id}
+                          className="flex justify-between items-center p-2 bg-muted rounded-md"
+                          data-testid={`detail-sale-${sale.id}`}
+                        >
+                          <div>
+                            <p className="text-sm font-medium" data-testid={`text-detail-sale-customer-${sale.id}`}>
+                              {sale.customerName}
+                            </p>
+                            <p className="text-xs text-muted-foreground" data-testid={`text-detail-sale-product-${sale.id}`}>
+                              {sale.product}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold" data-testid={`text-detail-sale-amount-${sale.id}`}>
+                              ${parseFloat(sale.amount).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(sale.date), "MMM dd, yyyy")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {userDetails.sales.length > 10 && (
+                        <p className="text-xs text-muted-foreground text-center pt-2">
+                          Showing 10 of {userDetails.sales.length} sales
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">User not found or unauthorized</div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
