@@ -483,15 +483,15 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <UsersIcon className="h-5 w-5" />
-                All Users
-              </CardTitle>
-              <CardDescription>Manage system users</CardDescription>
-            </div>
-            {selectedUserIds.length > 0 && (
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            All Users
+          </CardTitle>
+          <CardDescription>Manage system users</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {selectedUserIds.length > 0 && (
+            <div className="flex justify-end">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -520,16 +520,15 @@ export default function AdminPage() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {allUsers.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No users found
             </div>
-          ) : (
-            <Table>
+          )}
+          <div>
+            {allUsers.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No users found
+              </div>
+            ) : (
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -609,8 +608,9 @@ export default function AdminPage() {
                   );
                 })}
               </TableBody>
-            </Table>
-          )}
+              </Table>
+            )}
+          </div>
         </CardContent>
       </Card>
 
