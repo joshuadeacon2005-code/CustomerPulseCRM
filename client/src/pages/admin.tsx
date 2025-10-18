@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
@@ -152,6 +154,43 @@ export default function AdminPage() {
       });
     },
   });
+
+  const bulkDeleteUsersMutation = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      return await apiRequest("POST", "/api/users/bulk-delete", { ids: userIds });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Success",
+        description: `${data.deletedCount} user(s) deleted successfully`,
+      });
+      setSelectedUserIds([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete users",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const toggleAllUsers = () => {
+    const selectableUsers = allUsers.filter(u => u.id !== currentUser?.id);
+    if (selectedUserIds.length === selectableUsers.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(selectableUsers.map(u => u.id));
+    }
+  };
 
   const updateSaleMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
@@ -444,11 +483,45 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-5 w-5" />
-            All Users
-          </CardTitle>
-          <CardDescription>Manage system users</CardDescription>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UsersIcon className="h-5 w-5" />
+                All Users
+              </CardTitle>
+              <CardDescription>Manage system users</CardDescription>
+            </div>
+            {selectedUserIds.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    data-testid="button-delete-selected-users"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected ({selectedUserIds.length})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {selectedUserIds.length} user(s)? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-bulk-delete">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => bulkDeleteUsersMutation.mutate(selectedUserIds)}
+                      data-testid="button-confirm-bulk-delete"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {allUsers.length === 0 ? (
@@ -459,6 +532,13 @@ export default function AdminPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedUserIds.length === allUsers.filter(u => u.id !== currentUser?.id).length && allUsers.length > 1}
+                      onCheckedChange={toggleAllUsers}
+                      data-testid="checkbox-select-all-users"
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
                   <TableHead>Role</TableHead>
@@ -469,8 +549,17 @@ export default function AdminPage() {
               <TableBody>
                 {allUsers.map((user) => {
                   const managerUser = user.managerId ? getUserById(user.managerId) : null;
+                  const isCurrentUser = user.id === currentUser?.id;
                   return (
                     <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedUserIds.includes(user.id)}
+                          onCheckedChange={() => toggleUserSelection(user.id)}
+                          disabled={isCurrentUser}
+                          data-testid={`checkbox-user-${user.id}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium" data-testid={`text-user-name-${user.id}`}>
                         {user.name}
                       </TableCell>
@@ -491,7 +580,7 @@ export default function AdminPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              disabled={user.id === currentUser?.id}
+                              disabled={isCurrentUser}
                               data-testid={`button-delete-user-${user.id}`}
                             >
                               <Trash2 className="h-4 w-4" />

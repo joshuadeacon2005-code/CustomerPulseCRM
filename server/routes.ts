@@ -394,6 +394,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/users/bulk-delete", isAdmin, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "Invalid request: ids must be a non-empty array" });
+      }
+      const deletedCount = await storage.deleteUsers(ids);
+      res.json({ success: true, deletedCount });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete users" });
+    }
+  });
+
   app.patch("/api/sales/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
