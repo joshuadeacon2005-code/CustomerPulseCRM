@@ -483,15 +483,15 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-5 w-5" />
-            All Users
-          </CardTitle>
-          <CardDescription>Manage system users</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {selectedUserIds.length > 0 && (
-            <div className="flex justify-end">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UsersIcon className="h-5 w-5" />
+                All Users
+              </CardTitle>
+              <CardDescription>Manage system users</CardDescription>
+            </div>
+            {selectedUserIds.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -520,15 +520,16 @@ export default function AdminPage() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {allUsers.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No users found
             </div>
-          )}
-          <div>
-            {allUsers.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                No users found
-              </div>
-            ) : (
-              <Table>
+          ) : (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -608,9 +609,8 @@ export default function AdminPage() {
                   );
                 })}
               </TableBody>
-              </Table>
-            )}
-          </div>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -705,6 +705,43 @@ export default function AdminPage() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-5 w-5" />
+            Team Member Details
+          </CardTitle>
+          <CardDescription>View detailed information about team members</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Select onValueChange={(userId) => window.open(`/user-details/${userId}`, '_blank')}>
+              <SelectTrigger data-testid="select-team-member">
+                <SelectValue placeholder="Select a team member to view details" />
+              </SelectTrigger>
+              <SelectContent>
+                {allUsers
+                  .filter(u => {
+                    if (currentUser?.role === "admin") return true;
+                    if (currentUser?.role === "manager") {
+                      return u.managerId === currentUser.id || u.id === currentUser.id;
+                    }
+                    return false;
+                  })
+                  .map((user) => (
+                    <SelectItem key={user.id} value={user.id} data-testid={`option-team-member-${user.id}`}>
+                      {user.name} ({getRoleDisplayName(user.role as UserRole)})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Select a team member to view their sales targets, action items, and sales history in detail.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

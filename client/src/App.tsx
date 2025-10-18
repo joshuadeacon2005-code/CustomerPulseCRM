@@ -18,6 +18,7 @@ import SegmentsPage from "@/pages/segments";
 import TargetsPage from "@/pages/targets";
 import TasksPage from "@/pages/tasks";
 import ReportsPage from "@/pages/reports";
+import UserDetailsPage from "@/pages/user-details";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -71,6 +72,11 @@ function AuthenticatedApp() {
                 <ProtectedRoute>
                   <TargetsPage />
                 </ProtectedRoute>
+              </Route>
+              <Route path="/user-details/:userId">
+                <AdminRoute>
+                  <UserDetailsPage />
+                </AdminRoute>
               </Route>
               <Route path="/tasks">
                 <ProtectedRoute>

@@ -237,6 +237,89 @@ export class DatabaseStorage implements IStorage {
     return Array.from(statsMap.values());
   }
 
+  async canViewUserDetails(currentUserId: string, targetUserId: string, currentUserRole: UserRole): Promise<boolean> {
+    const effectiveRole = currentUserRole === "admin" ? "ceo" : currentUserRole;
+    
+    if (effectiveRole === "ceo") {
+      return true; // CEO can view everyone
+    }
+    
+    if (effectiveRole === "manager") {
+      // Managers can only view their team members
+      const teamMembers = await this.getTeamMembers(currentUserId);
+      return teamMembers.some(member => member.id === targetUserId) || currentUserId === targetUserId;
+    }
+    
+    // Regular users can only view themselves
+    return currentUserId === targetUserId;
+  }
+
+  async getUserDetails(userId: string, currentUserId: string, currentUserRole: UserRole) {
+    const user = await this.getUser(userId);
+    if (!user) return null;
+
+    // Get user's sales
+    const userSales = await db
+      .select()
+      .from(sales)
+      .where(eq(sales.salesmanId, userId))
+      .orderBy(desc(sales.date));
+
+    // Get user's targets
+    const userTargets = await db
+      .select()
+      .from(monthlyTargets)
+      .where(
+        or(
+          eq(monthlyTargets.salesmanId, userId),
+          eq(monthlyTargets.targetType, "general")
+        )
+      )
+      .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+
+    // Get user's action items
+    const userActionItems = await db
+      .select()
+      .from(actionItems)
+      .where(eq(actionItems.createdBy, userId))
+      .orderBy(desc(actionItems.createdAt));
+
+    // Calculate performance metrics
+    const totalSales = userSales.length;
+    const totalRevenue = userSales.reduce((sum, sale) => sum + parseFloat(sale.amount), 0);
+    const averageSaleAmount = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+    // Get manager info
+    let managerInfo = null;
+    if (user.managerId) {
+      const manager = await this.getUser(user.managerId);
+      if (manager) {
+        managerInfo = {
+          id: manager.id,
+          name: manager.name,
+          role: manager.role,
+        };
+      }
+    }
+
+    const { password, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      manager: managerInfo,
+      sales: userSales,
+      targets: userTargets,
+      actionItems: userActionItems,
+      metrics: {
+        totalSales,
+        totalRevenue: totalRevenue.toFixed(2),
+        averageSaleAmount: averageSaleAmount.toFixed(2),
+        pendingActionItems: userActionItems.filter(item => !item.completedAt).length,
+        completedActionItems: userActionItems.filter(item => item.completedAt).length,
+      },
+    };
+  }
+
   async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
     let relevantSales: Sale[];
 

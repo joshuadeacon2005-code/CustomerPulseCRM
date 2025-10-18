@@ -447,6 +447,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/user-details/:userId", isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const currentUserRole = req.user!.role as UserRole;
+      
+      // Check if current user has permission to view this user's details
+      const canView = await storage.canViewUserDetails(req.user!.id, userId, currentUserRole);
+      if (!canView) {
+        return res.status(403).json({ error: "You don't have permission to view this user's details" });
+      }
+
+      const userDetails = await storage.getUserDetails(userId, req.user!.id, currentUserRole);
+      if (!userDetails) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(userDetails);
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      res.status(500).json({ error: "Failed to fetch user details" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
