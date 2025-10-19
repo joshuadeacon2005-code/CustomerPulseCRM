@@ -22,11 +22,12 @@ The application is built with a React and TypeScript frontend, an Express.js and
 
 **Technical Implementations & Feature Specifications:**
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management using `connect-pg-simple` for PostgreSQL session storage.
-- **Role-Based Access Control**: Multi-level roles (CEO, Regional Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to the 'salesman' role.
+- **Role-Based Access Control**: Multi-level roles (CEO, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to the 'salesman' role.
 - **Customer Management**: Comprehensive customer profiles including personal notes, BC marketplace integration details, store address, retailer type, quarterly soft targets, and last contact date. Advanced filtering by brand and retailer type. Customer deletion functionality.
 - **Brand Management**: Many-to-many relationship allowing multi-brand assignment per customer with inline brand creation.
 - **Target Management**: Supports both Personal (individual salespeople) and General (company/team-wide) monthly sales targets, with role-based target setting capabilities.
-- **Action Items**: To-do list functionality with status tracking (overdue, today, upcoming), color coding, and visit/call logging.
+- **Action Items**: To-do list functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and Basecamp integration for syncing to-do lists.
+- **Basecamp Integration**: OAuth 2.0 integration allowing users to connect their Basecamp accounts and sync Basecamp to-do lists as CRM action items. Includes automatic token refresh, project and to-do list fetching, and linking to-dos to customers.
 - **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actual calculations and variance reporting. Performance reports track sales against targets.
 - **Analytics**: Advanced analytics include team structure visualization, team performance metrics (customer counts, targets, action items), and user ID to name mapping for improved readability across charts.
 - **Data Storage**: Drizzle ORM for PostgreSQL database interactions, preventing N+1 issues with optimized queries.

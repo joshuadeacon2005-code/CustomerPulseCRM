@@ -105,7 +105,7 @@ export interface IStorage {
 
   getSegments(): Promise<Segment[]>;
   getStats(): Promise<DashboardStats>;
-  getUserDetails(targetUserId: string, requestingUserId: string, requestingUserRole: UserRole): Promise<UserDetails | null>;
+  getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
   canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean>;
 
   saveBasecampConnection(connection: { userId: string; accessToken: string; refreshToken: string; expiresAt: Date; basecampAccountId: string; basecampUserName: string | null }): Promise<void>;
@@ -160,7 +160,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       return await db.select().from(users);
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       // Include the manager themselves along with their team members
       const manager = await this.getUser(userId);
       const teamMembers = await this.getTeamMembers(userId);
@@ -175,7 +175,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       return await db.select().from(sales).orderBy(desc(sales.date));
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -224,7 +224,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       allSalesmen = await this.getTeamMembers(userId);
     } else {
       const user = await this.getUser(userId);
@@ -249,8 +249,8 @@ export class DatabaseStorage implements IStorage {
     return Array.from(statsMap.values());
   }
 
-  async canViewUserDetails(currentUserId: string, targetUserId: string, currentUserRole: UserRole): Promise<boolean> {
-    const effectiveRole = currentUserRole === "admin" ? "ceo" : currentUserRole;
+  async canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean> {
+    const effectiveRole = requestingUserRole === "admin" ? "ceo" : requestingUserRole;
     
     if (effectiveRole === "ceo") {
       return true; // CEO can view everyone
@@ -258,78 +258,12 @@ export class DatabaseStorage implements IStorage {
     
     if (effectiveRole === "manager") {
       // Managers can only view their team members
-      const teamMembers = await this.getTeamMembers(currentUserId);
-      return teamMembers.some(member => member.id === targetUserId) || currentUserId === targetUserId;
+      const teamMembers = await this.getTeamMembers(requestingUserId);
+      return teamMembers.some(member => member.id === targetUserId) || requestingUserId === targetUserId;
     }
     
     // Regular users can only view themselves
-    return currentUserId === targetUserId;
-  }
-
-  async getUserDetails(userId: string, currentUserId: string, currentUserRole: UserRole) {
-    const user = await this.getUser(userId);
-    if (!user) return null;
-
-    // Get user's sales
-    const userSales = await db
-      .select()
-      .from(sales)
-      .where(eq(sales.salesmanId, userId))
-      .orderBy(desc(sales.date));
-
-    // Get user's targets
-    const userTargets = await db
-      .select()
-      .from(monthlyTargets)
-      .where(
-        or(
-          eq(monthlyTargets.salesmanId, userId),
-          eq(monthlyTargets.targetType, "general")
-        )
-      )
-      .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
-
-    // Get user's action items
-    const userActionItems = await db
-      .select()
-      .from(actionItems)
-      .where(eq(actionItems.createdBy, userId))
-      .orderBy(desc(actionItems.createdAt));
-
-    // Calculate performance metrics
-    const totalSales = userSales.length;
-    const totalRevenue = userSales.reduce((sum, sale) => sum + parseFloat(sale.amount), 0);
-    const averageSaleAmount = totalSales > 0 ? totalRevenue / totalSales : 0;
-
-    // Get manager info
-    let managerInfo = null;
-    if (user.managerId) {
-      const manager = await this.getUser(user.managerId);
-      if (manager) {
-        managerInfo = {
-          id: manager.id,
-          name: manager.name,
-          role: manager.role,
-        };
-      }
-    }
-
-    const { password, ...userWithoutPassword } = user;
-
-    return {
-      user: userWithoutPassword,
-      manager: managerInfo,
-      sales: userSales,
-      targets: userTargets,
-      actionItems: userActionItems,
-      metrics: {
-        totalSales,
-        totalRevenue: totalRevenue.toFixed(2),
-        averageSaleAmount: averageSaleAmount.toFixed(2),
-        pendingActionItems: userActionItems.filter(item => !item.completedAt).length,
-        completedActionItems: userActionItems.filter(item => item.completedAt).length,
-      },
-    };
+    return requestingUserId === targetUserId;
   }
 
   async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
@@ -338,7 +272,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveRole = userRole === "admin" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       relevantSales = await db.select().from(sales);
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
 
@@ -369,7 +303,7 @@ export class DatabaseStorage implements IStorage {
 
     if (effectiveRole === "ceo") {
       allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -764,7 +698,7 @@ export class DatabaseStorage implements IStorage {
     if (effectiveRole === "ceo") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];

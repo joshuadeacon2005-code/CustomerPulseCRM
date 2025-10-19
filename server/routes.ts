@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "You don't have permission to view this user's details" });
       }
 
-      const userDetails = await storage.getUserDetails(userId, req.user!.id, currentUserRole);
+      const userDetails = await storage.getUserDetails(req.user!.id, currentUserRole, userId);
       if (!userDetails) {
         return res.status(404).json({ error: "User not found" });
       }
