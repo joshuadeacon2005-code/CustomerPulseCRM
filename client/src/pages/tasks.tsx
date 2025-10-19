@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Trash2, RefreshCw, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -33,6 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertActionItemSchema, type ActionItemWithCustomer, type Customer } from "@shared/schema";
@@ -46,9 +49,29 @@ const formSchema = insertActionItemSchema.extend({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface BasecampConnection {
+  connected: boolean;
+  accountId?: string;
+  userName?: string;
+  connectedAt?: Date;
+}
+
+interface BasecampTodo {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  due_on?: string;
+  project: string;
+  todolist: string;
+}
+
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [selectedTodo, setSelectedTodo] = useState<BasecampTodo | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
@@ -77,6 +100,15 @@ export default function Tasks() {
     queryKey: ["/api/customers"],
   });
 
+  const { data: connection, isLoading: connectionLoading } = useQuery<BasecampConnection>({
+    queryKey: ["/api/basecamp/connection"],
+  });
+
+  const { data: basecampTodos = [], isLoading: todosLoading, refetch: refetchTodos } = useQuery<BasecampTodo[]>({
+    queryKey: ["/api/basecamp/todos"],
+    enabled: connection?.connected === true,
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -103,14 +135,14 @@ export default function Tasks() {
       setIsAddDialogOpen(false);
       form.reset();
       toast({
-        title: "Task created",
-        description: "The action item has been successfully created.",
+        title: "To-do created",
+        description: "The to-do has been successfully created.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create task. Please try again.",
+        description: "Failed to create to-do. Please try again.",
         variant: "destructive",
       });
     },
@@ -121,14 +153,55 @@ export default function Tasks() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
       toast({
-        title: "Task completed",
-        description: "The action item has been marked as complete.",
+        title: "To-do completed",
+        description: "The to-do has been marked as complete.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to complete task. Please try again.",
+        description: "Failed to complete to-do. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => apiRequest("/api/basecamp/connection", "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
+      toast({
+        title: "Basecamp disconnected",
+        description: "Your Basecamp account has been disconnected",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Basecamp",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const syncTodoMutation = useMutation({
+    mutationFn: (data: { basecampTodoId: string; customerId: string; description: string; dueDate?: string }) =>
+      apiRequest("/api/basecamp/sync-todo", "POST", data),
+    onSuccess: () => {
+      toast({
+        title: "To-do synced",
+        description: "Basecamp to-do has been added to your to-do list",
+      });
+      setSyncDialogOpen(false);
+      setSelectedTodo(null);
+      setSelectedCustomerId("");
+      refetchTodos();
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sync to-do",
         variant: "destructive",
       });
     },
@@ -136,6 +209,32 @@ export default function Tasks() {
 
   const onSubmit = (data: FormData) => {
     createTaskMutation.mutate(data);
+  };
+
+  const handleConnect = () => {
+    window.location.href = "/api/basecamp/auth";
+  };
+
+  const handleDisconnect = () => {
+    if (confirm("Are you sure you want to disconnect your Basecamp account?")) {
+      disconnectMutation.mutate();
+    }
+  };
+
+  const handleSyncTodo = (todo: BasecampTodo) => {
+    setSelectedTodo(todo);
+    setSyncDialogOpen(true);
+  };
+
+  const handleConfirmSync = () => {
+    if (!selectedTodo || !selectedCustomerId) return;
+
+    syncTodoMutation.mutate({
+      basecampTodoId: selectedTodo.id,
+      customerId: selectedCustomerId,
+      description: selectedTodo.title,
+      dueDate: selectedTodo.due_on,
+    });
   };
 
   const getTaskStatusColor = (task: ActionItemWithCustomer) => {
@@ -233,16 +332,143 @@ export default function Tasks() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-action-items-title">Action Items</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-todo-list-title">To Do List</h1>
           <p className="text-muted-foreground mt-1">
             Manage your tasks and follow-ups
           </p>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-task">
           <Plus className="h-4 w-4 mr-2" />
-          Add Task
+          Add To-Do
         </Button>
       </div>
+
+      {/* Basecamp Integration Section */}
+      {!connectionLoading && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {connection?.connected ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      Basecamp Connected
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-5 w-5" />
+                      Basecamp Integration
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {connection?.connected 
+                    ? `Account: ${connection.userName} (ID: ${connection.accountId})`
+                    : "Sync your Basecamp to-dos with your CRM"}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {connection?.connected ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchTodos()}
+                      disabled={todosLoading}
+                      data-testid="button-refresh-todos"
+                    >
+                      <RefreshCw className={`mr-2 h-4 w-4 ${todosLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      data-testid="button-disconnect-basecamp"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Disconnect
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleConnect} size="sm" data-testid="button-connect-basecamp">
+                    <Link2 className="mr-2 h-4 w-4" />
+                    Connect Basecamp
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          {connection?.connected && basecampTodos.length > 0 && (
+            <CardContent className="space-y-3">
+              <Separator />
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">
+                  Basecamp To-Dos ({basecampTodos.length})
+                </h4>
+                {todosLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {basecampTodos.slice(0, 5).map((todo) => (
+                      <div
+                        key={todo.id}
+                        className="flex items-start justify-between p-3 border rounded-md hover-elevate"
+                        data-testid={`todo-${todo.id}`}
+                      >
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            {todo.completed ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <h4 className="font-medium text-sm" data-testid={`text-todo-title-${todo.id}`}>
+                              {todo.title}
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="secondary" className="text-xs" data-testid={`badge-project-${todo.id}`}>
+                              {todo.project}
+                            </Badge>
+                            {todo.due_on && (
+                              <>
+                                <span>•</span>
+                                <div className="flex items-center gap-1">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  <span data-testid={`text-due-date-${todo.id}`}>{todo.due_on}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {!todo.completed && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSyncTodo(todo)}
+                            data-testid={`button-sync-${todo.id}`}
+                          >
+                            Sync
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {basecampTodos.length > 5 && (
+                      <p className="text-xs text-muted-foreground text-center pt-2">
+                        Showing 5 of {basecampTodos.length} to-dos
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5" data-testid="tabs-filter">
@@ -264,7 +490,7 @@ export default function Tasks() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          {renderTaskList(allTasks, isLoadingAll, "No action items yet. Create your first task to get started.")}
+          {renderTaskList(allTasks, isLoadingAll, "No to-dos yet. Create your first task to get started.")}
         </TabsContent>
 
         <TabsContent value="overdue" className="mt-6">
@@ -284,11 +510,12 @@ export default function Tasks() {
         </TabsContent>
       </Tabs>
 
+      {/* Add To-Do Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent data-testid="dialog-add-task">
           <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
-            <DialogDescription>Create a new action item for a customer</DialogDescription>
+            <DialogTitle>Add New To-Do</DialogTitle>
+            <DialogDescription>Create a new to-do for a customer</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -325,7 +552,7 @@ export default function Tasks() {
                     <FormLabel>Description *</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Describe the action item..."
+                        placeholder="Describe the to-do..."
                         {...field}
                         data-testid="input-description"
                       />
@@ -421,11 +648,76 @@ export default function Tasks() {
                   disabled={createTaskMutation.isPending}
                   data-testid="button-submit-task"
                 >
-                  {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                  {createTaskMutation.isPending ? "Creating..." : "Create To-Do"}
                 </Button>
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Basecamp Sync Dialog */}
+      <Dialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
+        <DialogContent data-testid="dialog-sync-todo">
+          <DialogHeader>
+            <DialogTitle>Sync To-Do to CRM</DialogTitle>
+            <DialogDescription>
+              Link this Basecamp to-do to a customer
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">To-Do</label>
+              <div className="p-3 border rounded-md bg-muted">
+                <p className="font-medium" data-testid="text-selected-todo-title">
+                  {selectedTodo?.title}
+                </p>
+                {selectedTodo?.due_on && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Due: {selectedTodo.due_on}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Customer</label>
+              <Select
+                value={selectedCustomerId}
+                onValueChange={setSelectedCustomerId}
+              >
+                <SelectTrigger data-testid="select-customer">
+                  <SelectValue placeholder="Choose a customer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem
+                      key={customer.id}
+                      value={customer.id}
+                      data-testid={`option-customer-${customer.id}`}
+                    >
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSyncDialogOpen(false)}
+              data-testid="button-cancel-sync"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmSync}
+              disabled={!selectedCustomerId || syncTodoMutation.isPending}
+              data-testid="button-confirm-sync"
+            >
+              {syncTodoMutation.isPending ? "Syncing..." : "Sync to CRM"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
