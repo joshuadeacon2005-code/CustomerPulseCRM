@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Trash2, RefreshCw, Circle } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Trash2, RefreshCw, Circle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -66,12 +67,26 @@ interface BasecampTodo {
   todolist: string;
 }
 
+interface BasecampProject {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface BasecampProjectsResponse {
+  projects: BasecampProject[];
+  selectedProjectIds: string[];
+}
+
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [projectsDialogOpen, setProjectsDialogOpen] = useState(false);
   const [selectedTodo, setSelectedTodo] = useState<BasecampTodo | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [tempSelectedProjects, setTempSelectedProjects] = useState<string[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
@@ -108,6 +123,17 @@ export default function Tasks() {
     queryKey: ["/api/basecamp/todos"],
     enabled: connection?.connected === true,
   });
+
+  const { data: projectsData, refetch: refetchProjects } = useQuery<BasecampProjectsResponse>({
+    queryKey: ["/api/basecamp/projects"],
+    enabled: connection?.connected === true,
+  });
+
+  const filteredTodos = projectFilter === "all" 
+    ? basecampTodos 
+    : basecampTodos.filter(todo => todo.project === projectFilter);
+
+  const uniqueProjects = Array.from(new Set(basecampTodos.map(todo => todo.project)));
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -207,6 +233,27 @@ export default function Tasks() {
     },
   });
 
+  const saveProjectsMutation = useMutation({
+    mutationFn: (projectIds: string[]) => 
+      apiRequest("POST", "/api/basecamp/selected-projects", { projectIds }),
+    onSuccess: () => {
+      toast({
+        title: "Projects saved",
+        description: "Your project selection has been saved",
+      });
+      setProjectsDialogOpen(false);
+      refetchProjects();
+      refetchTodos();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save project selection",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: FormData) => {
     createTaskMutation.mutate(data);
   };
@@ -235,6 +282,23 @@ export default function Tasks() {
       description: selectedTodo.title,
       dueDate: selectedTodo.due_on,
     });
+  };
+
+  const handleOpenProjectDialog = () => {
+    setTempSelectedProjects(projectsData?.selectedProjectIds || []);
+    setProjectsDialogOpen(true);
+  };
+
+  const handleToggleProject = (projectId: string) => {
+    setTempSelectedProjects(prev => 
+      prev.includes(projectId) 
+        ? prev.filter(id => id !== projectId)
+        : [...prev, projectId]
+    );
+  };
+
+  const handleSaveProjects = () => {
+    saveProjectsMutation.mutate(tempSelectedProjects);
   };
 
   const getTaskStatusColor = (task: ActionItemWithCustomer) => {
@@ -374,6 +438,15 @@ export default function Tasks() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={handleOpenProjectDialog}
+                      data-testid="button-select-projects"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Select Projects
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => refetchTodos()}
                       disabled={todosLoading}
                       data-testid="button-refresh-todos"
@@ -403,17 +476,34 @@ export default function Tasks() {
           {connection?.connected && basecampTodos.length > 0 && (
             <CardContent className="space-y-3">
               <Separator />
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">
-                  Basecamp To-Dos ({basecampTodos.length})
-                </h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className="text-sm font-medium">
+                    Basecamp To-Dos ({filteredTodos.length})
+                  </h4>
+                  {uniqueProjects.length > 1 && (
+                    <Select value={projectFilter} onValueChange={setProjectFilter}>
+                      <SelectTrigger className="w-[200px]" data-testid="select-project-filter">
+                        <SelectValue placeholder="Filter by project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Projects</SelectItem>
+                        {uniqueProjects.map((project) => (
+                          <SelectItem key={project} value={project}>
+                            {project}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
                 {todosLoading ? (
                   <div className="flex items-center justify-center h-32">
                     <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {basecampTodos.slice(0, 5).map((todo) => (
+                    {filteredTodos.slice(0, 5).map((todo) => (
                       <div
                         key={todo.id}
                         className="flex items-start justify-between p-3 border rounded-md hover-elevate"
@@ -457,9 +547,9 @@ export default function Tasks() {
                         )}
                       </div>
                     ))}
-                    {basecampTodos.length > 5 && (
+                    {filteredTodos.length > 5 && (
                       <p className="text-xs text-muted-foreground text-center pt-2">
-                        Showing 5 of {basecampTodos.length} to-dos
+                        Showing 5 of {filteredTodos.length} to-dos
                       </p>
                     )}
                   </div>
@@ -716,6 +806,72 @@ export default function Tasks() {
               data-testid="button-confirm-sync"
             >
               {syncTodoMutation.isPending ? "Syncing..." : "Sync to CRM"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Selection Dialog */}
+      <Dialog open={projectsDialogOpen} onOpenChange={setProjectsDialogOpen}>
+        <DialogContent data-testid="dialog-select-projects">
+          <DialogHeader>
+            <DialogTitle>Select Basecamp Projects</DialogTitle>
+            <DialogDescription>
+              Choose which projects to sync to-dos from. Leave empty to sync from all projects.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
+            {projectsData && projectsData.projects.length > 0 ? (
+              <div className="space-y-3">
+                {projectsData.projects.map((project) => (
+                  <div 
+                    key={project.id} 
+                    className="flex items-start gap-3 p-3 border rounded-md hover-elevate"
+                    data-testid={`project-${project.id}`}
+                  >
+                    <Checkbox
+                      id={`project-${project.id}`}
+                      checked={tempSelectedProjects.includes(project.id)}
+                      onCheckedChange={() => handleToggleProject(project.id)}
+                      data-testid={`checkbox-project-${project.id}`}
+                    />
+                    <div className="flex-1">
+                      <label
+                        htmlFor={`project-${project.id}`}
+                        className="font-medium text-sm cursor-pointer"
+                        data-testid={`text-project-name-${project.id}`}
+                      >
+                        {project.name}
+                      </label>
+                      {project.description && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {project.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-32">
+                <p className="text-muted-foreground text-sm">No projects found</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setProjectsDialogOpen(false)}
+              data-testid="button-cancel-projects"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveProjects}
+              disabled={saveProjectsMutation.isPending}
+              data-testid="button-save-projects"
+            >
+              {saveProjectsMutation.isPending ? "Saving..." : "Save Selection"}
             </Button>
           </DialogFooter>
         </DialogContent>
