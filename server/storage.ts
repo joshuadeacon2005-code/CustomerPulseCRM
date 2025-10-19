@@ -104,7 +104,7 @@ export interface IStorage {
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
 
   getSegments(): Promise<Segment[]>;
-  getStats(): Promise<DashboardStats>;
+  getStats(monthly?: boolean): Promise<DashboardStats>;
   getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
   canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean>;
 
@@ -790,25 +790,47 @@ export class DatabaseStorage implements IStorage {
     return segments;
   }
 
-  async getStats(): Promise<DashboardStats> {
+  async getStats(monthly: boolean = false): Promise<DashboardStats> {
     const allCustomers = await db.select().from(customers);
     const allInteractions = await this.getInteractions();
 
-    const leadCount = allCustomers.filter(c => c.stage === "lead").length;
-    const prospectCount = allCustomers.filter(c => c.stage === "prospect").length;
-    const customerCount = allCustomers.filter(c => c.stage === "customer").length;
+    // For monthly view, filter to current month
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const filteredCustomers = monthly 
+      ? allCustomers.filter(c => {
+          const createdDate = new Date(c.createdAt);
+          return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
+        })
+      : allCustomers;
 
-    const averageLeadScore = allCustomers.length > 0
-      ? allCustomers.reduce((sum, c) => sum + c.leadScore, 0) / allCustomers.length
+    const filteredInteractions = monthly
+      ? allInteractions.filter(i => {
+          const interactionDate = new Date(i.date);
+          return interactionDate.getMonth() === currentMonth && interactionDate.getFullYear() === currentYear;
+        })
+      : allInteractions;
+
+    const leadCount = filteredCustomers.filter(c => c.stage === "lead").length;
+    const prospectCount = filteredCustomers.filter(c => c.stage === "prospect").length;
+    const customerCount = filteredCustomers.filter(c => c.stage === "customer").length;
+
+    const averageLeadScore = filteredCustomers.length > 0
+      ? filteredCustomers.reduce((sum, c) => sum + c.leadScore, 0) / filteredCustomers.length
       : 0;
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentInteractions = allInteractions.filter(
-      i => new Date(i.date) >= sevenDaysAgo
-    ).length;
+    // For monthly view, show interactions this month; for overall, last 7 days
+    const recentInteractions = monthly
+      ? filteredInteractions.length
+      : (() => {
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          return allInteractions.filter(i => new Date(i.date) >= sevenDaysAgo).length;
+        })();
 
     return {
-      totalCustomers: allCustomers.length,
+      totalCustomers: filteredCustomers.length,
       leadCount,
       prospectCount,
       customerCount,
