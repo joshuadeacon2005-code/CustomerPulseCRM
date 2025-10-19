@@ -95,6 +95,7 @@ export const basecampConnections = pgTable("basecamp_connections", {
   expiresAt: timestamp("expires_at").notNull(),
   basecampAccountId: text("basecamp_account_id").notNull(),
   basecampUserName: text("basecamp_user_name"),
+  selectedProjectIds: text("selected_project_ids").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
