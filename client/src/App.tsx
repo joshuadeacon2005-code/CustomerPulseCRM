@@ -19,7 +19,6 @@ import TargetsPage from "@/pages/targets";
 import TasksPage from "@/pages/tasks";
 import ReportsPage from "@/pages/reports";
 import UserDetailsPage from "@/pages/user-details";
-import BasecampPage from "@/pages/basecamp";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -87,11 +86,6 @@ function AuthenticatedApp() {
               <Route path="/reports">
                 <ProtectedRoute>
                   <ReportsPage />
-                </ProtectedRoute>
-              </Route>
-              <Route path="/basecamp">
-                <ProtectedRoute>
-                  <BasecampPage />
                 </ProtectedRoute>
               </Route>
               <Route component={NotFound} />
