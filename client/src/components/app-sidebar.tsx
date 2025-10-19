@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText, Link2 } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -67,7 +67,7 @@ export function AppSidebar() {
       icon: TrendingUp,
     },
     {
-      title: "Action Items",
+      title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
     },
@@ -75,11 +75,6 @@ export function AppSidebar() {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
-    },
-    {
-      title: "Basecamp",
-      url: "/basecamp",
-      icon: Link2,
     },
   ];
 
@@ -115,7 +110,7 @@ export function AppSidebar() {
       icon: TrendingUp,
     },
     {
-      title: "Action Items",
+      title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
     },
@@ -123,11 +118,6 @@ export function AppSidebar() {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
-    },
-    {
-      title: "Basecamp",
-      url: "/basecamp",
-      icon: Link2,
     },
   ];
 
@@ -158,7 +148,7 @@ export function AppSidebar() {
       icon: TrendingUp,
     },
     {
-      title: "Action Items",
+      title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
     },
@@ -166,11 +156,6 @@ export function AppSidebar() {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
-    },
-    {
-      title: "Basecamp",
-      url: "/basecamp",
-      icon: Link2,
     },
   ];
 
@@ -191,7 +176,7 @@ export function AppSidebar() {
       icon: TrendingUp,
     },
     {
-      title: "Action Items",
+      title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
     },
@@ -199,11 +184,6 @@ export function AppSidebar() {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
-    },
-    {
-      title: "Basecamp",
-      url: "/basecamp",
-      icon: Link2,
     },
   ];
 
