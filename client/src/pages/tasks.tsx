@@ -167,7 +167,7 @@ export default function Tasks() {
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: () => apiRequest("/api/basecamp/connection", "DELETE"),
+    mutationFn: () => apiRequest("DELETE", "/api/basecamp/connection"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
       toast({
@@ -186,7 +186,7 @@ export default function Tasks() {
 
   const syncTodoMutation = useMutation({
     mutationFn: (data: { basecampTodoId: string; customerId: string; description: string; dueDate?: string }) =>
-      apiRequest("/api/basecamp/sync-todo", "POST", data),
+      apiRequest("POST", "/api/basecamp/sync-todo", data),
     onSuccess: () => {
       toast({
         title: "To-do synced",
