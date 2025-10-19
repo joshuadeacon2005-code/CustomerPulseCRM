@@ -135,9 +135,14 @@ export function setupAuth(app: Express) {
       req.login(user, (err) => {
         if (err) return next(err);
         
-        const userWithoutPassword = { ...user };
-        delete (userWithoutPassword as any).password;
-        res.status(200).json(userWithoutPassword);
+        // Explicitly save the session before responding
+        req.session.save((err) => {
+          if (err) return next(err);
+          
+          const userWithoutPassword = { ...user };
+          delete (userWithoutPassword as any).password;
+          res.status(200).json(userWithoutPassword);
+        });
       });
     })(req, res, next);
   });
