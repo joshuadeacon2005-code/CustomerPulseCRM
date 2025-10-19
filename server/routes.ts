@@ -126,7 +126,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stats", isAuthenticated, async (req, res) => {
     try {
       const monthly = req.query.monthly === 'true';
-      const stats = await storage.getStats(monthly);
+      const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      
+      const stats = await storage.getStats({ monthly, month, year });
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });

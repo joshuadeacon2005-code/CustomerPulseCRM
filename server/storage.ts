@@ -104,7 +104,7 @@ export interface IStorage {
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
 
   getSegments(): Promise<Segment[]>;
-  getStats(monthly?: boolean): Promise<DashboardStats>;
+  getStats(options?: { monthly?: boolean; month?: number; year?: number }): Promise<DashboardStats>;
   getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
   canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean>;
 
@@ -790,26 +790,27 @@ export class DatabaseStorage implements IStorage {
     return segments;
   }
 
-  async getStats(monthly: boolean = false): Promise<DashboardStats> {
+  async getStats(options: { monthly?: boolean; month?: number; year?: number } = {}): Promise<DashboardStats> {
     const allCustomers = await db.select().from(customers);
     const allInteractions = await this.getInteractions();
 
-    // For monthly view, filter to current month
+    // Determine the month and year to filter by
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const filterMonth = options.month !== undefined ? options.month : now.getMonth();
+    const filterYear = options.year !== undefined ? options.year : now.getFullYear();
+    const isMonthlyView = options.monthly || (options.month !== undefined || options.year !== undefined);
     
-    const filteredCustomers = monthly 
+    const filteredCustomers = isMonthlyView 
       ? allCustomers.filter(c => {
           const createdDate = new Date(c.createdAt);
-          return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
+          return createdDate.getMonth() === filterMonth && createdDate.getFullYear() === filterYear;
         })
       : allCustomers;
 
-    const filteredInteractions = monthly
+    const filteredInteractions = isMonthlyView
       ? allInteractions.filter(i => {
           const interactionDate = new Date(i.date);
-          return interactionDate.getMonth() === currentMonth && interactionDate.getFullYear() === currentYear;
+          return interactionDate.getMonth() === filterMonth && interactionDate.getFullYear() === filterYear;
         })
       : allInteractions;
 
@@ -822,7 +823,7 @@ export class DatabaseStorage implements IStorage {
       : 0;
 
     // For monthly view, show interactions this month; for overall, last 7 days
-    const recentInteractions = monthly
+    const recentInteractions = isMonthlyView
       ? filteredInteractions.length
       : (() => {
           const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
