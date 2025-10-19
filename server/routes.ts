@@ -484,6 +484,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Basecamp OAuth routes
+  app.get("/api/basecamp/auth", isAuthenticated, async (req, res) => {
+    const clientId = process.env.BASECAMP_CLIENT_ID;
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/basecamp/callback`;
+    
+    const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    
+    res.redirect(authUrl);
+  });
+
+  app.get("/api/basecamp/callback", isAuthenticated, async (req, res) => {
+    try {
+      const { code } = req.query;
+      
+      if (!code) {
+        return res.status(400).send("No authorization code received");
+      }
+
+      const clientId = process.env.BASECAMP_CLIENT_ID;
+      const clientSecret = process.env.BASECAMP_CLIENT_SECRET;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/basecamp/callback`;
+
+      // Exchange code for access token
+      const tokenResponse = await fetch('https://launchpad.37signals.com/authorization/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'web_server',
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to exchange code for token');
+      }
+
+      const tokenData = await tokenResponse.json();
+      
+      // Get user's Basecamp account info
+      const authResponse = await fetch('https://launchpad.37signals.com/authorization.json', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+        },
+      });
+
+      if (!authResponse.ok) {
+        throw new Error('Failed to get Basecamp account info');
+      }
+
+      const authData = await authResponse.json();
+      
+      // Get the first Basecamp account
+      const basecampAccount = authData.accounts.find((acc: any) => acc.product === 'bc3' || acc.product === 'bcx');
+      
+      if (!basecampAccount) {
+        return res.status(400).send("No Basecamp account found");
+      }
+
+      // Store the connection
+      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+      
+      await storage.saveBasecampConnection({
+        userId: req.user!.id,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt,
+        basecampAccountId: basecampAccount.id.toString(),
+        basecampUserName: authData.identity.email_address,
+      });
+
+      res.redirect('/?basecamp=connected');
+    } catch (error) {
+      console.error("Basecamp OAuth error:", error);
+      res.status(500).send("Failed to connect Basecamp account");
+    }
+  });
+
+  app.get("/api/basecamp/connection", isAuthenticated, async (req, res) => {
+    try {
+      const connection = await storage.getBasecampConnection(req.user!.id);
+      
+      if (!connection) {
+        return res.json({ connected: false });
+      }
+
+      res.json({
+        connected: true,
+        accountId: connection.basecampAccountId,
+        userName: connection.basecampUserName,
+        connectedAt: connection.createdAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch Basecamp connection status" });
+    }
+  });
+
+  app.delete("/api/basecamp/connection", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteBasecampConnection(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to disconnect Basecamp" });
+    }
+  });
+
+  app.get("/api/basecamp/todos", isAuthenticated, async (req, res) => {
+    try {
+      const connection = await storage.getBasecampConnection(req.user!.id);
+      
+      if (!connection) {
+        return res.status(400).json({ error: "Basecamp not connected" });
+      }
+
+      // Refresh token if expired
+      if (new Date() >= connection.expiresAt) {
+        const newTokens = await storage.refreshBasecampToken(req.user!.id);
+        if (!newTokens) {
+          return res.status(401).json({ error: "Failed to refresh Basecamp token" });
+        }
+      }
+
+      const todos = await storage.fetchBasecampTodos(req.user!.id);
+      res.json(todos);
+    } catch (error) {
+      console.error("Error fetching Basecamp todos:", error);
+      res.status(500).json({ error: "Failed to fetch Basecamp todos" });
+    }
+  });
+
+  app.post("/api/basecamp/sync-todo", isAuthenticated, async (req, res) => {
+    try {
+      const { basecampTodoId, customerId, description, dueDate } = req.body;
+      
+      if (!basecampTodoId || !customerId || !description) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const actionItem = await storage.createActionItemFromBasecamp({
+        basecampTodoId,
+        customerId,
+        description,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        createdBy: req.user!.id,
+      });
+
+      res.status(201).json(actionItem);
+    } catch (error) {
+      console.error("Error syncing Basecamp todo:", error);
+      res.status(500).json({ error: "Failed to sync todo" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

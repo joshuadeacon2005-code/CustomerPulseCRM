@@ -30,6 +30,7 @@ import {
   type CustomerWithBrands,
   type ActionItemWithCustomer,
   type UserDetails,
+  type BasecampConnection,
   users,
   sales,
   customers,
@@ -39,6 +40,7 @@ import {
   monthlyTargets,
   actionItems,
   monthlySalesTracking,
+  basecampConnections,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -103,7 +105,15 @@ export interface IStorage {
 
   getSegments(): Promise<Segment[]>;
   getStats(): Promise<DashboardStats>;
-  getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
+  getUserDetails(targetUserId: string, requestingUserId: string, requestingUserRole: UserRole): Promise<UserDetails | null>;
+  canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean>;
+
+  saveBasecampConnection(connection: { userId: string; accessToken: string; refreshToken: string; expiresAt: Date; basecampAccountId: string; basecampUserName: string | null }): Promise<void>;
+  getBasecampConnection(userId: string): Promise<BasecampConnection | null>;
+  deleteBasecampConnection(userId: string): Promise<void>;
+  refreshBasecampToken(userId: string): Promise<{ accessToken: string; refreshToken: string } | null>;
+  fetchBasecampTodos(userId: string): Promise<any[]>;
+  createActionItemFromBasecamp(data: { basecampTodoId: string; customerId: string; description: string; dueDate?: Date; createdBy: string }): Promise<ActionItem>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -565,7 +575,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(monthlyTargets)
         .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
-    } else if (effectiveRole === "regional_manager") {
+    } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -592,6 +602,38 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
     }
+  }
+
+  async createMonthlyTarget(target: InsertMonthlyTarget): Promise<MonthlyTarget> {
+    const amount = parseFloat(target.targetAmount);
+    if (isNaN(amount)) {
+      throw new Error("Invalid target amount");
+    }
+
+    const [newTarget] = await db
+      .insert(monthlyTargets)
+      .values({
+        ...target,
+        targetAmount: target.targetAmount,
+      })
+      .returning();
+    return newTarget;
+  }
+
+  async updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined> {
+    if (target.targetAmount) {
+      const amount = parseFloat(target.targetAmount);
+      if (isNaN(amount)) {
+        throw new Error("Invalid target amount");
+      }
+    }
+
+    const [updated] = await db
+      .update(monthlyTargets)
+      .set(target)
+      .where(eq(monthlyTargets.id, id))
+      .returning();
+    return updated;
   }
 
   async getActionItems(userId: string, userRole: UserRole, filter: "all" | "overdue" | "today" | "upcoming" = "all"): Promise<ActionItemWithCustomer[]> {
@@ -893,6 +935,7 @@ export class DatabaseStorage implements IStorage {
         completedAt: actionItems.completedAt,
         createdBy: actionItems.createdBy,
         visitDate: actionItems.visitDate,
+        basecampTodoId: actionItems.basecampTodoId,
         createdAt: actionItems.createdAt,
         customerName: customers.name,
       })
@@ -928,6 +971,218 @@ export class DatabaseStorage implements IStorage {
         completedActionItems,
       },
     };
+  }
+
+  async saveBasecampConnection(connection: {
+    userId: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: Date;
+    basecampAccountId: string;
+    basecampUserName: string | null;
+  }): Promise<void> {
+    await db
+      .insert(basecampConnections)
+      .values({
+        userId: connection.userId,
+        accessToken: connection.accessToken,
+        refreshToken: connection.refreshToken,
+        expiresAt: connection.expiresAt,
+        basecampAccountId: connection.basecampAccountId,
+        basecampUserName: connection.basecampUserName,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: basecampConnections.userId,
+        set: {
+          accessToken: connection.accessToken,
+          refreshToken: connection.refreshToken,
+          expiresAt: connection.expiresAt,
+          basecampAccountId: connection.basecampAccountId,
+          basecampUserName: connection.basecampUserName,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async getBasecampConnection(userId: string): Promise<BasecampConnection | null> {
+    const [connection] = await db
+      .select()
+      .from(basecampConnections)
+      .where(eq(basecampConnections.userId, userId));
+    return connection || null;
+  }
+
+  async deleteBasecampConnection(userId: string): Promise<void> {
+    await db.delete(basecampConnections).where(eq(basecampConnections.userId, userId));
+  }
+
+  async refreshBasecampToken(userId: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+    const connection = await this.getBasecampConnection(userId);
+    if (!connection) return null;
+
+    try {
+      const response = await fetch('https://launchpad.37signals.com/authorization/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'refresh',
+          refresh_token: connection.refreshToken,
+          client_id: process.env.BASECAMP_CLIENT_ID,
+          client_secret: process.env.BASECAMP_CLIENT_SECRET,
+        }),
+      });
+
+      if (!response.ok) return null;
+
+      const tokenData = await response.json();
+      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+
+      await this.saveBasecampConnection({
+        userId,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || connection.refreshToken,
+        expiresAt,
+        basecampAccountId: connection.basecampAccountId,
+        basecampUserName: connection.basecampUserName,
+      });
+
+      return {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || connection.refreshToken,
+      };
+    } catch (error) {
+      console.error('Error refreshing Basecamp token:', error);
+      return null;
+    }
+  }
+
+  async fetchBasecampTodos(userId: string): Promise<any[]> {
+    const connection = await this.getBasecampConnection(userId);
+    if (!connection) return [];
+
+    // Refresh token if expired
+    if (new Date() >= connection.expiresAt) {
+      const newTokens = await this.refreshBasecampToken(userId);
+      if (!newTokens) return [];
+      connection.accessToken = newTokens.accessToken;
+    }
+
+    try {
+      // Get all projects
+      const projectsResponse = await fetch(
+        `https://3.basecampapi.com/${connection.basecampAccountId}/projects.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${connection.accessToken}`,
+            'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+          },
+        }
+      );
+
+      if (!projectsResponse.ok) return [];
+
+      const projects = await projectsResponse.json();
+      const allTodos: any[] = [];
+
+      // Fetch todos from each project
+      for (const project of projects) {
+        try {
+          const todosetsResponse = await fetch(
+            `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${project.id}/todosets.json`,
+            {
+              headers: {
+                'Authorization': `Bearer ${connection.accessToken}`,
+                'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+              },
+            }
+          );
+
+          if (todosetsResponse.ok) {
+            const todosets = await todosetsResponse.json();
+            
+            for (const todoset of todosets) {
+              if (todoset.todolists_url) {
+                const todolistsResponse = await fetch(todoset.todolists_url, {
+                  headers: {
+                    'Authorization': `Bearer ${connection.accessToken}`,
+                    'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+                  },
+                });
+
+                if (todolistsResponse.ok) {
+                  const todolists = await todolistsResponse.json();
+                  
+                  for (const todolist of todolists) {
+                    if (todolist.todos_url) {
+                      const todosResponse = await fetch(todolist.todos_url, {
+                        headers: {
+                          'Authorization': `Bearer ${connection.accessToken}`,
+                          'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+                        },
+                      });
+
+                      if (todosResponse.ok) {
+                        const todos = await todosResponse.json();
+                        allTodos.push(...todos.map((todo: any) => ({
+                          id: todo.id,
+                          title: todo.title || todo.content,
+                          description: todo.description,
+                          completed: todo.completed,
+                          due_on: todo.due_on,
+                          project: project.name,
+                          todolist: todolist.name,
+                        })));
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching todos for project ${project.id}:`, error);
+        }
+      }
+
+      return allTodos;
+    } catch (error) {
+      console.error('Error fetching Basecamp todos:', error);
+      return [];
+    }
+  }
+
+  async createActionItemFromBasecamp(data: {
+    basecampTodoId: string;
+    customerId: string;
+    description: string;
+    dueDate?: Date;
+    createdBy: string;
+  }): Promise<ActionItem> {
+    // Check if this Basecamp todo is already linked
+    const existing = await db
+      .select()
+      .from(actionItems)
+      .where(eq(actionItems.basecampTodoId, data.basecampTodoId));
+
+    if (existing.length > 0) {
+      throw new Error('This Basecamp todo is already linked to an action item');
+    }
+
+    const [actionItem] = await db
+      .insert(actionItems)
+      .values({
+        customerId: data.customerId,
+        description: data.description,
+        dueDate: data.dueDate || null,
+        createdBy: data.createdBy,
+        basecampTodoId: data.basecampTodoId,
+      })
+      .returning();
+
+    return actionItem;
   }
 }
 
