@@ -83,7 +83,20 @@ export const actionItems = pgTable("action_items", {
   completedAt: timestamp("completed_at"),
   createdBy: varchar("created_by").notNull(),
   visitDate: timestamp("visit_date"),
+  basecampTodoId: text("basecamp_todo_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const basecampConnections = pgTable("basecamp_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  basecampAccountId: text("basecamp_account_id").notNull(),
+  basecampUserName: text("basecamp_user_name"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const monthlySalesTracking = pgTable("monthly_sales_tracking", {
@@ -215,6 +228,7 @@ export type InsertActionItem = z.infer<typeof insertActionItemSchema>;
 export type MonthlySalesTracking = typeof monthlySalesTracking.$inferSelect;
 export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTrackingSchema>;
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
+export type BasecampConnection = typeof basecampConnections.$inferSelect;
 
 export type UserRole = "ceo" | "admin" | "manager" | "salesman";
 export type CustomerStage = "lead" | "prospect" | "customer";
