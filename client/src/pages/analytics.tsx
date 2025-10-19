@@ -6,6 +6,8 @@ import { TrendingUp, Users as UsersIcon, Target, Activity, UserCheck, Building2 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState } from "react";
 
 const STAGE_COLORS = {
   lead: "hsl(var(--chart-4))",
@@ -15,9 +17,15 @@ const STAGE_COLORS = {
 
 export default function Analytics() {
   const { user: currentUser } = useAuth();
+  const [view, setView] = useState<"monthly" | "overall">("monthly");
   
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats"],
+    queryKey: ["/api/stats", view],
+    queryFn: async () => {
+      const response = await fetch(`/api/stats?monthly=${view === "monthly"}`);
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
@@ -125,6 +133,14 @@ export default function Analytics() {
         </p>
       </div>
 
+      <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")} className="space-y-6">
+        <TabsList data-testid="tabs-analytics-view">
+          <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
+          <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={view} className="space-y-6">
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
@@ -165,12 +181,16 @@ export default function Analytics() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Recent Activity</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {view === "monthly" ? "Monthly Activity" : "Recent Activity"}
+            </h3>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-recent-activity">{stats?.recentInteractions || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Last 7 days</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {view === "monthly" ? "This month" : "Last 7 days"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -352,6 +372,8 @@ export default function Analytics() {
           </Card>
         )}
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
