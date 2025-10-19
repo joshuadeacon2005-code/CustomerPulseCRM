@@ -112,6 +112,8 @@ export interface IStorage {
   getBasecampConnection(userId: string): Promise<BasecampConnection | null>;
   deleteBasecampConnection(userId: string): Promise<void>;
   refreshBasecampToken(userId: string): Promise<{ accessToken: string; refreshToken: string } | null>;
+  fetchBasecampProjects(userId: string): Promise<any[]>;
+  saveSelectedProjects(userId: string, projectIds: string[]): Promise<void>;
   fetchBasecampTodos(userId: string): Promise<any[]>;
   createActionItemFromBasecamp(data: { basecampTodoId: string; customerId: string; description: string; dueDate?: Date; createdBy: string }): Promise<ActionItem>;
 }
@@ -993,6 +995,52 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async fetchBasecampProjects(userId: string): Promise<any[]> {
+    const connection = await this.getBasecampConnection(userId);
+    if (!connection) return [];
+
+    // Refresh token if expired
+    if (new Date() >= connection.expiresAt) {
+      const newTokens = await this.refreshBasecampToken(userId);
+      if (!newTokens) return [];
+      connection.accessToken = newTokens.accessToken;
+    }
+
+    try {
+      const projectsResponse = await fetch(
+        `https://3.basecampapi.com/${connection.basecampAccountId}/projects.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${connection.accessToken}`,
+            'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
+          },
+        }
+      );
+
+      if (!projectsResponse.ok) return [];
+
+      const projects = await projectsResponse.json();
+      return projects.map((project: any) => ({
+        id: String(project.id),
+        name: project.name,
+        description: project.description,
+      }));
+    } catch (error) {
+      console.error('Error fetching Basecamp projects:', error);
+      return [];
+    }
+  }
+
+  async saveSelectedProjects(userId: string, projectIds: string[]): Promise<void> {
+    await db
+      .update(basecampConnections)
+      .set({ 
+        selectedProjectIds: projectIds,
+        updatedAt: new Date(),
+      })
+      .where(eq(basecampConnections.userId, userId));
+  }
+
   async fetchBasecampTodos(userId: string): Promise<any[]> {
     const connection = await this.getBasecampConnection(userId);
     if (!connection) return [];
@@ -1019,10 +1067,17 @@ export class DatabaseStorage implements IStorage {
       if (!projectsResponse.ok) return [];
 
       const projects = await projectsResponse.json();
+      
+      // Filter projects if user has selected specific ones
+      const selectedProjectIds = connection.selectedProjectIds || [];
+      const projectsToFetch = selectedProjectIds.length > 0
+        ? projects.filter((p: any) => selectedProjectIds.includes(String(p.id)))
+        : projects;
+
       const allTodos: any[] = [];
 
       // Fetch todos from each project
-      for (const project of projects) {
+      for (const project of projectsToFetch) {
         try {
           const todosetsResponse = await fetch(
             `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${project.id}/todosets.json`,

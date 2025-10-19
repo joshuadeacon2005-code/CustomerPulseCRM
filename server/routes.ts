@@ -642,6 +642,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/basecamp/projects", isAuthenticated, async (req, res) => {
+    try {
+      const connection = await storage.getBasecampConnection(req.user!.id);
+      
+      if (!connection) {
+        return res.status(400).json({ error: "Basecamp not connected" });
+      }
+
+      const projects = await storage.fetchBasecampProjects(req.user!.id);
+      const selectedProjectIds = connection.selectedProjectIds || [];
+      
+      res.json({ projects, selectedProjectIds });
+    } catch (error) {
+      console.error("Error fetching Basecamp projects:", error);
+      res.status(500).json({ error: "Failed to fetch Basecamp projects" });
+    }
+  });
+
+  app.post("/api/basecamp/selected-projects", isAuthenticated, async (req, res) => {
+    try {
+      const { projectIds } = req.body;
+      
+      if (!Array.isArray(projectIds)) {
+        return res.status(400).json({ error: "projectIds must be an array" });
+      }
+
+      await storage.saveSelectedProjects(req.user!.id, projectIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving selected projects:", error);
+      res.status(500).json({ error: "Failed to save selected projects" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
