@@ -941,7 +941,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(actionItems)
       .leftJoin(customers, eq(actionItems.customerId, customers.id))
-      .where(eq(actionItems.createdBy, targetUserId));
+      .where(eq(actionItems.createdBy, targetUserId)) as ActionItemWithCustomer[];
 
     // Fetch sales
     const userSales = await db

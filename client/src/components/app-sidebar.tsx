@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText, Link2 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -76,6 +76,11 @@ export function AppSidebar() {
       url: "/reports",
       icon: FileText,
     },
+    {
+      title: "Basecamp",
+      url: "/basecamp",
+      icon: Link2,
+    },
   ];
 
   const adminNav = [
@@ -119,6 +124,11 @@ export function AppSidebar() {
       url: "/reports",
       icon: FileText,
     },
+    {
+      title: "Basecamp",
+      url: "/basecamp",
+      icon: Link2,
+    },
   ];
 
   const managerNav = [
@@ -157,6 +167,11 @@ export function AppSidebar() {
       url: "/reports",
       icon: FileText,
     },
+    {
+      title: "Basecamp",
+      url: "/basecamp",
+      icon: Link2,
+    },
   ];
 
   const salesmanNav = [
@@ -184,6 +199,11 @@ export function AppSidebar() {
       title: "Sales Reports",
       url: "/reports",
       icon: FileText,
+    },
+    {
+      title: "Basecamp",
+      url: "/basecamp",
+      icon: Link2,
     },
   ];
 
