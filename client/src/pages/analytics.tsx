@@ -7,7 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { format } from "date-fns";
 
 const STAGE_COLORS = {
   lead: "hsl(var(--chart-4))",
@@ -15,14 +17,43 @@ const STAGE_COLORS = {
   customer: "hsl(var(--chart-2))",
 };
 
+// Helper to generate month options for the last 12 months
+function getMonthOptions() {
+  const options = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push({
+      label: format(date, "MMMM yyyy"),
+      month: date.getMonth(),
+      year: date.getFullYear(),
+      value: `${date.getFullYear()}-${date.getMonth()}`,
+    });
+  }
+  return options;
+}
+
 export default function Analytics() {
   const { user: currentUser } = useAuth();
   const [view, setView] = useState<"monthly" | "overall">("monthly");
   
+  // Current month by default
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  
+  const monthOptions = getMonthOptions();
+  
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/stats", view],
+    queryKey: ["/api/stats", view, selectedMonth, selectedYear],
     queryFn: async () => {
-      const response = await fetch(`/api/stats?monthly=${view === "monthly"}`);
+      const params = new URLSearchParams();
+      if (view === "monthly") {
+        params.append("monthly", "true");
+        params.append("month", selectedMonth.toString());
+        params.append("year", selectedYear.toString());
+      }
+      const response = await fetch(`/api/stats?${params}`);
       if (!response.ok) throw new Error("Failed to fetch stats");
       return response.json();
     },
@@ -134,10 +165,36 @@ export default function Analytics() {
       </div>
 
       <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")} className="space-y-6">
-        <TabsList data-testid="tabs-analytics-view">
-          <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
-          <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList data-testid="tabs-analytics-view">
+            <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
+            <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
+          </TabsList>
+          
+          {view === "monthly" && (
+            <Select
+              value={`${selectedYear}-${selectedMonth}`}
+              onValueChange={(value) => {
+                const option = monthOptions.find(opt => opt.value === value);
+                if (option) {
+                  setSelectedMonth(option.month);
+                  setSelectedYear(option.year);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[200px]" data-testid="select-month">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value} data-testid={`option-month-${option.value}`}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
         <TabsContent value={view} className="space-y-6">
 
