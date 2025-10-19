@@ -1,7 +1,7 @@
 # Bloom & Grow Group - Sales Management CRM
 
 ## Overview
-A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, customer data management, brand assignments, monthly target setting, action item tracking, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
+A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, customer data management, brand assignments, monthly target setting, to-do list management with integrated Basecamp sync, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## User Preferences
 - Default theme: Dark mode
@@ -26,10 +26,10 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Customer Management**: Comprehensive customer profiles including personal notes, BC marketplace integration details, store address, retailer type, quarterly soft targets, and last contact date. Advanced filtering by brand and retailer type. Customer deletion functionality.
 - **Brand Management**: Many-to-many relationship allowing multi-brand assignment per customer with inline brand creation.
 - **Target Management**: Supports both Personal (individual salespeople) and General (company/team-wide) monthly sales targets, with role-based target setting capabilities.
-- **Action Items**: To-do list functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and Basecamp integration for syncing to-do lists.
-- **Basecamp Integration**: OAuth 2.0 integration allowing users to connect their Basecamp accounts and sync Basecamp to-do lists as CRM action items. Includes automatic token refresh, project and to-do list fetching, and linking to-dos to customers.
+- **To Do List**: Task management functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and integrated Basecamp sync UI. The To Do List page includes embedded Basecamp connection management and to-do synchronization.
+- **Basecamp Integration**: OAuth 2.0 integration embedded within the To Do List page allowing users to connect their Basecamp accounts, view Basecamp to-dos, and sync them as CRM to-dos. Includes automatic token refresh, project and to-do list fetching, linking to-dos to customers, and connection management - all accessible directly from the To Do List interface.
 - **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actual calculations and variance reporting. Performance reports track sales against targets.
-- **Analytics**: Advanced analytics include team structure visualization, team performance metrics (customer counts, targets, action items), and user ID to name mapping for improved readability across charts.
+- **Analytics**: Advanced analytics include team structure visualization, team performance metrics (customer counts, targets, to-dos), and user ID to name mapping for improved readability across charts.
 - **Data Storage**: Drizzle ORM for PostgreSQL database interactions, preventing N+1 issues with optimized queries.
 
 **System Design Choices:**
