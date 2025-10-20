@@ -82,6 +82,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer contacts routes
+  app.get("/api/customers/:customerId/contacts", isAuthenticated, async (req, res) => {
+    try {
+      const contacts = await storage.getCustomerContacts(req.params.customerId);
+      res.json(contacts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch customer contacts" });
+    }
+  });
+
+  app.post("/api/customers/:customerId/contacts", isAuthenticated, async (req, res) => {
+    try {
+      const { insertCustomerContactSchema } = await import("@shared/schema");
+      const validatedData = insertCustomerContactSchema.parse({
+        ...req.body,
+        customerId: req.params.customerId,
+      });
+      const contact = await storage.createCustomerContact(validatedData);
+      res.status(201).json(contact);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid contact data", details: error });
+      }
+      res.status(500).json({ error: "Failed to create contact" });
+    }
+  });
+
+  app.delete("/api/customer-contacts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCustomerContact(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete contact" });
+    }
+  });
+
   app.get("/api/interactions", isAuthenticated, async (_req, res) => {
     try {
       const interactions = await storage.getInteractions();
@@ -702,6 +741,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error saving selected projects:", error);
       res.status(500).json({ error: "Failed to save selected projects" });
+    }
+  });
+
+  app.get("/api/basecamp/sync-logs", isAuthenticated, async (req, res) => {
+    try {
+      let limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      // Clamp limit to reasonable range
+      limit = Math.max(1, Math.min(limit, 200));
+      const logs = await storage.getBasecampSyncLogs(req.user!.id, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching sync logs:", error);
+      res.status(500).json({ error: "Failed to fetch sync logs" });
     }
   });
 

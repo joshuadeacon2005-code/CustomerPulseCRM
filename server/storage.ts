@@ -31,6 +31,10 @@ import {
   type ActionItemWithCustomer,
   type UserDetails,
   type BasecampConnection,
+  type CustomerContact,
+  type InsertCustomerContact,
+  type BasecampSyncLog,
+  type InsertBasecampSyncLog,
   users,
   sales,
   customers,
@@ -42,6 +46,8 @@ import {
   monthlySalesTracking,
   basecampConnections,
   oauthStates,
+  customerContacts,
+  basecampSyncLogs,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -122,6 +128,15 @@ export interface IStorage {
   createOAuthState(userId: string): Promise<string>;
   validateOAuthState(state: string): Promise<string | null>;
   deleteOAuthState(state: string): Promise<void>;
+
+  // Customer contacts management
+  getCustomerContacts(customerId: string): Promise<CustomerContact[]>;
+  createCustomerContact(contact: InsertCustomerContact): Promise<CustomerContact>;
+  deleteCustomerContact(id: string): Promise<boolean>;
+
+  // Basecamp sync logs
+  createBasecampSyncLog(log: InsertBasecampSyncLog): Promise<BasecampSyncLog>;
+  getBasecampSyncLogs(userId: string, limit?: number): Promise<BasecampSyncLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1238,6 +1253,38 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOAuthState(state: string): Promise<void> {
     await db.delete(oauthStates).where(eq(oauthStates.state, state));
+  }
+
+  async getCustomerContacts(customerId: string): Promise<CustomerContact[]> {
+    return await db
+      .select()
+      .from(customerContacts)
+      .where(eq(customerContacts.customerId, customerId))
+      .orderBy(customerContacts.createdAt);
+  }
+
+  async createCustomerContact(contactData: InsertCustomerContact): Promise<CustomerContact> {
+    const [contact] = await db.insert(customerContacts).values(contactData).returning();
+    return contact;
+  }
+
+  async deleteCustomerContact(id: string): Promise<boolean> {
+    const result = await db.delete(customerContacts).where(eq(customerContacts.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async createBasecampSyncLog(logData: InsertBasecampSyncLog): Promise<BasecampSyncLog> {
+    const [log] = await db.insert(basecampSyncLogs).values(logData).returning();
+    return log;
+  }
+
+  async getBasecampSyncLogs(userId: string, limit: number = 50): Promise<BasecampSyncLog[]> {
+    return await db
+      .select()
+      .from(basecampSyncLogs)
+      .where(eq(basecampSyncLogs.userId, userId))
+      .orderBy(desc(basecampSyncLogs.createdAt))
+      .limit(limit);
   }
 }
 
