@@ -533,6 +533,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientId = process.env.BASECAMP_CLIENT_ID;
       const redirectUri = `${req.protocol}://${req.get('host')}/api/basecamp/callback`;
       
+      console.log('==========================================');
+      console.log('Basecamp OAuth - Redirect URI being used:');
+      console.log(redirectUri);
+      console.log('==========================================');
+      
       // Create secure OAuth state token
       const state = await storage.createOAuthState(req.user!.id);
       
