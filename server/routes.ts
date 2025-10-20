@@ -703,9 +703,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.user!.id,
       });
 
+      // Log successful sync (best-effort, don't fail the request if logging fails)
+      try {
+        await storage.createBasecampSyncLog({
+          userId: req.user!.id,
+          status: "success",
+          itemsImported: 1,
+          itemsFailed: 0,
+        });
+      } catch (logError) {
+        console.error("Failed to log sync operation:", logError);
+      }
+
       res.status(201).json(actionItem);
     } catch (error) {
       console.error("Error syncing Basecamp todo:", error);
+      
+      // Log failed sync (best-effort, don't mask original error)
+      try {
+        await storage.createBasecampSyncLog({
+          userId: req.user!.id,
+          status: "error",
+          itemsImported: 0,
+          itemsFailed: 1,
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+        });
+      } catch (logError) {
+        console.error("Failed to log sync error:", logError);
+      }
+      
       res.status(500).json({ error: "Failed to sync todo" });
     }
   });

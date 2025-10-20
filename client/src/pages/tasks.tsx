@@ -78,6 +78,16 @@ interface BasecampProjectsResponse {
   selectedProjectIds: string[];
 }
 
+interface BasecampSyncLog {
+  id: string;
+  userId: string;
+  timestamp: Date;
+  status: "success" | "error";
+  itemsImported: number;
+  itemsFailed: number;
+  errorMessage?: string;
+}
+
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -121,6 +131,12 @@ export default function Tasks() {
 
   const { data: basecampTodos = [], isLoading: todosLoading, refetch: refetchTodos } = useQuery<BasecampTodo[]>({
     queryKey: ["/api/basecamp/todos"],
+    enabled: connection?.connected === true,
+  });
+
+  const { data: syncLogs = [], isLoading: logsLoading } = useQuery<BasecampSyncLog[]>({
+    queryKey: ["/api/basecamp/sync-logs"],
+    queryFn: () => fetch("/api/basecamp/sync-logs").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
@@ -223,6 +239,7 @@ export default function Tasks() {
       setSelectedCustomerId("");
       refetchTodos();
       queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/sync-logs"] });
     },
     onError: (error: any) => {
       toast({
@@ -557,6 +574,75 @@ export default function Tasks() {
               </div>
             </CardContent>
           )}
+        </Card>
+      )}
+
+      {/* Basecamp Sync Logs */}
+      {connection?.connected && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListTodo className="h-5 w-5" />
+              Sync Activity Log
+            </CardTitle>
+            <CardDescription>
+              Recent Basecamp synchronization history
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : syncLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No sync activity yet. Sync some Basecamp to-dos to see the activity log.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {syncLogs.slice(0, 10).map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-center justify-between p-3 border rounded-md"
+                    data-testid={`sync-log-${log.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {log.status === "success" ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-destructive" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">
+                          {log.status === "success"
+                            ? `Successfully imported ${log.itemsImported} item${log.itemsImported !== 1 ? 's' : ''}`
+                            : `Failed to import ${log.itemsFailed} item${log.itemsFailed !== 1 ? 's' : ''}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(log.timestamp), "PPp")}
+                        </p>
+                        {log.errorMessage && (
+                          <p className="text-xs text-destructive mt-1">
+                            Error: {log.errorMessage}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={log.status === "success" ? "default" : "destructive"}>
+                      {log.status}
+                    </Badge>
+                  </div>
+                ))}
+                {syncLogs.length > 10 && (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    Showing 10 most recent of {syncLogs.length} sync operations
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
 
