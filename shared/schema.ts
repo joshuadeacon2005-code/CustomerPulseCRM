@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull().default("salesman"),
   managerId: varchar("manager_id"),
+  country: text("country"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -20,6 +21,7 @@ export const sales = pgTable("sales", {
   product: text("product").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
+  country: text("country"),
   date: timestamp("date").notNull().defaultNow(),
 });
 
@@ -28,6 +30,10 @@ export const customers = pgTable("customers", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
+  contactName: text("contact_name"),
+  contactTitle: text("contact_title"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
   stage: text("stage").notNull().default("lead"),
   assignedTo: text("assigned_to"),
   leadScore: integer("lead_score").notNull().default(0),
@@ -39,6 +45,9 @@ export const customers = pgTable("customers", {
   retailerType: text("retailer_type"),
   quarterlySoftTarget: text("quarterly_soft_target"),
   lastContactDate: timestamp("last_contact_date"),
+  dateOfFirstContact: timestamp("date_of_first_contact"),
+  leadGeneratedBy: text("lead_generated_by"),
+  country: text("country"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -47,7 +56,10 @@ export const interactions = pgTable("interactions", {
   customerId: varchar("customer_id").notNull(),
   category: text("category").notNull(),
   type: text("type").notNull(),
+  meetingType: text("meeting_type"),
   description: text("description").notNull(),
+  attendees: text("attendees").array(),
+  country: text("country"),
   date: timestamp("date").notNull().defaultNow(),
 });
 
@@ -118,6 +130,49 @@ export const monthlySalesTracking = pgTable("monthly_sales_tracking", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Additional contacts for customers
+export const customerContacts = pgTable("customer_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  name: text("name").notNull(),
+  title: text("title"),
+  phone: text("phone"),
+  email: text("email"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Basecamp sync audit logs
+export const basecampSyncLogs = pgTable("basecamp_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  syncType: text("sync_type").notNull(),
+  itemsImported: integer("items_imported").notNull().default(0),
+  itemsFailed: integer("items_failed").notNull().default(0),
+  errorMessage: text("error_message"),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Retailer Type Enum - All possible options from requirements
+export const RETAILER_TYPES = [
+  "Online Only",
+  "Online Only (Distributor Owned)",
+  "Marketplace",
+  "Baby & Nursery Multi-Site",
+  "Baby & Nursery Independent/Boutique",
+  "Toy Store Multi-Site",
+  "Toy Store Independent",
+  "Department Store",
+  "Pharmacy",
+  "Discount/Closeouts",
+  "Expo",
+  "Corporate",
+  "Other",
+  "KOL/Marketing",
+] as const;
+
+export const MEETING_TYPES = ["In Person", "Phone", "Online Meeting"] as const;
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -161,6 +216,7 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
 }).extend({
   category: z.enum(["marketing", "sales", "support"]),
   type: z.string().min(1),
+  meetingType: z.enum(MEETING_TYPES).optional(),
 });
 
 export const insertBrandSchema = createInsertSchema(brands).omit({
@@ -216,6 +272,21 @@ export const updateMonthlySalesTrackingSchema = createInsertSchema(monthlySalesT
   customerId: true,
 }).partial();
 
+export const insertCustomerContactSchema = createInsertSchema(customerContacts).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1),
+});
+
+export const insertBasecampSyncLogSchema = createInsertSchema(basecampSyncLogs).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  syncType: z.enum(["manual", "automatic", "incremental"]),
+  status: z.enum(["success", "partial", "failed"]),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Sale = typeof sales.$inferSelect;
@@ -238,8 +309,14 @@ export type MonthlySalesTracking = typeof monthlySalesTracking.$inferSelect;
 export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTrackingSchema>;
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
 export type BasecampConnection = typeof basecampConnections.$inferSelect;
+export type CustomerContact = typeof customerContacts.$inferSelect;
+export type InsertCustomerContact = z.infer<typeof insertCustomerContactSchema>;
+export type BasecampSyncLog = typeof basecampSyncLogs.$inferSelect;
+export type InsertBasecampSyncLog = z.infer<typeof insertBasecampSyncLogSchema>;
 
 export type UserRole = "ceo" | "admin" | "manager" | "salesman";
+export type RetailerType = typeof RETAILER_TYPES[number];
+export type MeetingType = typeof MEETING_TYPES[number];
 export type CustomerStage = "lead" | "prospect" | "customer";
 export type InteractionCategory = "marketing" | "sales" | "support";
 
