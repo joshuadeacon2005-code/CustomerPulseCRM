@@ -41,6 +41,7 @@ import {
   actionItems,
   monthlySalesTracking,
   basecampConnections,
+  oauthStates,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -116,6 +117,11 @@ export interface IStorage {
   saveSelectedProjects(userId: string, projectIds: string[]): Promise<void>;
   fetchBasecampTodos(userId: string): Promise<any[]>;
   createActionItemFromBasecamp(data: { basecampTodoId: string; customerId: string; description: string; dueDate?: Date; createdBy: string }): Promise<ActionItem>;
+  
+  // OAuth state management
+  createOAuthState(userId: string): Promise<string>;
+  validateOAuthState(state: string): Promise<string | null>;
+  deleteOAuthState(state: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1195,6 +1201,43 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return actionItem;
+  }
+
+  async createOAuthState(userId: string): Promise<string> {
+    const crypto = await import('crypto');
+    const state = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await db.insert(oauthStates).values({
+      state,
+      userId,
+      expiresAt,
+    });
+
+    return state;
+  }
+
+  async validateOAuthState(state: string): Promise<string | null> {
+    const [oauthState] = await db
+      .select()
+      .from(oauthStates)
+      .where(eq(oauthStates.state, state));
+
+    if (!oauthState) {
+      return null;
+    }
+
+    // Check if expired
+    if (new Date() > oauthState.expiresAt) {
+      await this.deleteOAuthState(state);
+      return null;
+    }
+
+    return oauthState.userId;
+  }
+
+  async deleteOAuthState(state: string): Promise<void> {
+    await db.delete(oauthStates).where(eq(oauthStates.state, state));
   }
 }
 

@@ -100,6 +100,14 @@ export const basecampConnections = pgTable("basecamp_connections", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Temporary OAuth state storage for secure callback validation
+export const oauthStates = pgTable("oauth_states", {
+  state: varchar("state", { length: 255 }).primaryKey(),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
 export const monthlySalesTracking = pgTable("monthly_sales_tracking", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),

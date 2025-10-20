@@ -490,21 +490,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Basecamp OAuth routes
   app.get("/api/basecamp/auth", isAuthenticated, async (req, res) => {
-    const clientId = process.env.BASECAMP_CLIENT_ID;
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/basecamp/callback`;
-    
-    const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    
-    res.redirect(authUrl);
+    try {
+      const clientId = process.env.BASECAMP_CLIENT_ID;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/basecamp/callback`;
+      
+      // Create secure OAuth state token
+      const state = await storage.createOAuthState(req.user!.id);
+      
+      const authUrl = `https://launchpad.37signals.com/authorization/new?type=web_server&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+      
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error("Error initiating Basecamp OAuth:", error);
+      res.status(500).send("Failed to initiate Basecamp connection");
+    }
   });
 
-  app.get("/api/basecamp/callback", isAuthenticated, async (req, res) => {
+  app.get("/api/basecamp/callback", async (req, res) => {
     try {
-      const { code } = req.query;
+      const { code, state } = req.query;
       
       if (!code) {
         return res.status(400).send("No authorization code received");
       }
+      
+      if (!state) {
+        return res.status(400).send("No state parameter received");
+      }
+
+      // Validate and retrieve user ID from state
+      const userId = await storage.validateOAuthState(state as string);
+      if (!userId) {
+        return res.status(400).send("Invalid or expired state parameter");
+      }
+
+      // Delete the state immediately (one-time use)
+      await storage.deleteOAuthState(state as string);
 
       const clientId = process.env.BASECAMP_CLIENT_ID;
       const clientSecret = process.env.BASECAMP_CLIENT_SECRET;
@@ -526,6 +547,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error("Token exchange failed:", errorText);
         throw new Error('Failed to exchange code for token');
       }
 
@@ -540,6 +563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!authResponse.ok) {
+        const errorText = await authResponse.text();
+        console.error("Authorization fetch failed:", errorText);
         throw new Error('Failed to get Basecamp account info');
       }
 
@@ -556,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
       
       await storage.saveBasecampConnection({
-        userId: req.user!.id,
+        userId,
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
         expiresAt,
@@ -564,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         basecampUserName: authData.identity.email_address,
       });
 
-      res.redirect('/?basecamp=connected');
+      res.redirect('/tasks?basecamp=connected');
     } catch (error) {
       console.error("Basecamp OAuth error:", error);
       res.status(500).send("Failed to connect Basecamp account");
