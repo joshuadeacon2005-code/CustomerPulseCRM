@@ -127,6 +127,7 @@ export default function Tasks() {
 
   const { data: connection, isLoading: connectionLoading } = useQuery<BasecampConnection>({
     queryKey: ["/api/basecamp/connection"],
+    queryFn: () => fetch("/api/basecamp/connection").then(res => res.json()),
   });
 
   const { data: basecampTodos = [], isLoading: todosLoading, refetch: refetchTodos } = useQuery<BasecampTodo[]>({
@@ -143,6 +144,7 @@ export default function Tasks() {
 
   const { data: projectsData, refetch: refetchProjects } = useQuery<BasecampProjectsResponse>({
     queryKey: ["/api/basecamp/projects"],
+    queryFn: () => fetch("/api/basecamp/projects").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
