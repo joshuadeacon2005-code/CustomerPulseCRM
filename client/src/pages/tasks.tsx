@@ -100,23 +100,19 @@ export default function Tasks() {
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
-    queryKey: ["/api/action-items", "all"],
-    queryFn: () => fetch("/api/action-items?filter=all").then(res => res.json()),
+    queryKey: ["/api/action-items?filter=all"],
   });
 
   const { data: overdueTasks = [], isLoading: isLoadingOverdue } = useQuery<ActionItemWithCustomer[]>({
-    queryKey: ["/api/action-items", "overdue"],
-    queryFn: () => fetch("/api/action-items?filter=overdue").then(res => res.json()),
+    queryKey: ["/api/action-items?filter=overdue"],
   });
 
   const { data: todayTasks = [], isLoading: isLoadingToday } = useQuery<ActionItemWithCustomer[]>({
-    queryKey: ["/api/action-items", "today"],
-    queryFn: () => fetch("/api/action-items?filter=today").then(res => res.json()),
+    queryKey: ["/api/action-items?filter=today"],
   });
 
   const { data: upcomingTasks = [], isLoading: isLoadingUpcoming } = useQuery<ActionItemWithCustomer[]>({
-    queryKey: ["/api/action-items", "upcoming"],
-    queryFn: () => fetch("/api/action-items?filter=upcoming").then(res => res.json()),
+    queryKey: ["/api/action-items?filter=upcoming"],
   });
 
   const completedTasks = allTasks.filter(task => task.completedAt);
@@ -127,24 +123,20 @@ export default function Tasks() {
 
   const { data: connection, isLoading: connectionLoading } = useQuery<BasecampConnection>({
     queryKey: ["/api/basecamp/connection"],
-    queryFn: () => fetch("/api/basecamp/connection").then(res => res.json()),
   });
 
   const { data: basecampTodos = [], isLoading: todosLoading, refetch: refetchTodos } = useQuery<BasecampTodo[]>({
     queryKey: ["/api/basecamp/todos"],
-    queryFn: () => fetch("/api/basecamp/todos").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
   const { data: syncLogs = [], isLoading: logsLoading } = useQuery<BasecampSyncLog[]>({
     queryKey: ["/api/basecamp/sync-logs"],
-    queryFn: () => fetch("/api/basecamp/sync-logs").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
   const { data: projectsData, refetch: refetchProjects } = useQuery<BasecampProjectsResponse>({
     queryKey: ["/api/basecamp/projects"],
-    queryFn: () => fetch("/api/basecamp/projects").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
