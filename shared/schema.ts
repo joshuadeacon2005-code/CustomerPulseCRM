@@ -95,6 +95,7 @@ export const actionItems = pgTable("action_items", {
   completedAt: timestamp("completed_at"),
   createdBy: varchar("created_by").notNull(),
   visitDate: timestamp("visit_date"),
+  basecampTodoId: text("basecamp_todo_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -117,6 +118,38 @@ export const customerContacts = pgTable("customer_contacts", {
   title: text("title"),
   phone: text("phone"),
   email: text("email"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Basecamp Integration Tables
+export const basecampConnections = pgTable("basecamp_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  accountId: text("account_id").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  userName: text("user_name"),
+  selectedProjectIds: text("selected_project_ids").array(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const oauthStates = pgTable("oauth_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  state: text("state").notNull().unique(),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const basecampSyncLogs = pgTable("basecamp_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  status: text("status").notNull(),
+  itemsImported: integer("items_imported").notNull().default(0),
+  itemsFailed: integer("items_failed").notNull().default(0),
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -247,6 +280,24 @@ export const insertCustomerContactSchema = createInsertSchema(customerContacts).
   name: z.string().min(1),
 });
 
+export const insertBasecampConnectionSchema = createInsertSchema(basecampConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOauthStateSchema = createInsertSchema(oauthStates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBasecampSyncLogSchema = createInsertSchema(basecampSyncLogs).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  status: z.enum(["success", "partial", "failed"]),
+});
+
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -271,6 +322,12 @@ export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTracki
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
 export type CustomerContact = typeof customerContacts.$inferSelect;
 export type InsertCustomerContact = z.infer<typeof insertCustomerContactSchema>;
+export type BasecampConnection = typeof basecampConnections.$inferSelect;
+export type InsertBasecampConnection = z.infer<typeof insertBasecampConnectionSchema>;
+export type OauthState = typeof oauthStates.$inferSelect;
+export type InsertOauthState = z.infer<typeof insertOauthStateSchema>;
+export type BasecampSyncLog = typeof basecampSyncLogs.$inferSelect;
+export type InsertBasecampSyncLog = z.infer<typeof insertBasecampSyncLogSchema>;
 
 export type UserRole = "ceo" | "admin" | "manager" | "salesman";
 export type RetailerType = typeof RETAILER_TYPES[number];
