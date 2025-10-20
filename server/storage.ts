@@ -30,11 +30,8 @@ import {
   type CustomerWithBrands,
   type ActionItemWithCustomer,
   type UserDetails,
-  type BasecampConnection,
   type CustomerContact,
   type InsertCustomerContact,
-  type BasecampSyncLog,
-  type InsertBasecampSyncLog,
   users,
   sales,
   customers,
@@ -44,10 +41,7 @@ import {
   monthlyTargets,
   actionItems,
   monthlySalesTracking,
-  basecampConnections,
-  oauthStates,
   customerContacts,
-  basecampSyncLogs,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -115,28 +109,10 @@ export interface IStorage {
   getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null>;
   canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean>;
 
-  saveBasecampConnection(connection: { userId: string; accessToken: string; refreshToken: string; expiresAt: Date; basecampAccountId: string; basecampUserName: string | null }): Promise<void>;
-  getBasecampConnection(userId: string): Promise<BasecampConnection | null>;
-  deleteBasecampConnection(userId: string): Promise<void>;
-  refreshBasecampToken(userId: string): Promise<{ accessToken: string; refreshToken: string } | null>;
-  fetchBasecampProjects(userId: string): Promise<any[]>;
-  saveSelectedProjects(userId: string, projectIds: string[]): Promise<void>;
-  fetchBasecampTodos(userId: string): Promise<any[]>;
-  createActionItemFromBasecamp(data: { basecampTodoId: string; customerId: string; description: string; dueDate?: Date; createdBy: string }): Promise<ActionItem>;
-  
-  // OAuth state management
-  createOAuthState(userId: string): Promise<string>;
-  validateOAuthState(state: string): Promise<string | null>;
-  deleteOAuthState(state: string): Promise<void>;
-
   // Customer contacts management
   getCustomerContacts(customerId: string): Promise<CustomerContact[]>;
   createCustomerContact(contact: InsertCustomerContact): Promise<CustomerContact>;
   deleteCustomerContact(id: string): Promise<boolean>;
-
-  // Basecamp sync logs
-  createBasecampSyncLog(log: InsertBasecampSyncLog): Promise<BasecampSyncLog>;
-  getBasecampSyncLogs(userId: string, limit?: number): Promise<BasecampSyncLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -953,318 +929,6 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async saveBasecampConnection(connection: {
-    userId: string;
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: Date;
-    basecampAccountId: string;
-    basecampUserName: string | null;
-  }): Promise<void> {
-    await db
-      .insert(basecampConnections)
-      .values({
-        userId: connection.userId,
-        accessToken: connection.accessToken,
-        refreshToken: connection.refreshToken,
-        expiresAt: connection.expiresAt,
-        basecampAccountId: connection.basecampAccountId,
-        basecampUserName: connection.basecampUserName,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: basecampConnections.userId,
-        set: {
-          accessToken: connection.accessToken,
-          refreshToken: connection.refreshToken,
-          expiresAt: connection.expiresAt,
-          basecampAccountId: connection.basecampAccountId,
-          basecampUserName: connection.basecampUserName,
-          updatedAt: new Date(),
-        },
-      });
-  }
-
-  async getBasecampConnection(userId: string): Promise<BasecampConnection | null> {
-    const [connection] = await db
-      .select()
-      .from(basecampConnections)
-      .where(eq(basecampConnections.userId, userId));
-    return connection || null;
-  }
-
-  async deleteBasecampConnection(userId: string): Promise<void> {
-    await db.delete(basecampConnections).where(eq(basecampConnections.userId, userId));
-  }
-
-  async refreshBasecampToken(userId: string): Promise<{ accessToken: string; refreshToken: string } | null> {
-    const connection = await this.getBasecampConnection(userId);
-    if (!connection) return null;
-
-    try {
-      const response = await fetch('https://launchpad.37signals.com/authorization/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'refresh',
-          refresh_token: connection.refreshToken,
-          client_id: process.env.BASECAMP_CLIENT_ID,
-          client_secret: process.env.BASECAMP_CLIENT_SECRET,
-        }),
-      });
-
-      if (!response.ok) return null;
-
-      const tokenData = await response.json();
-      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
-
-      await this.saveBasecampConnection({
-        userId,
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || connection.refreshToken,
-        expiresAt,
-        basecampAccountId: connection.basecampAccountId,
-        basecampUserName: connection.basecampUserName,
-      });
-
-      return {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || connection.refreshToken,
-      };
-    } catch (error) {
-      console.error('Error refreshing Basecamp token:', error);
-      return null;
-    }
-  }
-
-  async fetchBasecampProjects(userId: string): Promise<any[]> {
-    const connection = await this.getBasecampConnection(userId);
-    if (!connection) return [];
-
-    // Refresh token if expired
-    if (new Date() >= connection.expiresAt) {
-      const newTokens = await this.refreshBasecampToken(userId);
-      if (!newTokens) return [];
-      connection.accessToken = newTokens.accessToken;
-    }
-
-    try {
-      const projectsResponse = await fetch(
-        `https://3.basecampapi.com/${connection.basecampAccountId}/projects.json`,
-        {
-          headers: {
-            'Authorization': `Bearer ${connection.accessToken}`,
-            'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
-          },
-        }
-      );
-
-      if (!projectsResponse.ok) return [];
-
-      const projects = await projectsResponse.json();
-      return projects.map((project: any) => ({
-        id: String(project.id),
-        name: project.name,
-        description: project.description,
-      }));
-    } catch (error) {
-      console.error('Error fetching Basecamp projects:', error);
-      return [];
-    }
-  }
-
-  async saveSelectedProjects(userId: string, projectIds: string[]): Promise<void> {
-    await db
-      .update(basecampConnections)
-      .set({ 
-        selectedProjectIds: projectIds,
-        updatedAt: new Date(),
-      })
-      .where(eq(basecampConnections.userId, userId));
-  }
-
-  async fetchBasecampTodos(userId: string): Promise<any[]> {
-    const connection = await this.getBasecampConnection(userId);
-    if (!connection) return [];
-
-    // Refresh token if expired
-    if (new Date() >= connection.expiresAt) {
-      const newTokens = await this.refreshBasecampToken(userId);
-      if (!newTokens) return [];
-      connection.accessToken = newTokens.accessToken;
-    }
-
-    try {
-      // Get all projects
-      const projectsResponse = await fetch(
-        `https://3.basecampapi.com/${connection.basecampAccountId}/projects.json`,
-        {
-          headers: {
-            'Authorization': `Bearer ${connection.accessToken}`,
-            'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
-          },
-        }
-      );
-
-      if (!projectsResponse.ok) {
-        console.error(`Failed to fetch Basecamp projects: ${projectsResponse.status} ${projectsResponse.statusText}`);
-        const errorBody = await projectsResponse.text();
-        console.error(`Error response:`, errorBody);
-        return [];
-      }
-
-      const projects = await projectsResponse.json();
-      console.log(`Fetched ${projects.length} Basecamp projects`);
-      
-      // Filter projects if user has selected specific ones
-      const selectedProjectIds = connection.selectedProjectIds || [];
-      const projectsToFetch = selectedProjectIds.length > 0
-        ? projects.filter((p: any) => selectedProjectIds.includes(String(p.id)))
-        : projects;
-
-      console.log(`Selected projects filter:`, selectedProjectIds.length > 0 ? `${selectedProjectIds.length} projects selected` : 'All projects');
-      console.log(`Fetching to-dos from ${projectsToFetch.length} projects`);
-
-      const allTodos: any[] = [];
-
-      // Fetch todos from each project
-      for (const project of projectsToFetch) {
-        try {
-          const todosetsResponse = await fetch(
-            `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${project.id}/todosets.json`,
-            {
-              headers: {
-                'Authorization': `Bearer ${connection.accessToken}`,
-                'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
-              },
-            }
-          );
-
-          if (todosetsResponse.ok) {
-            const todosets = await todosetsResponse.json();
-            
-            for (const todoset of todosets) {
-              if (todoset.todolists_url) {
-                const todolistsResponse = await fetch(todoset.todolists_url, {
-                  headers: {
-                    'Authorization': `Bearer ${connection.accessToken}`,
-                    'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
-                  },
-                });
-
-                if (todolistsResponse.ok) {
-                  const todolists = await todolistsResponse.json();
-                  
-                  for (const todolist of todolists) {
-                    if (todolist.todos_url) {
-                      const todosResponse = await fetch(todolist.todos_url, {
-                        headers: {
-                          'Authorization': `Bearer ${connection.accessToken}`,
-                          'User-Agent': 'Bloom & Grow CRM (crm@bloomandgrow.com)',
-                        },
-                      });
-
-                      if (todosResponse.ok) {
-                        const todos = await todosResponse.json();
-                        allTodos.push(...todos.map((todo: any) => ({
-                          id: todo.id,
-                          title: todo.title || todo.content,
-                          description: todo.description,
-                          completed: todo.completed,
-                          due_on: todo.due_on,
-                          project: project.name,
-                          todolist: todolist.name,
-                        })));
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Error fetching todos for project ${project.id}:`, error);
-        }
-      }
-
-      console.log(`Total Basecamp to-dos fetched: ${allTodos.length}`);
-      return allTodos;
-    } catch (error) {
-      console.error('Error fetching Basecamp todos:', error);
-      return [];
-    }
-  }
-
-  async createActionItemFromBasecamp(data: {
-    basecampTodoId: string;
-    customerId: string;
-    description: string;
-    dueDate?: Date;
-    createdBy: string;
-  }): Promise<ActionItem> {
-    // Check if this Basecamp todo is already linked
-    const existing = await db
-      .select()
-      .from(actionItems)
-      .where(eq(actionItems.basecampTodoId, data.basecampTodoId));
-
-    if (existing.length > 0) {
-      throw new Error('This Basecamp todo is already linked to an action item');
-    }
-
-    const [actionItem] = await db
-      .insert(actionItems)
-      .values({
-        customerId: data.customerId,
-        description: data.description,
-        dueDate: data.dueDate || null,
-        createdBy: data.createdBy,
-        basecampTodoId: data.basecampTodoId,
-      })
-      .returning();
-
-    return actionItem;
-  }
-
-  async createOAuthState(userId: string): Promise<string> {
-    const crypto = await import('crypto');
-    const state = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    await db.insert(oauthStates).values({
-      state,
-      userId,
-      expiresAt,
-    });
-
-    return state;
-  }
-
-  async validateOAuthState(state: string): Promise<string | null> {
-    const [oauthState] = await db
-      .select()
-      .from(oauthStates)
-      .where(eq(oauthStates.state, state));
-
-    if (!oauthState) {
-      return null;
-    }
-
-    // Check if expired
-    if (new Date() > oauthState.expiresAt) {
-      await this.deleteOAuthState(state);
-      return null;
-    }
-
-    return oauthState.userId;
-  }
-
-  async deleteOAuthState(state: string): Promise<void> {
-    await db.delete(oauthStates).where(eq(oauthStates.state, state));
-  }
-
   async getCustomerContacts(customerId: string): Promise<CustomerContact[]> {
     return await db
       .select()
@@ -1281,20 +945,6 @@ export class DatabaseStorage implements IStorage {
   async deleteCustomerContact(id: string): Promise<boolean> {
     const result = await db.delete(customerContacts).where(eq(customerContacts.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
-  }
-
-  async createBasecampSyncLog(logData: InsertBasecampSyncLog): Promise<BasecampSyncLog> {
-    const [log] = await db.insert(basecampSyncLogs).values(logData).returning();
-    return log;
-  }
-
-  async getBasecampSyncLogs(userId: string, limit: number = 50): Promise<BasecampSyncLog[]> {
-    return await db
-      .select()
-      .from(basecampSyncLogs)
-      .where(eq(basecampSyncLogs.userId, userId))
-      .orderBy(desc(basecampSyncLogs.createdAt))
-      .limit(limit);
   }
 }
 
