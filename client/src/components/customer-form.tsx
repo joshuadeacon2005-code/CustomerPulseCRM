@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCustomerSchema, updateCustomerSchema, type Customer, type InsertCustomer, type UpdateCustomer } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, type Customer, type InsertCustomer, type UpdateCustomer } from "@shared/schema";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import {
@@ -55,6 +55,13 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       retailerType: customer.retailerType ?? undefined,
       quarterlySoftTarget: customer.quarterlySoftTarget || "",
       lastContactDate: customer.lastContactDate ?? undefined,
+      country: customer.country || "",
+      contactName: customer.contactName || "",
+      contactTitle: customer.contactTitle || "",
+      contactPhone: customer.contactPhone || "",
+      contactEmail: customer.contactEmail || "",
+      dateOfFirstContact: customer.dateOfFirstContact ?? undefined,
+      leadGeneratedBy: customer.leadGeneratedBy || "",
     } : {
       name: "",
       email: "",
@@ -70,6 +77,13 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       retailerType: undefined,
       quarterlySoftTarget: "",
       lastContactDate: undefined,
+      country: "",
+      contactName: "",
+      contactTitle: "",
+      contactPhone: "",
+      contactEmail: "",
+      dateOfFirstContact: undefined,
+      leadGeneratedBy: "",
     },
   });
 
@@ -129,6 +143,110 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     placeholder="+1 (555) 123-4567" 
                     {...field} 
                     data-testid="input-customer-phone"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="country"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Country</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="e.g., USA, Canada, UK" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-customer-country"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Main Contact */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Main Contact</h3>
+
+          <FormField
+            control={form.control}
+            name="contactName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Name</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Primary contact person" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-contact-name"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contactTitle"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Title</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="e.g., Owner, Manager" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-contact-title"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contactPhone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Phone</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="tel" 
+                    placeholder="+1 (555) 123-4567" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-contact-phone"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contactEmail"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Email</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="email" 
+                    placeholder="contact@example.com" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-contact-email"
                   />
                 </FormControl>
                 <FormMessage />
@@ -202,6 +320,74 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     data-testid="input-customer-score"
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dateOfFirstContact"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date of First Contact</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                        data-testid="button-first-contact-date"
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ?? undefined}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  When was this lead first contacted?
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="leadGeneratedBy"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Lead Generated By</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="e.g., Referral, Cold Call, Website" 
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-lead-generated-by"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Source or method of lead generation
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -314,10 +500,11 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Retail Store">Retail Store</SelectItem>
-                    <SelectItem value="Online">Online</SelectItem>
-                    <SelectItem value="Wholesale">Wholesale</SelectItem>
-                    <SelectItem value="Distributor">Distributor</SelectItem>
+                    {RETAILER_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
