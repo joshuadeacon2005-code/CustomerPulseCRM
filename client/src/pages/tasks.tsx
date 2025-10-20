@@ -131,6 +131,7 @@ export default function Tasks() {
 
   const { data: basecampTodos = [], isLoading: todosLoading, refetch: refetchTodos } = useQuery<BasecampTodo[]>({
     queryKey: ["/api/basecamp/todos"],
+    queryFn: () => fetch("/api/basecamp/todos").then(res => res.json()),
     enabled: connection?.connected === true,
   });
 
