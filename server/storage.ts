@@ -1108,15 +1108,24 @@ export class DatabaseStorage implements IStorage {
         }
       );
 
-      if (!projectsResponse.ok) return [];
+      if (!projectsResponse.ok) {
+        console.error(`Failed to fetch Basecamp projects: ${projectsResponse.status} ${projectsResponse.statusText}`);
+        const errorBody = await projectsResponse.text();
+        console.error(`Error response:`, errorBody);
+        return [];
+      }
 
       const projects = await projectsResponse.json();
+      console.log(`Fetched ${projects.length} Basecamp projects`);
       
       // Filter projects if user has selected specific ones
       const selectedProjectIds = connection.selectedProjectIds || [];
       const projectsToFetch = selectedProjectIds.length > 0
         ? projects.filter((p: any) => selectedProjectIds.includes(String(p.id)))
         : projects;
+
+      console.log(`Selected projects filter:`, selectedProjectIds.length > 0 ? `${selectedProjectIds.length} projects selected` : 'All projects');
+      console.log(`Fetching to-dos from ${projectsToFetch.length} projects`);
 
       const allTodos: any[] = [];
 
@@ -1180,6 +1189,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      console.log(`Total Basecamp to-dos fetched: ${allTodos.length}`);
       return allTodos;
     } catch (error) {
       console.error('Error fetching Basecamp todos:', error);
