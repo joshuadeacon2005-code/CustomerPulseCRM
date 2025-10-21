@@ -148,7 +148,12 @@ export default function Tasks() {
       return response.json();
     },
     onSuccess: (result: { imported: number; skipped: number }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+      // Invalidate all filter-specific queries
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setIsSyncDialogOpen(false);
       setSelectedTodos([]);
       setSelectedCustomerId("");
@@ -188,7 +193,11 @@ export default function Tasks() {
       return apiRequest("POST", "/api/action-items", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+      // Invalidate all filter-specific queries
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setIsAddDialogOpen(false);
       form.reset();
@@ -209,7 +218,11 @@ export default function Tasks() {
   const completeTaskMutation = useMutation({
     mutationFn: (id: string) => apiRequest("PATCH", `/api/action-items/${id}/complete`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+      // Invalidate all filter-specific queries
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
       toast({
         title: "To-do completed",
         description: "The to-do has been marked as complete.",
