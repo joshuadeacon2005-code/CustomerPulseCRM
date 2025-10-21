@@ -776,8 +776,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const todoListData = await todosResponse.json();
           
-          // Debug logging
-          console.log("Todo list data structure:", JSON.stringify(todoListData, null, 2));
+          // TEMPORARY DEBUG: Return raw API response to inspect structure
+          if (allTodos.length === 0) {
+            return res.json([{
+              debug: true,
+              message: "Raw Basecamp API response",
+              listName: list.name,
+              rawData: todoListData,
+              dataKeys: Object.keys(todoListData),
+              hasTodos: !!todoListData.todos,
+              todosType: todoListData.todos ? typeof todoListData.todos : null,
+              todosKeys: todoListData.todos ? Object.keys(todoListData.todos) : null,
+            }]);
+          }
           
           // Try different possible structures for incomplete todos
           let incompleteTodos = [];
@@ -792,8 +803,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // If todoListData itself is an array
             incompleteTodos = todoListData.filter((t: any) => !t.completed);
           }
-          
-          console.log(`Found ${incompleteTodos.length} incomplete todos in list ${list.name}`);
           
           // Add project and list info to each todo
           const todosWithContext = incompleteTodos.map((todo: any) => ({
