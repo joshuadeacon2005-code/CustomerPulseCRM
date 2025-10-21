@@ -32,6 +32,10 @@ import {
   type UserDetails,
   type CustomerContact,
   type InsertCustomerContact,
+  type BasecampConnection,
+  type InsertBasecampConnection,
+  type OauthState,
+  type InsertOauthState,
   users,
   sales,
   customers,
@@ -42,6 +46,8 @@ import {
   actionItems,
   monthlySalesTracking,
   customerContacts,
+  basecampConnections,
+  oauthStates,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -113,6 +119,21 @@ export interface IStorage {
   getCustomerContacts(customerId: string): Promise<CustomerContact[]>;
   createCustomerContact(contact: InsertCustomerContact): Promise<CustomerContact>;
   deleteCustomerContact(id: string): Promise<boolean>;
+
+  // Basecamp OAuth management
+  getBasecampConnection(userId: string): Promise<BasecampConnection | undefined>;
+  createBasecampConnection(connection: InsertBasecampConnection): Promise<BasecampConnection>;
+  updateBasecampConnection(userId: string, connection: Partial<InsertBasecampConnection>): Promise<BasecampConnection | undefined>;
+  deleteBasecampConnection(userId: string): Promise<boolean>;
+  
+  // OAuth state management
+  createOauthState(state: InsertOauthState): Promise<OauthState>;
+  verifyOauthState(state: string): Promise<OauthState | undefined>;
+  deleteOauthState(state: string): Promise<boolean>;
+  cleanupExpiredOauthStates(): Promise<number>;
+  
+  // Basecamp todo lookup
+  getActionItemByBasecampId(basecampTodoId: string): Promise<ActionItem | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -944,6 +965,82 @@ export class DatabaseStorage implements IStorage {
   async deleteCustomerContact(id: string): Promise<boolean> {
     const result = await db.delete(customerContacts).where(eq(customerContacts.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Basecamp OAuth management
+  async getBasecampConnection(userId: string): Promise<BasecampConnection | undefined> {
+    const [connection] = await db
+      .select()
+      .from(basecampConnections)
+      .where(eq(basecampConnections.userId, userId));
+    return connection;
+  }
+
+  async createBasecampConnection(connectionData: InsertBasecampConnection): Promise<BasecampConnection> {
+    const [connection] = await db
+      .insert(basecampConnections)
+      .values(connectionData)
+      .returning();
+    return connection;
+  }
+
+  async updateBasecampConnection(
+    userId: string,
+    connectionData: Partial<InsertBasecampConnection>
+  ): Promise<BasecampConnection | undefined> {
+    const [connection] = await db
+      .update(basecampConnections)
+      .set({ ...connectionData, updatedAt: new Date() })
+      .where(eq(basecampConnections.userId, userId))
+      .returning();
+    return connection;
+  }
+
+  async deleteBasecampConnection(userId: string): Promise<boolean> {
+    const result = await db
+      .delete(basecampConnections)
+      .where(eq(basecampConnections.userId, userId));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // OAuth state management
+  async createOauthState(stateData: InsertOauthState): Promise<OauthState> {
+    const [state] = await db.insert(oauthStates).values(stateData).returning();
+    return state;
+  }
+
+  async verifyOauthState(state: string): Promise<OauthState | undefined> {
+    const [stateRecord] = await db
+      .select()
+      .from(oauthStates)
+      .where(
+        and(
+          eq(oauthStates.state, state),
+          gte(oauthStates.expiresAt, new Date())
+        )
+      );
+    return stateRecord;
+  }
+
+  async deleteOauthState(state: string): Promise<boolean> {
+    const result = await db.delete(oauthStates).where(eq(oauthStates.state, state));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async cleanupExpiredOauthStates(): Promise<number> {
+    const result = await db
+      .delete(oauthStates)
+      .where(sql`${oauthStates.expiresAt} < NOW()`);
+    return result.rowCount || 0;
+  }
+
+  // Basecamp todo lookup
+  async getActionItemByBasecampId(basecampTodoId: string): Promise<ActionItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(actionItems)
+      .where(eq(actionItems.basecampTodoId, basecampTodoId));
+    return item;
   }
 }
 
