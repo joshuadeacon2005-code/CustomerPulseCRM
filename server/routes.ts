@@ -715,7 +715,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/basecamp/todos", isAuthenticated, async (req, res) => {
     try {
+      console.log("=== BASECAMP TODOS ENDPOINT CALLED ===");
       const { projectIds } = req.body;
+      console.log("Project IDs received:", projectIds);
       
       if (!projectIds || !Array.isArray(projectIds)) {
         return res.status(400).json({ error: "Invalid project IDs" });
@@ -727,10 +729,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Not connected to Basecamp" });
       }
       
+      console.log("Basecamp connection found, account ID:", connection.basecampAccountId);
+      
       const allTodos = [];
       
       // Fetch todos for each selected project
       for (const projectId of projectIds) {
+        console.log(`\n--- Fetching todo lists for project ${projectId} ---`);
         // Get todo lists for this project
         const listsResponse = await fetch(
           `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists.json`,
@@ -742,12 +747,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         );
         
+        console.log(`Todo lists response status: ${listsResponse.status}`);
+        
         if (!listsResponse.ok) {
           console.error(`Failed to fetch todo lists for project ${projectId}`);
           continue;
         }
         
         const todoLists = await listsResponse.json();
+        console.log(`Found ${todoLists.length} todo lists in project ${projectId}`);
         
         // Fetch todos from each list
         for (const list of todoLists) {
