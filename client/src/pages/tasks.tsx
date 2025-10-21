@@ -548,7 +548,13 @@ export default function Tasks() {
                   {selectedTodos.length === basecampTodos.length ? "Deselect All" : "Select All"}
                 </Button>
               </div>
-              {basecampTodos.map((todo: any) => (
+              {basecampTodos.length > 0 && basecampTodos[0]?.debug && (
+                <div className="p-4 bg-yellow-500/10 border border-yellow-500/50 rounded text-xs space-y-2 overflow-auto max-h-96">
+                  <p className="font-bold text-yellow-600 dark:text-yellow-400">DEBUG MODE - Raw Basecamp API Response:</p>
+                  <pre className="whitespace-pre-wrap">{JSON.stringify(basecampTodos[0], null, 2)}</pre>
+                </div>
+              )}
+              {basecampTodos.filter((t: any) => !t.debug).map((todo: any) => (
                 <Card key={todo.id} className="p-3">
                   <div className="flex items-start space-x-2">
                     <Checkbox
