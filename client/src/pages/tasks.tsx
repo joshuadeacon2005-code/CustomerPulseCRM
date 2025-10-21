@@ -137,15 +137,20 @@ export default function Tasks() {
 
   const fetchTodosMutation = useMutation<any[], Error, number[]>({
     mutationFn: async (projectIds: number[]) => {
+      console.log("=== FRONTEND: Fetching todos for projects:", projectIds);
       const response = await apiRequest("POST", "/api/basecamp/todos", { projectIds });
-      return response.json();
+      const data = await response.json();
+      console.log("=== FRONTEND: Received todos:", data);
+      return data;
     },
     onSuccess: (data: any[]) => {
+      console.log("=== FRONTEND: Success, got", data.length, "todos");
       setBasecampTodos(data);
       setIsBasecampProjectsDialogOpen(false);
       setIsSyncDialogOpen(true);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("=== FRONTEND: Error fetching todos:", error);
       toast({
         title: "Error",
         description: "Failed to fetch Basecamp todos.",
