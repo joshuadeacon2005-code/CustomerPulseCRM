@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -52,6 +52,12 @@ type FormData = z.infer<typeof formSchema>;
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isBasecampProjectsDialogOpen, setIsBasecampProjectsDialogOpen] = useState(false);
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState<number[]>([]);
+  const [basecampTodos, setBasecampTodos] = useState<any[]>([]);
+  const [selectedTodos, setSelectedTodos] = useState<number[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
@@ -74,6 +80,91 @@ export default function Tasks() {
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
+  });
+
+  const { data: basecampConnection } = useQuery<{ connected: boolean; basecampUserId?: string; basecampAccountId?: string }>({
+    queryKey: ["/api/basecamp/connection"],
+  });
+
+  const { data: basecampProjects = [] } = useQuery<any[]>({
+    queryKey: ["/api/basecamp/projects"],
+    enabled: basecampConnection?.connected || false,
+  });
+
+  const connectBasecampMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/basecamp/auth"),
+    onSuccess: (data: any) => {
+      window.location.href = data.authUrl;
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Basecamp.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectBasecampMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/basecamp/disconnect"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
+      toast({
+        title: "Disconnected",
+        description: "Successfully disconnected from Basecamp.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect from Basecamp.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const fetchTodosMutation = useMutation<any[], Error, number[]>({
+    mutationFn: async (projectIds: number[]) => {
+      const response = await apiRequest("POST", "/api/basecamp/todos", { projectIds });
+      return response.json();
+    },
+    onSuccess: (data: any[]) => {
+      setBasecampTodos(data);
+      setIsBasecampProjectsDialogOpen(false);
+      setIsSyncDialogOpen(true);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to fetch Basecamp todos.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const syncTodosMutation = useMutation<{ imported: number; skipped: number }, Error, { todos: any[]; customerId: string }>({
+    mutationFn: async ({ todos, customerId }: { todos: any[]; customerId: string }) => {
+      const response = await apiRequest("POST", "/api/basecamp/sync", { todos, customerId });
+      return response.json();
+    },
+    onSuccess: (result: { imported: number; skipped: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
+      setIsSyncDialogOpen(false);
+      setSelectedTodos([]);
+      setSelectedCustomerId("");
+      setBasecampTodos([]);
+      toast({
+        title: "Sync Complete",
+        description: `Imported ${result.imported} todos. Skipped ${result.skipped} duplicates.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to sync todos.",
+        variant: "destructive",
+      });
+    },
   });
 
   const form = useForm<FormData>({
@@ -237,6 +328,60 @@ export default function Tasks() {
         </Button>
       </div>
 
+      {/* Basecamp Integration Card */}
+      <Card className="mb-6" data-testid="card-basecamp">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-orange-500" />
+              <h2 className="text-lg font-semibold">Basecamp Integration</h2>
+            </div>
+            {basecampConnection?.connected ? (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => disconnectBasecampMutation.mutate()}
+                disabled={disconnectBasecampMutation.isPending}
+                data-testid="button-disconnect-basecamp"
+              >
+                <Unlink className="mr-2 h-4 w-4" />
+                {disconnectBasecampMutation.isPending ? "Disconnecting..." : "Disconnect"}
+              </Button>
+            ) : (
+              <Button 
+                size="sm"
+                onClick={() => connectBasecampMutation.mutate()}
+                disabled={connectBasecampMutation.isPending}
+                data-testid="button-connect-basecamp"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                {connectBasecampMutation.isPending ? "Connecting..." : "Connect to Basecamp"}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        {basecampConnection?.connected && (
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Status:</span>
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                  Connected
+                </Badge>
+              </div>
+              <Button 
+                onClick={() => setIsBasecampProjectsDialogOpen(true)}
+                className="w-full"
+                data-testid="button-sync-basecamp"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Import from Basecamp
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList data-testid="tabs-task-filters">
           <TabsTrigger value="all" data-testid="tab-all">
@@ -276,6 +421,166 @@ export default function Tasks() {
           <TaskList tasks={completedTasks} isLoading={false} />
         </TabsContent>
       </Tabs>
+
+      {/* Basecamp Project Selection Dialog */}
+      <Dialog open={isBasecampProjectsDialogOpen} onOpenChange={setIsBasecampProjectsDialogOpen}>
+        <DialogContent data-testid="dialog-basecamp-projects">
+          <DialogHeader>
+            <DialogTitle>Select Basecamp Projects</DialogTitle>
+            <DialogDescription>
+              Choose which projects to import todos from
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {basecampProjects.map((project: any) => (
+              <div key={project.id} className="flex items-center space-x-2">
+                <Checkbox
+                  checked={selectedProjects.includes(project.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedProjects([...selectedProjects, project.id]);
+                    } else {
+                      setSelectedProjects(selectedProjects.filter(id => id !== project.id));
+                    }
+                  }}
+                  data-testid={`checkbox-project-${project.id}`}
+                />
+                <label className="text-sm font-medium leading-none cursor-pointer">
+                  {project.name}
+                </label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (selectedProjects.length === 0) {
+                  toast({
+                    title: "No projects selected",
+                    description: "Please select at least one project",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                fetchTodosMutation.mutate(selectedProjects);
+              }}
+              disabled={fetchTodosMutation.isPending || selectedProjects.length === 0}
+              data-testid="button-fetch-todos"
+            >
+              {fetchTodosMutation.isPending ? "Fetching..." : "Fetch Todos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Basecamp Sync Dialog */}
+      <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
+        <DialogContent className="max-w-3xl" data-testid="dialog-sync-todos">
+          <DialogHeader>
+            <DialogTitle>Sync Basecamp Todos</DialogTitle>
+            <DialogDescription>
+              Select todos to import and assign them to a customer
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Assign to Customer</label>
+              <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                <SelectTrigger data-testid="select-sync-customer">
+                  <SelectValue placeholder="Select a customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">
+                  {basecampTodos.length} todos found
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedTodos.length === basecampTodos.length) {
+                      setSelectedTodos([]);
+                    } else {
+                      setSelectedTodos(basecampTodos.map(t => t.id));
+                    }
+                  }}
+                  data-testid="button-toggle-all-todos"
+                >
+                  {selectedTodos.length === basecampTodos.length ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
+              {basecampTodos.map((todo: any) => (
+                <Card key={todo.id} className="p-3">
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
+                      checked={selectedTodos.includes(todo.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTodos([...selectedTodos, todo.id]);
+                        } else {
+                          setSelectedTodos(selectedTodos.filter(id => id !== todo.id));
+                        }
+                      }}
+                      data-testid={`checkbox-todo-${todo.id}`}
+                    />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium">{todo.content}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{todo.projectName}</span>
+                        <span>•</span>
+                        <span>{todo.todoListName}</span>
+                        {todo.due_on && (
+                          <>
+                            <span>•</span>
+                            <span>Due: {format(new Date(todo.due_on), 'MMM dd, yyyy')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (!selectedCustomerId) {
+                  toast({
+                    title: "No customer selected",
+                    description: "Please select a customer to assign todos to",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (selectedTodos.length === 0) {
+                  toast({
+                    title: "No todos selected",
+                    description: "Please select at least one todo to sync",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                const todosToSync = basecampTodos.filter(t => selectedTodos.includes(t.id));
+                syncTodosMutation.mutate({ todos: todosToSync, customerId: selectedCustomerId });
+              }}
+              disabled={syncTodosMutation.isPending || selectedTodos.length === 0 || !selectedCustomerId}
+              data-testid="button-sync-todos"
+            >
+              {syncTodosMutation.isPending ? "Syncing..." : `Sync ${selectedTodos.length} Todos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add To-Do Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
