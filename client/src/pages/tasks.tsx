@@ -3,9 +3,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, RefreshCw, Circle, Settings, ExternalLink, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -36,10 +36,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertActionItemSchema, type ActionItemWithCustomer, type Customer, type BasecampSyncLog } from "@shared/schema";
+import { insertActionItemSchema, type ActionItemWithCustomer, type Customer } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
 
@@ -50,39 +49,9 @@ const formSchema = insertActionItemSchema.extend({
 
 type FormData = z.infer<typeof formSchema>;
 
-interface BasecampConnection {
-  connected: boolean;
-  accountId?: string;
-  userName?: string;
-  connectedAt?: Date;
-  selectedProjectIds?: string[];
-}
-
-interface BasecampTodo {
-  id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  due_on?: string;
-  project: string;
-  projectName: string;
-  todolist: string;
-}
-
-interface BasecampProject {
-  id: string;
-  name: string;
-  description?: string;
-}
-
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [selectedTodos, setSelectedTodos] = useState<string[]>([]);
-  const [syncCustomerId, setSyncCustomerId] = useState<string>("");
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
@@ -105,25 +74,6 @@ export default function Tasks() {
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
-  });
-
-  const { data: basecampConnection, isLoading: isLoadingConnection } = useQuery<BasecampConnection>({
-    queryKey: ["/api/basecamp/connection"],
-  });
-
-  const { data: basecampProjects = [], isLoading: isLoadingProjects } = useQuery<BasecampProject[]>({
-    queryKey: ["/api/basecamp/projects"],
-    enabled: basecampConnection?.connected === true,
-  });
-
-  const { data: basecampTodos = [], isLoading: isLoadingBasecampTodos, refetch: refetchBasecampTodos } = useQuery<BasecampTodo[]>({
-    queryKey: ["/api/basecamp/todos"],
-    enabled: basecampConnection?.connected === true,
-  });
-
-  const { data: syncLogs = [], refetch: refetchSyncLogs } = useQuery<BasecampSyncLog[]>({
-    queryKey: ["/api/basecamp/sync-logs"],
-    enabled: basecampConnection?.connected === true,
   });
 
   const form = useForm<FormData>({
@@ -183,117 +133,8 @@ export default function Tasks() {
     },
   });
 
-  const disconnectBasecampMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", "/api/basecamp/connection"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/todos"] });
-      toast({
-        title: "Disconnected",
-        description: "Basecamp account has been disconnected.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to disconnect Basecamp.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateProjectsMutation = useMutation({
-    mutationFn: (projectIds: string[]) => 
-      apiRequest("POST", "/api/basecamp/projects/select", { projectIds }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/todos"] });
-      setIsProjectDialogOpen(false);
-      toast({
-        title: "Projects updated",
-        description: "Selected projects have been saved.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update selected projects.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const syncTodosMutation = useMutation({
-    mutationFn: ({ todos, customerId }: { todos: BasecampTodo[], customerId: string }) =>
-      apiRequest("POST", "/api/basecamp/sync", { todos, customerId }),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/action-items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/sync-logs"] });
-      setIsSyncDialogOpen(false);
-      setSelectedTodos([]);
-      setSyncCustomerId("");
-      refetchSyncLogs();
-      toast({
-        title: "Sync completed",
-        description: `Imported ${data.itemsImported} to-dos. ${data.itemsFailed > 0 ? `${data.itemsFailed} failed.` : ''}`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to sync to-dos.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmit = (data: FormData) => {
     createTaskMutation.mutate(data);
-  };
-
-  const handleBasecampConnect = () => {
-    window.open("/api/basecamp/auth", "_blank", "width=600,height=700");
-    
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["/api/basecamp/connection"] });
-    }, 2000);
-    
-    setTimeout(() => clearInterval(interval), 60000);
-  };
-
-  const handleProjectSelection = () => {
-    if (basecampConnection?.connected) {
-      setSelectedProjectIds(basecampConnection.selectedProjectIds || []);
-      setIsProjectDialogOpen(true);
-    }
-  };
-
-  const handleSyncBasecampTodos = () => {
-    if (selectedTodos.length === 0) {
-      toast({
-        title: "No to-dos selected",
-        description: "Please select at least one to-do to sync.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSyncDialogOpen(true);
-  };
-
-  const confirmSync = () => {
-    if (!syncCustomerId) {
-      toast({
-        title: "No customer selected",
-        description: "Please select a customer to link the to-dos.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const todosToSync = basecampTodos.filter(todo => selectedTodos.includes(todo.id));
-    syncTodosMutation.mutate({ todos: todosToSync, customerId: syncCustomerId });
   };
 
   const getTaskBadge = (task: ActionItemWithCustomer) => {
@@ -337,12 +178,6 @@ export default function Tasks() {
                   {task.description}
                 </p>
                 {getTaskBadge(task)}
-                {task.basecampTodoId && (
-                  <Badge variant="outline" className="gap-1">
-                    <Link2 className="h-3 w-3" />
-                    Basecamp
-                  </Badge>
-                )}
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span data-testid={`text-customer-${task.id}`}>{task.customerName}</span>
@@ -389,19 +224,6 @@ export default function Tasks() {
     );
   };
 
-  const getSyncStatusIcon = (status: string) => {
-    switch (status) {
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "partial":
-        return <AlertCircle className="h-4 w-4 text-orange-500" />;
-      case "failed":
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Circle className="h-4 w-4" />;
-    }
-  };
-
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="flex justify-between items-center mb-6">
@@ -414,182 +236,6 @@ export default function Tasks() {
           Add To-Do
         </Button>
       </div>
-
-      {/* Basecamp Connection Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Link2 className="h-5 w-5" />
-                Basecamp Integration
-              </CardTitle>
-              <CardDescription>
-                Sync your Basecamp to-dos with CRM action items
-              </CardDescription>
-            </div>
-            {basecampConnection?.connected && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleProjectSelection}
-                data-testid="button-project-settings"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoadingConnection ? (
-            <Skeleton className="h-20 w-full" />
-          ) : basecampConnection?.connected ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <div>
-                    <p className="font-medium">Connected</p>
-                    <p className="text-sm text-muted-foreground">{basecampConnection.userName}</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => disconnectBasecampMutation.mutate()}
-                  disabled={disconnectBasecampMutation.isPending}
-                  data-testid="button-disconnect"
-                >
-                  Disconnect
-                </Button>
-              </div>
-
-              {isLoadingBasecampTodos ? (
-                <Skeleton className="h-40 w-full" />
-              ) : basecampTodos.length > 0 ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">Basecamp To-Dos ({basecampTodos.length})</p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => refetchBasecampTodos()}
-                        data-testid="button-refresh-todos"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSyncBasecampTodos}
-                        disabled={selectedTodos.length === 0}
-                        data-testid="button-sync-todos"
-                      >
-                        Sync Selected ({selectedTodos.length})
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto space-y-2 border rounded-lg p-3">
-                    {basecampTodos.map(todo => (
-                      <div
-                        key={todo.id}
-                        className="flex items-start gap-3 p-3 hover-elevate rounded-md cursor-pointer"
-                        onClick={() => {
-                          setSelectedTodos(prev =>
-                            prev.includes(todo.id)
-                              ? prev.filter(id => id !== todo.id)
-                              : [...prev, todo.id]
-                          );
-                        }}
-                        data-testid={`basecamp-todo-${todo.id}`}
-                      >
-                        <Checkbox
-                          checked={selectedTodos.includes(todo.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedTodos(prev =>
-                              checked
-                                ? [...prev, todo.id]
-                                : prev.filter(id => id !== todo.id)
-                            );
-                          }}
-                          data-testid={`checkbox-basecamp-${todo.id}`}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium">{todo.title}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {todo.projectName}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">{todo.todolist}</span>
-                            {todo.due_on && (
-                              <span className="text-xs text-muted-foreground">
-                                Due: {format(new Date(todo.due_on), 'MMM dd')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ListTodo className="mx-auto h-12 w-12 mb-3 opacity-50" />
-                  <p>No Basecamp to-dos found</p>
-                  <p className="text-sm mt-1">
-                    {basecampConnection.selectedProjectIds && basecampConnection.selectedProjectIds.length > 0
-                      ? "Try selecting different projects"
-                      : "Select projects to view to-dos"}
-                  </p>
-                </div>
-              )}
-
-              {/* Sync Activity */}
-              {syncLogs.length > 0 && (
-                <div className="space-y-2">
-                  <p className="font-medium text-sm">Recent Sync Activity</p>
-                  <div className="space-y-1">
-                    {syncLogs.slice(0, 5).map((log) => (
-                      <div
-                        key={log.id}
-                        className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
-                        data-testid={`sync-log-${log.id}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {getSyncStatusIcon(log.status)}
-                          <span className="capitalize">{log.status}</span>
-                          <span className="text-muted-foreground">
-                            • {log.itemsImported} imported
-                            {log.itemsFailed > 0 && `, ${log.itemsFailed} failed`}
-                          </span>
-                        </div>
-                        <span className="text-muted-foreground text-xs">
-                          {format(new Date(log.createdAt), 'MMM dd, HH:mm')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                <Link2 className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium mb-2">Connect to Basecamp</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Sync your Basecamp to-dos to manage them alongside your CRM tasks
-              </p>
-              <Button onClick={handleBasecampConnect} data-testid="button-connect-basecamp">
-                <Link2 className="mr-2 h-4 w-4" />
-                Connect Basecamp
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList data-testid="tabs-task-filters">
@@ -768,100 +414,6 @@ export default function Tasks() {
               </DialogFooter>
             </form>
           </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Project Selection Dialog */}
-      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent data-testid="dialog-project-selection">
-          <DialogHeader>
-            <DialogTitle>Select Basecamp Projects</DialogTitle>
-            <DialogDescription>
-              Choose which projects to sync to-dos from
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {isLoadingProjects ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              basecampProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="flex items-center gap-3 p-3 hover-elevate rounded-md cursor-pointer"
-                  onClick={() => {
-                    setSelectedProjectIds(prev =>
-                      prev.includes(project.id.toString())
-                        ? prev.filter(id => id !== project.id.toString())
-                        : [...prev, project.id.toString()]
-                    );
-                  }}
-                  data-testid={`project-${project.id}`}
-                >
-                  <Checkbox
-                    checked={selectedProjectIds.includes(project.id.toString())}
-                    onCheckedChange={(checked) => {
-                      setSelectedProjectIds(prev =>
-                        checked
-                          ? [...prev, project.id.toString()]
-                          : prev.filter(id => id !== project.id.toString())
-                      );
-                    }}
-                    data-testid={`checkbox-project-${project.id}`}
-                  />
-                  <div>
-                    <p className="font-medium">{project.name}</p>
-                    {project.description && (
-                      <p className="text-sm text-muted-foreground">{project.description}</p>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => updateProjectsMutation.mutate(selectedProjectIds)}
-              disabled={updateProjectsMutation.isPending}
-              data-testid="button-save-projects"
-            >
-              {updateProjectsMutation.isPending ? "Saving..." : "Save Selection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Sync Dialog */}
-      <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
-        <DialogContent data-testid="dialog-sync">
-          <DialogHeader>
-            <DialogTitle>Sync to CRM</DialogTitle>
-            <DialogDescription>
-              Select a customer to link these {selectedTodos.length} to-do(s)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select value={syncCustomerId} onValueChange={setSyncCustomerId}>
-              <SelectTrigger data-testid="select-sync-customer">
-                <SelectValue placeholder="Select a customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id} data-testid={`option-sync-customer-${customer.id}`}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={confirmSync}
-              disabled={syncTodosMutation.isPending || !syncCustomerId}
-              data-testid="button-confirm-sync"
-            >
-              {syncTodosMutation.isPending ? "Syncing..." : "Sync To-Dos"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
