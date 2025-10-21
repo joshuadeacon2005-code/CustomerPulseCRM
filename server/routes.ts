@@ -715,21 +715,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/basecamp/todos", isAuthenticated, async (req, res) => {
     try {
-      console.log("=== BASECAMP TODOS ENDPOINT CALLED ===");
+      console.error("=== BASECAMP TODOS ENDPOINT CALLED ===");
       const { projectIds } = req.body;
-      console.log("Project IDs received:", projectIds);
+      console.error("Project IDs received:", projectIds);
       
       if (!projectIds || !Array.isArray(projectIds)) {
+        console.error("ERROR: Invalid project IDs");
         return res.status(400).json({ error: "Invalid project IDs" });
       }
       
       const connection = await storage.getBasecampConnection(req.user!.id);
       
       if (!connection) {
+        console.error("ERROR: No Basecamp connection found");
         return res.status(401).json({ error: "Not connected to Basecamp" });
       }
       
-      console.log("Basecamp connection found, account ID:", connection.basecampAccountId);
+      console.error("Basecamp connection found, account ID:", connection.basecampAccountId);
       
       const allTodos = [];
       
