@@ -97,12 +97,21 @@ export default function Tasks() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      window.location.href = data.authUrl;
+      if (data?.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast({
+          title: "Error",
+          description: "Invalid response from server.",
+          variant: "destructive",
+        });
+      }
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("Basecamp connection error:", error);
       toast({
         title: "Error",
-        description: "Failed to connect to Basecamp.",
+        description: error.message || "Failed to connect to Basecamp. Please try again.",
         variant: "destructive",
       });
     },
