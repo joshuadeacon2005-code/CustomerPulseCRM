@@ -767,13 +767,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const todoListData = await todosResponse.json();
-          const incompleteTodos = todoListData.todos.uncompleted || [];
+          
+          // Debug logging
+          console.log("Todo list data structure:", JSON.stringify(todoListData, null, 2));
+          
+          // Try different possible structures for incomplete todos
+          let incompleteTodos = [];
+          if (todoListData.todos && Array.isArray(todoListData.todos.uncompleted)) {
+            incompleteTodos = todoListData.todos.uncompleted;
+          } else if (todoListData.todos && Array.isArray(todoListData.todos)) {
+            // Filter for incomplete todos if todos is a flat array
+            incompleteTodos = todoListData.todos.filter((t: any) => !t.completed);
+          } else if (Array.isArray(todoListData.uncompleted)) {
+            incompleteTodos = todoListData.uncompleted;
+          } else if (Array.isArray(todoListData)) {
+            // If todoListData itself is an array
+            incompleteTodos = todoListData.filter((t: any) => !t.completed);
+          }
+          
+          console.log(`Found ${incompleteTodos.length} incomplete todos in list ${list.name}`);
           
           // Add project and list info to each todo
           const todosWithContext = incompleteTodos.map((todo: any) => ({
             ...todo,
             projectId,
-            projectName: todoListData.bucket?.name || "Unknown Project",
+            projectName: todoListData.bucket?.name || list.bucket?.name || "Unknown Project",
             todoListName: list.name,
           }));
           
