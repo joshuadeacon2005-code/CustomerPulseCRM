@@ -92,7 +92,10 @@ export default function Tasks() {
   });
 
   const connectBasecampMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/basecamp/auth"),
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/basecamp/auth");
+      return response.json();
+    },
     onSuccess: (data: any) => {
       window.location.href = data.authUrl;
     },
