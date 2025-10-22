@@ -814,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`    Fetching todos for list ${list.id} (${list.title})`);
             
             const todosResponse = await fetch(
-              `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists/${list.id}/todos.json`,
+              `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists/${list.id}/todos.json?completed=true`,
               {
                 headers: {
                   Authorization: `Bearer ${connection.accessToken}`,
