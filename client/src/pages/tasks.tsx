@@ -141,7 +141,15 @@ export default function Tasks() {
       // Add timestamp to prevent caching
       const response = await apiRequest("POST", `/api/basecamp/todos?t=${Date.now()}`, { projectIds });
       const data = await response.json();
-      console.log("=== FRONTEND: Received todos:", data);
+      console.log("=== FRONTEND: Received response:", data);
+      
+      // Handle new debug response format
+      if (data.debug) {
+        console.log("=== DEBUG INFO ===", data.debug);
+        console.log("Message:", data.message);
+        return data.todos || [];
+      }
+      
       return data;
     },
     onSuccess: (data: any[]) => {

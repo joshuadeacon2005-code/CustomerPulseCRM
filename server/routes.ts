@@ -885,7 +885,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("No todos found. Debug info:", JSON.stringify(debugInfo, null, 2));
       }
       
-      res.json(allTodos);
+      // TEMP: Return debug info in response for troubleshooting
+      res.json({
+        todos: allTodos,
+        debug: debugInfo,
+        message: `Found ${allTodos.length} todos from ${debugInfo.totalListsFound} lists in ${debugInfo.projectsChecked.length} projects`
+      });
     } catch (error) {
       console.error("Error fetching Basecamp todos:", error);
       res.status(500).json({ error: "Failed to fetch todos" });
