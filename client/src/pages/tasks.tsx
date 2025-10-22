@@ -138,7 +138,8 @@ export default function Tasks() {
   const fetchTodosMutation = useMutation<any[], Error, number[]>({
     mutationFn: async (projectIds: number[]) => {
       console.log("=== FRONTEND: Fetching todos for projects:", projectIds);
-      const response = await apiRequest("POST", "/api/basecamp/todos", { projectIds });
+      // Add timestamp to prevent caching
+      const response = await apiRequest("POST", `/api/basecamp/todos?t=${Date.now()}`, { projectIds });
       const data = await response.json();
       console.log("=== FRONTEND: Received todos:", data);
       return data;
