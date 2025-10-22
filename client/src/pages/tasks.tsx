@@ -161,8 +161,11 @@ export default function Tasks() {
 
   const syncTodosMutation = useMutation<{ imported: number; skipped: number }, Error, { todos: any[]; customerId: string }>({
     mutationFn: async ({ todos, customerId }: { todos: any[]; customerId: string }) => {
+      console.log("=== FRONTEND: Syncing todos:", todos);
       const response = await apiRequest("POST", "/api/basecamp/sync", { todos, customerId });
-      return response.json();
+      const result = await response.json();
+      console.log("=== FRONTEND: Sync result:", result);
+      return result;
     },
     onSuccess: (result: { imported: number; skipped: number }) => {
       // Invalidate all filter-specific queries
@@ -180,7 +183,8 @@ export default function Tasks() {
         description: `Imported ${result.imported} todos. Skipped ${result.skipped} duplicates.`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("=== FRONTEND: Sync error:", error);
       toast({
         title: "Error",
         description: "Failed to sync todos.",
