@@ -497,7 +497,7 @@ export class DatabaseStorage implements IStorage {
     const brandList = await db
       .select()
       .from(brands)
-      .where(sql`${brands.id} = ANY(${brandIds})`);
+      .where(inArray(brands.id, brandIds));
 
     return brandList;
   }

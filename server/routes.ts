@@ -26,6 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(customer);
     } catch (error) {
+      console.error("Error fetching customer details:", error);
       res.status(500).json({ error: "Failed to fetch customer" });
     }
   });
@@ -224,7 +225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers/:id/brands", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertCustomerBrandSchema.parse(req.body);
+      const brandIdSchema = z.object({ brandId: z.string().min(1) });
+      const validatedData = brandIdSchema.parse(req.body);
       const customerBrand = await storage.assignBrandToCustomer(req.params.id, validatedData.brandId);
       res.status(201).json(customerBrand);
     } catch (error) {

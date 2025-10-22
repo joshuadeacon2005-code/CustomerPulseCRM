@@ -163,7 +163,6 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
-      setIsAddingBrand(false);
       toast({ title: "Brand assigned successfully" });
     },
     onError: () => {
