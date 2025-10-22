@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -555,28 +556,39 @@ export function CustomerDetailModal({
             {isAddingBrand && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Assign Brand</CardTitle>
+                  <CardTitle className="text-base">Assign Brands</CardTitle>
+                  <CardDescription>Select one or more brands that this retailer carries</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <Label>Select Brand</Label>
-                      <Select
-                        onValueChange={(brandId) => {
-                          addBrandMutation.mutate({ customerId: customer.id, brandId });
-                        }}
-                      >
-                        <SelectTrigger data-testid="select-brand">
-                          <SelectValue placeholder="Choose a brand" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableBrands.map((brand) => (
-                            <SelectItem key={brand.id} value={brand.id}>
-                              {brand.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="max-h-80 overflow-y-auto space-y-3 border rounded-md p-4">
+                      {availableBrands.map((brand) => (
+                        <div
+                          key={brand.id}
+                          className="flex items-center space-x-3 hover-elevate p-2 rounded-md"
+                        >
+                          <Checkbox
+                            id={`brand-${brand.id}`}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                addBrandMutation.mutate({ customerId: customer.id, brandId: brand.id });
+                              }
+                            }}
+                            data-testid={`checkbox-brand-${brand.id}`}
+                          />
+                          <Label
+                            htmlFor={`brand-${brand.id}`}
+                            className="flex-1 cursor-pointer text-sm font-normal"
+                          >
+                            {brand.name}
+                          </Label>
+                        </div>
+                      ))}
+                      {availableBrands.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          All brands have been assigned
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -584,7 +596,7 @@ export function CustomerDetailModal({
                         onClick={() => setIsAddingBrand(false)}
                         data-testid="button-cancel-brand"
                       >
-                        Cancel
+                        Done
                       </Button>
                     </div>
                   </div>
