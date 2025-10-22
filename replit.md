@@ -9,7 +9,7 @@ A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to strea
 - **Structured Retailer Types**: Replaced free-text with 14 specific categories (Online Only, Marketplace, Baby & Nursery, Toy Stores, Department Stores, etc.)
 - **Lead Management**: Added dateOfFirstContact and leadGeneratedBy fields for better lead tracking
 - **Interaction Enhancements**: Added attendees field and meetingType enum for detailed interaction tracking
-- **Basecamp Integration**: OAuth 2.0 integration allowing users to sync incomplete todos from selected Basecamp projects with duplicate prevention via stored todo IDs
+- **CSV Todo Import**: Simple CSV import feature allowing users to bulk import todos from any source (Basecamp, spreadsheets, etc.) with proper validation and customer assignment
 
 ## User Preferences
 - Default theme: Dark mode
@@ -34,16 +34,16 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Customer Management**: Comprehensive customer profiles with country tracking, main contact information (name, title, phone, email), support for additional contacts, personal notes, BC marketplace integration details, store address, structured retailer type selection (14 categories), quarterly soft targets, last contact date, lead management (date of first contact, lead source), and interaction tracking. Advanced filtering by brand and retailer type. Customer deletion functionality.
 - **Brand Management**: Many-to-many relationship allowing multi-brand assignment per customer with inline brand creation.
 - **Target Management**: Supports both Personal (individual salespeople) and General (company/team-wide) monthly sales targets, with role-based target setting capabilities.
-- **To Do List**: Task management functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and integrated Basecamp sync.
-- **Basecamp Integration**: OAuth 2.0 integration embedded within the To Do List page allowing users to connect their Basecamp accounts and sync todos. Features include:
-  - **One-Way Sync**: Basecamp → CRM only (import todos, no changes back to Basecamp)
-  - **User-Selected Projects**: Choose which Basecamp projects to sync from
-  - **Manual Sync**: User-triggered sync via "Import from Basecamp" button
-  - **Duplicate Prevention**: Stores Basecamp todo IDs to prevent re-importing
-  - **Incomplete Todos Only**: Syncs only uncompleted todos from Basecamp
-  - **Customer Assignment**: Manual selection of which customer to assign synced todos to
-  - **Secure OAuth**: Uses cryptographically secure random tokens (32-byte hex) for CSRF protection with 10-minute expiry and one-time use validation
-  - **Token Management**: Stores access tokens with expiration tracking
+- **To Do List**: Task management functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and CSV bulk import.
+- **CSV Todo Import**: Flexible CSV import feature for bulk uploading todos from any source. Features include:
+  - **Simple CSV Format**: Accepts CSV with columns: title (required), description (optional), due_date (optional), type (optional: visit/call)
+  - **Server-Side Validation**: Zod schema validation ensures data integrity with detailed error reporting
+  - **Field Mapping**: Intelligently maps CSV fields to action items (title+description → description, type determines dueDate vs visitDate)
+  - **Date Validation**: Prevents invalid dates from being stored, skips malformed entries
+  - **Customer Assignment**: User selects which customer to assign all imported todos to
+  - **Batch Import**: Import multiple todos at once with progress feedback (imported vs skipped counts)
+  - **Data Normalization**: Automatically trims whitespace from title and description fields
+  - **Error Handling**: Graceful handling of parsing errors, empty files, and invalid data with user-friendly error messages
 - **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actual calculations and variance reporting. Performance reports track sales against targets.
 - **Analytics**: Advanced analytics with **monthly and overall views** plus **month selector** to view previous months. Monthly view includes a dropdown to select any of the last 12 months for historical analysis. Overall analytics display all-time data. Features include team structure visualization, team performance metrics (customer counts, targets, to-dos), and user ID to name mapping for improved readability across charts.
 - **Data Storage**: Drizzle ORM for PostgreSQL database interactions, preventing N+1 issues with optimized queries.
@@ -67,6 +67,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
     - react-hook-form
     - Zod (for validation)
     - date-fns
+    - papaparse (CSV parsing)
 - **Backend**:
     - Express.js
     - TypeScript
