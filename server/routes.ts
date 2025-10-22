@@ -740,6 +740,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { todos, customerId } = validationResult.data;
       
+      // Verify the customer belongs to the user
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      
+      // Check if user has access to this customer
+      const userCustomers = await storage.getCustomers(req.user!.id, req.user!.role as UserRole);
+      const hasAccess = userCustomers.some(c => c.id === customerId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: "You don't have access to this customer" });
+      }
+      
       let imported = 0;
       let skipped = 0;
       
