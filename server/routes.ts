@@ -734,10 +734,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Basecamp connection found, account ID:", connection.basecampAccountId);
       
       const allTodos = [];
+      const debugInfo: any = {
+        projectsChecked: [],
+        totalListsFound: 0,
+        totalTodosFound: 0,
+      };
       
       // Fetch todos for each selected project
       for (const projectId of projectIds) {
-        console.log(`\n--- Fetching todo lists for project ${projectId} ---`);
+        console.error(`\n--- Fetching todo lists for project ${projectId} ---`);
+        const projectDebug: any = { projectId, lists: [] };
+        
         // Get todo lists for this project
         const listsResponse = await fetch(
           `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists.json`,
@@ -749,18 +756,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         );
         
-        console.log(`Todo lists response status: ${listsResponse.status}`);
+        console.error(`Todo lists response status: ${listsResponse.status}`);
+        projectDebug.listsResponseStatus = listsResponse.status;
         
         if (!listsResponse.ok) {
           console.error(`Failed to fetch todo lists for project ${projectId}`);
+          projectDebug.error = "Failed to fetch todo lists";
+          debugInfo.projectsChecked.push(projectDebug);
           continue;
         }
         
         const todoLists = await listsResponse.json();
-        console.log(`Found ${todoLists.length} todo lists in project ${projectId}`);
+        console.error(`Found ${todoLists.length} todo lists in project ${projectId}`);
+        projectDebug.listsCount = todoLists.length;
+        debugInfo.totalListsFound += todoLists.length;
         
         // Fetch todos from each list
         for (const list of todoLists) {
+          const listDebug: any = { 
+            listId: list.id, 
+            listName: list.name,
+          };
+          
           const todosResponse = await fetch(
             `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists/${list.id}.json`,
             {
@@ -771,24 +788,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           );
           
+          listDebug.todosResponseStatus = todosResponse.status;
+          
           if (!todosResponse.ok) {
             console.error(`Failed to fetch todos for list ${list.id}`);
+            listDebug.error = "Failed to fetch todos";
+            projectDebug.lists.push(listDebug);
             continue;
           }
           
           const todoListData = await todosResponse.json();
+          listDebug.dataKeys = Object.keys(todoListData);
           
-          // TEMPORARY DEBUG: Return raw API response to inspect structure
-          if (allTodos.length === 0) {
+          // TEMPORARY DEBUG: Return first list's raw data to inspect structure
+          if (debugInfo.projectsChecked.length === 0 && projectDebug.lists.length === 0) {
             return res.json([{
               debug: true,
-              message: "Raw Basecamp API response",
+              message: "Raw Basecamp API response for first todo list",
               listName: list.name,
               rawData: todoListData,
-              dataKeys: Object.keys(todoListData),
-              hasTodos: !!todoListData.todos,
-              todosType: todoListData.todos ? typeof todoListData.todos : null,
-              todosKeys: todoListData.todos ? Object.keys(todoListData.todos) : null,
+              debugInfo: {
+                dataKeys: Object.keys(todoListData),
+                hasTodos: !!todoListData.todos,
+                todosType: todoListData.todos ? typeof todoListData.todos : null,
+                todosIsArray: Array.isArray(todoListData.todos),
+                todosKeys: todoListData.todos && typeof todoListData.todos === 'object' ? Object.keys(todoListData.todos) : null,
+                hasCompletedProp: todoListData.completed !== undefined,
+                hasUncompletedProp: todoListData.uncompleted !== undefined,
+              }
             }]);
           }
           
@@ -806,6 +833,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             incompleteTodos = todoListData.filter((t: any) => !t.completed);
           }
           
+          listDebug.incompleteTodosCount = incompleteTodos.length;
+          debugInfo.totalTodosFound += incompleteTodos.length;
+          
           // Add project and list info to each todo
           const todosWithContext = incompleteTodos.map((todo: any) => ({
             ...todo,
@@ -815,9 +845,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
           
           allTodos.push(...todosWithContext);
+          projectDebug.lists.push(listDebug);
         }
+        
+        debugInfo.projectsChecked.push(projectDebug);
       }
       
+      console.error("Final debug info:", JSON.stringify(debugInfo, null, 2));
       res.json(allTodos);
     } catch (error) {
       console.error("Error fetching Basecamp todos:", error);
