@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Unlink } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Unlink, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertActionItemSchema, type ActionItemWithCustomer, type Customer } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
+import Papa from "papaparse";
 
 const formSchema = insertActionItemSchema.extend({
   dueDate: z.date().optional().nullable(),
@@ -58,6 +59,8 @@ export default function Tasks() {
   const [basecampTodos, setBasecampTodos] = useState<any[]>([]);
   const [selectedTodos, setSelectedTodos] = useState<number[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [csvTodos, setCsvTodos] = useState<any[]>([]);
+  const [isCsvImportDialogOpen, setIsCsvImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: allTasks = [], isLoading: isLoadingAll } = useQuery<ActionItemWithCustomer[]>({
@@ -201,6 +204,69 @@ export default function Tasks() {
       });
     },
   });
+
+  const csvImportMutation = useMutation<{ imported: number; skipped: number }, Error, { todos: any[]; customerId: string }>({
+    mutationFn: async ({ todos, customerId }: { todos: any[]; customerId: string }) => {
+      const response = await apiRequest("POST", "/api/todos/import-csv", { todos, customerId });
+      return response.json();
+    },
+    onSuccess: (result: { imported: number; skipped: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
+      setIsCsvImportDialogOpen(false);
+      setCsvTodos([]);
+      setSelectedCustomerId("");
+      toast({
+        title: "Import Complete",
+        description: `Imported ${result.imported} todos successfully.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to import CSV todos.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      complete: (results) => {
+        const todos = results.data.filter((row: any) => row.title).map((row: any) => ({
+          title: row.title,
+          description: row.description || "",
+          dueDate: row.due_date || null,
+          type: row.type === "visit" ? "visit" : "call",
+        }));
+        
+        if (todos.length === 0) {
+          toast({
+            title: "No todos found",
+            description: "Please ensure your CSV has a 'title' column.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setCsvTodos(todos);
+        setIsCsvImportDialogOpen(true);
+      },
+      error: () => {
+        toast({
+          title: "Error",
+          description: "Failed to parse CSV file.",
+          variant: "destructive",
+        });
+      },
+    });
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -371,58 +437,26 @@ export default function Tasks() {
         </Button>
       </div>
 
-      {/* Basecamp Integration Card */}
-      <Card className="mb-6" data-testid="card-basecamp">
+      {/* CSV Import Card */}
+      <Card className="mb-6" data-testid="card-csv-import">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-orange-500" />
-              <h2 className="text-lg font-semibold">Basecamp Integration</h2>
-            </div>
-            {basecampConnection?.connected ? (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => disconnectBasecampMutation.mutate()}
-                disabled={disconnectBasecampMutation.isPending}
-                data-testid="button-disconnect-basecamp"
-              >
-                <Unlink className="mr-2 h-4 w-4" />
-                {disconnectBasecampMutation.isPending ? "Disconnecting..." : "Disconnect"}
-              </Button>
-            ) : (
-              <Button 
-                size="sm"
-                onClick={() => connectBasecampMutation.mutate()}
-                disabled={connectBasecampMutation.isPending}
-                data-testid="button-connect-basecamp"
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                {connectBasecampMutation.isPending ? "Connecting..." : "Connect to Basecamp"}
-              </Button>
-            )}
+          <div className="flex items-center gap-2">
+            <FileUp className="h-5 w-5 text-orange-500" />
+            <h2 className="text-lg font-semibold">Import Todos from CSV</h2>
           </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Upload a CSV file with columns: title, description, due_date, type (call/visit)
+          </p>
         </CardHeader>
-        {basecampConnection?.connected && (
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Status:</span>
-                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                  Connected
-                </Badge>
-              </div>
-              <Button 
-                onClick={() => setIsBasecampProjectsDialogOpen(true)}
-                className="w-full"
-                data-testid="button-sync-basecamp"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Import from Basecamp
-              </Button>
-            </div>
-          </CardContent>
-        )}
+        <CardContent>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleCSVUpload}
+            className="w-full"
+            data-testid="input-csv-file"
+          />
+        </CardContent>
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -768,6 +802,51 @@ export default function Tasks() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSV Import Dialog */}
+      <Dialog open={isCsvImportDialogOpen} onOpenChange={setIsCsvImportDialogOpen}>
+        <DialogContent data-testid="dialog-csv-import">
+          <DialogHeader>
+            <DialogTitle>Import Todos from CSV</DialogTitle>
+            <DialogDescription>
+              Found {csvTodos.length} todos. Select a customer to assign them to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+              <SelectTrigger data-testid="select-customer">
+                <SelectValue placeholder="Select a customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (!selectedCustomerId) {
+                  toast({
+                    title: "No customer selected",
+                    description: "Please select a customer",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                csvImportMutation.mutate({ todos: csvTodos, customerId: selectedCustomerId });
+              }}
+              disabled={csvImportMutation.isPending || !selectedCustomerId}
+              data-testid="button-import-csv"
+            >
+              {csvImportMutation.isPending ? "Importing..." : `Import ${csvTodos.length} Todos`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

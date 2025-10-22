@@ -713,6 +713,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CSV import schema validation
+  const csvTodoSchema = z.object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().optional(),
+    dueDate: z.string().optional().nullable(),
+    type: z.enum(["visit", "call"]).optional(),
+  });
+
+  const csvImportSchema = z.object({
+    todos: z.array(csvTodoSchema).min(1, "At least one todo is required"),
+    customerId: z.string().min(1, "Customer ID is required"),
+  });
+
+  // Simple CSV import endpoint for todos
+  app.post("/api/todos/import-csv", isAuthenticated, async (req, res) => {
+    try {
+      const validationResult = csvImportSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request", 
+          details: validationResult.error.flatten() 
+        });
+      }
+      
+      const { todos, customerId } = validationResult.data;
+      
+      let imported = 0;
+      let skipped = 0;
+      
+      for (const todo of todos) {
+        try {
+          const actionItemData: any = {
+            createdBy: req.user!.id,
+            customerId,
+            description: todo.title.trim() + (todo.description ? `\n${todo.description.trim()}` : ""),
+          };
+
+          // Map type to visitDate or dueDate with validation
+          if (todo.dueDate) {
+            const parsedDate = new Date(todo.dueDate);
+            if (isNaN(parsedDate.getTime())) {
+              console.error(`Invalid date format: ${todo.dueDate}`);
+              skipped++;
+              continue;
+            }
+            
+            if (todo.type === "visit") {
+              actionItemData.visitDate = parsedDate;
+            } else {
+              actionItemData.dueDate = parsedDate;
+            }
+          }
+
+          await storage.createActionItem(actionItemData);
+          imported++;
+        } catch (error) {
+          console.error("Error importing todo:", error);
+          skipped++;
+        }
+      }
+      
+      res.json({ imported, skipped });
+    } catch (error) {
+      console.error("Error in CSV import:", error);
+      res.status(500).json({ error: "Failed to import todos" });
+    }
+  });
+
   app.post("/api/basecamp/todos", isAuthenticated, async (req, res) => {
     try {
       console.log("=== BASECAMP TODOS ENDPOINT CALLED ===");
