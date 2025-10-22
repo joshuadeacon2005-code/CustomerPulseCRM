@@ -715,39 +715,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/basecamp/todos", isAuthenticated, async (req, res) => {
     try {
-      console.error("=== BASECAMP TODOS ENDPOINT CALLED ===");
+      console.log("=== BASECAMP TODOS ENDPOINT CALLED ===");
       const { projectIds } = req.body;
-      console.error("Project IDs received:", projectIds);
+      console.log("Project IDs received:", projectIds);
       
       if (!projectIds || !Array.isArray(projectIds)) {
-        console.error("ERROR: Invalid project IDs");
+        console.log("ERROR: Invalid project IDs");
         return res.status(400).json({ error: "Invalid project IDs" });
       }
       
       const connection = await storage.getBasecampConnection(req.user!.id);
       
       if (!connection) {
-        console.error("ERROR: No Basecamp connection found");
+        console.log("ERROR: No Basecamp connection found");
         return res.status(401).json({ error: "Not connected to Basecamp" });
       }
       
-      console.error("Basecamp connection found, account ID:", connection.basecampAccountId);
+      console.log("Basecamp connection found, account ID:", connection.basecampAccountId);
       
       const allTodos = [];
       const debugInfo: any = {
         projectsChecked: [],
+        totalSetsFound: 0,
         totalListsFound: 0,
         totalTodosFound: 0,
       };
       
       // Fetch todos for each selected project
       for (const projectId of projectIds) {
-        console.error(`\n--- Fetching todo lists for project ${projectId} ---`);
-        const projectDebug: any = { projectId, lists: [] };
+        console.log(`\n--- Fetching todosets for project ${projectId} ---`);
+        const projectDebug: any = { projectId, todosets: [] };
         
-        // Get todo lists for this project
-        const listsResponse = await fetch(
-          `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists.json`,
+        // CORRECT: First fetch todosets (Basecamp 3 structure)
+        const todosetsResponse = await fetch(
+          `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todosets.json`,
           {
             headers: {
               Authorization: `Bearer ${connection.accessToken}`,
@@ -756,30 +757,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         );
         
-        console.error(`Todo lists response status: ${listsResponse.status}`);
-        projectDebug.listsResponseStatus = listsResponse.status;
+        console.log(`Todosets response status: ${todosetsResponse.status}`);
+        projectDebug.todosetsResponseStatus = todosetsResponse.status;
         
-        if (!listsResponse.ok) {
-          console.error(`Failed to fetch todo lists for project ${projectId}`);
-          projectDebug.error = "Failed to fetch todo lists";
+        if (!todosetsResponse.ok) {
+          console.log(`Failed to fetch todosets for project ${projectId}`);
+          projectDebug.error = "Failed to fetch todosets";
           debugInfo.projectsChecked.push(projectDebug);
           continue;
         }
         
-        const todoLists = await listsResponse.json();
-        console.error(`Found ${todoLists.length} todo lists in project ${projectId}`);
-        projectDebug.listsCount = todoLists.length;
-        debugInfo.totalListsFound += todoLists.length;
+        const todosets = await todosetsResponse.json();
+        console.log(`Found ${todosets.length} todosets in project ${projectId}`);
+        projectDebug.todosetsCount = todosets.length;
+        debugInfo.totalSetsFound += todosets.length;
         
-        // Fetch todos from each list
-        for (const list of todoLists) {
-          const listDebug: any = { 
-            listId: list.id, 
-            listName: list.name,
+        // For each todoset, fetch its todo lists
+        for (const todoset of todosets) {
+          const todosetDebug: any = {
+            todosetId: todoset.id,
+            todosetName: todoset.name,
+            lists: []
           };
           
-          const todosResponse = await fetch(
-            `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists/${list.id}.json`,
+          console.log(`\n--- Fetching todo lists for todoset ${todoset.id} (${todoset.name}) ---`);
+          
+          const listsResponse = await fetch(
+            `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todosets/${todoset.id}/todolists.json`,
             {
               headers: {
                 Authorization: `Bearer ${connection.accessToken}`,
@@ -788,70 +792,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           );
           
-          listDebug.todosResponseStatus = todosResponse.status;
+          console.log(`Todo lists response status: ${listsResponse.status}`);
+          todosetDebug.listsResponseStatus = listsResponse.status;
           
-          if (!todosResponse.ok) {
-            console.error(`Failed to fetch todos for list ${list.id}`);
-            listDebug.error = "Failed to fetch todos";
-            projectDebug.lists.push(listDebug);
+          if (!listsResponse.ok) {
+            console.log(`Failed to fetch todo lists for todoset ${todoset.id}`);
+            todosetDebug.error = "Failed to fetch todo lists";
+            projectDebug.todosets.push(todosetDebug);
             continue;
           }
           
-          const todoListData = await todosResponse.json();
-          listDebug.dataKeys = Object.keys(todoListData);
+          const todoLists = await listsResponse.json();
+          console.log(`Found ${todoLists.length} todo lists in todoset ${todoset.name}`);
+          todosetDebug.listsCount = todoLists.length;
+          debugInfo.totalListsFound += todoLists.length;
           
-          // TEMPORARY DEBUG: Return first list's raw data to inspect structure
-          if (debugInfo.projectsChecked.length === 0 && projectDebug.lists.length === 0) {
-            return res.json([{
-              debug: true,
-              message: "Raw Basecamp API response for first todo list",
+          // Fetch todos from each list
+          for (const list of todoLists) {
+            const listDebug: any = { 
+              listId: list.id, 
               listName: list.name,
-              rawData: todoListData,
-              debugInfo: {
-                dataKeys: Object.keys(todoListData),
-                hasTodos: !!todoListData.todos,
-                todosType: todoListData.todos ? typeof todoListData.todos : null,
-                todosIsArray: Array.isArray(todoListData.todos),
-                todosKeys: todoListData.todos && typeof todoListData.todos === 'object' ? Object.keys(todoListData.todos) : null,
-                hasCompletedProp: todoListData.completed !== undefined,
-                hasUncompletedProp: todoListData.uncompleted !== undefined,
+            };
+            
+            console.log(`Fetching todos for list ${list.id} (${list.name})`);
+            
+            const todosResponse = await fetch(
+              `https://3.basecampapi.com/${connection.basecampAccountId}/buckets/${projectId}/todolists/${list.id}.json`,
+              {
+                headers: {
+                  Authorization: `Bearer ${connection.accessToken}`,
+                  "User-Agent": "Bloom & Grow CRM (contact@bloomgrow.com)",
+                },
               }
-            }]);
+            );
+            
+            listDebug.todosResponseStatus = todosResponse.status;
+            
+            if (!todosResponse.ok) {
+              console.log(`Failed to fetch todos for list ${list.id}`);
+              listDebug.error = "Failed to fetch todos";
+              todosetDebug.lists.push(listDebug);
+              continue;
+            }
+            
+            const todoListData = await todosResponse.json();
+            listDebug.dataKeys = Object.keys(todoListData);
+            
+            // Extract incomplete todos using Basecamp 3's "remaining" array
+            let incompleteTodos = [];
+            if (Array.isArray(todoListData.remaining)) {
+              incompleteTodos = todoListData.remaining;
+              console.log(`Found ${incompleteTodos.length} remaining (incomplete) todos in list ${list.name}`);
+            } else {
+              console.log(`No 'remaining' array found for list ${list.name}, checking other structures...`);
+              // Fallback to other possible structures
+              if (Array.isArray(todoListData.todos)) {
+                incompleteTodos = todoListData.todos.filter((t: any) => !t.completed);
+              }
+            }
+            
+            listDebug.incompleteTodosCount = incompleteTodos.length;
+            debugInfo.totalTodosFound += incompleteTodos.length;
+            
+            // Add project and list info to each todo
+            const todosWithContext = incompleteTodos.map((todo: any) => ({
+              ...todo,
+              projectId,
+              projectName: todoListData.bucket?.name || "Unknown Project",
+              todoListName: list.name,
+            }));
+            
+            allTodos.push(...todosWithContext);
+            todosetDebug.lists.push(listDebug);
           }
           
-          // Try different possible structures for incomplete todos
-          let incompleteTodos = [];
-          if (todoListData.todos && Array.isArray(todoListData.todos.uncompleted)) {
-            incompleteTodos = todoListData.todos.uncompleted;
-          } else if (todoListData.todos && Array.isArray(todoListData.todos)) {
-            // Filter for incomplete todos if todos is a flat array
-            incompleteTodos = todoListData.todos.filter((t: any) => !t.completed);
-          } else if (Array.isArray(todoListData.uncompleted)) {
-            incompleteTodos = todoListData.uncompleted;
-          } else if (Array.isArray(todoListData)) {
-            // If todoListData itself is an array
-            incompleteTodos = todoListData.filter((t: any) => !t.completed);
-          }
-          
-          listDebug.incompleteTodosCount = incompleteTodos.length;
-          debugInfo.totalTodosFound += incompleteTodos.length;
-          
-          // Add project and list info to each todo
-          const todosWithContext = incompleteTodos.map((todo: any) => ({
-            ...todo,
-            projectId,
-            projectName: todoListData.bucket?.name || list.bucket?.name || "Unknown Project",
-            todoListName: list.name,
-          }));
-          
-          allTodos.push(...todosWithContext);
-          projectDebug.lists.push(listDebug);
+          projectDebug.todosets.push(todosetDebug);
         }
         
         debugInfo.projectsChecked.push(projectDebug);
       }
       
-      console.error("Final debug info:", JSON.stringify(debugInfo, null, 2));
+      console.log("Final debug info:", JSON.stringify(debugInfo, null, 2));
+      console.log(`Total todos found: ${allTodos.length}`);
       res.json(allTodos);
     } catch (error) {
       console.error("Error fetching Basecamp todos:", error);
