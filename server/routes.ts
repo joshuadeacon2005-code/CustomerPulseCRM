@@ -857,6 +857,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/basecamp/sync", isAuthenticated, async (req, res) => {
     try {
+      console.log("=== SYNC ENDPOINT CALLED ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      
       const syncSchema = z.object({
         todos: z.array(z.object({
           id: z.number(),
@@ -867,6 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { todos, customerId } = syncSchema.parse(req.body);
+      console.log(`Syncing ${todos.length} todos to customer ${customerId}`);
       
       let imported = 0;
       let skipped = 0;
