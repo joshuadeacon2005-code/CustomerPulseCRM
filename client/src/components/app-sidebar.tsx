@@ -260,11 +260,15 @@ export function AppSidebar() {
   const getNavigationForRole = (role: UserRole | undefined) => {
     if (!role) return salesmanNav;
     
+    // Handle both old "admin" role and new "sales_director" for backward compatibility
+    const roleStr = role as string;
+    if (roleStr === "admin" || roleStr === "sales_director") {
+      return adminNav;
+    }
+    
     switch (role) {
       case "ceo":
         return ceoNav;
-      case "sales_director":
-        return adminNav;
       case "regional_manager":
         return regionalManagerNav;
       case "manager":

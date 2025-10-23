@@ -45,12 +45,21 @@ export default function AuthPage() {
     try {
       await loginAsync(loginData);
       // Wait for user data to be fully loaded before navigating
-      await refetchUser();
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
-      navigate("/dashboard");
+      const result = await refetchUser();
+      
+      // Only navigate if we successfully got user data
+      if (result.data) {
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        });
+        // Use setTimeout to ensure Router component sees updated user before navigation
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
+      } else {
+        throw new Error("Failed to load user data");
+      }
     } catch (error) {
       toast({
         title: "Error",
