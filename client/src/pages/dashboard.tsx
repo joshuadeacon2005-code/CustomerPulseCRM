@@ -116,6 +116,13 @@ export default function Dashboard() {
             {isManager && !isCEO && (isViewingOwnDashboard ? "Manage your team's performance" : `Viewing ${viewedUserName}'s performance`)}
             {isCEO && (isViewingOwnDashboard ? "Monitor sales across all regions" : `Viewing ${viewedUserName}'s performance`)}
           </p>
+          {isViewingOwnDashboard && user?.regionalOffice && (
+            <div className="mt-2">
+              <Badge variant="secondary" data-testid="badge-regional-office">
+                {user.regionalOffice}
+              </Badge>
+            </div>
+          )}
         </div>
       </div>
 

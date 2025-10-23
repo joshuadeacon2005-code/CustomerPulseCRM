@@ -4,12 +4,14 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, multi-country customer data management, brand assignments, monthly target setting, to-do list management, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## Recent Changes (October 2025)
+- **Regional Office Assignment**: All users can now be assigned to regional offices (Hong Kong, Singapore, Shanghai, Australia/NZ, Indonesia, Malaysia, Guangzhou). Regional office is displayed on the dashboard and in the admin user management table.
 - **Role-Based Homepage Dashboard**: Complete homepage redesign with role-specific quick actions and performance widgets. Features include:
-  - Quick action cards for logging interactions, sales, customers, and leads
-  - Current month performance metrics (target vs. sales progress with visual progress bar)
+  - Quick action cards for logging interactions, sales, customers, and leads (all user roles)
+  - Current month performance metrics with real sales data (target vs. sales progress with visual progress bar)
   - Leads widget showing new opportunities with lead scores
   - To-do list widget with color-coded categorization (overdue, today, upcoming)
-  - Team member selector for managers and CEOs to view team dashboards
+  - Team member selector for managers and CEOs to view team member dashboards with filtered data
+  - Regional office badge display on dashboard header
   - Smart routing with `/dashboard` as the default homepage for all authenticated users
 - **Multi-Country Support**: Added country field to users, customers, sales, and interactions for international operations
 - **Enhanced Customer Profiles**: Main contact fields (name, title, phone, email) plus support for additional contacts per customer
@@ -38,6 +40,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
 **Technical Implementations & Feature Specifications:**
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management using `connect-pg-simple` for PostgreSQL session storage.
 - **Role-Based Access Control**: Multi-level roles (CEO, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to the 'salesman' role.
+- **Regional Office Management**: Users can be assigned to regional offices (Hong Kong, Singapore, Shanghai, Australia/NZ, Indonesia, Malaysia, Guangzhou) for geographical organization. Regional office is displayed on dashboards and in admin user tables.
 - **Homepage Dashboard**: Comprehensive role-based dashboard serving as the application's landing page (`/dashboard`). All users start here after login. Features:
   - **Quick Actions**: Four prominent cards for logging interactions, sales, customers, and leads with colored icons
   - **Performance Metrics**: Three-card layout showing current month target, sales to date, and progress percentage with visual progress bar

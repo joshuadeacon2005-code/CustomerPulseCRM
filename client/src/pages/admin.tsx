@@ -54,6 +54,7 @@ export default function AdminPage() {
     name: "",
     role: "salesman" as UserRole,
     managerId: "",
+    regionalOffice: "",
   });
   const [editSaleDialog, setEditSaleDialog] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
@@ -106,6 +107,7 @@ export default function AdminPage() {
       const requestData = {
         ...userData,
         managerId: userData.role === "salesman" && userData.managerId ? userData.managerId : undefined,
+        regionalOffice: userData.regionalOffice || undefined,
       };
       const res = await fetch("/api/admin/users", {
         method: "POST",
@@ -123,7 +125,7 @@ export default function AdminPage() {
         title: "Success",
         description: "User created successfully",
       });
-      setNewUser({ username: "", password: "", name: "", role: "salesman", managerId: "" });
+      setNewUser({ username: "", password: "", name: "", role: "salesman", managerId: "", regionalOffice: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
@@ -340,8 +342,28 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-regional-office">Regional Office</Label>
+                <Select
+                  value={newUser.regionalOffice}
+                  onValueChange={(value) => setNewUser({ ...newUser, regionalOffice: value })}
+                >
+                  <SelectTrigger id="new-regional-office" data-testid="select-new-regional-office">
+                    <SelectValue placeholder="Select regional office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Hong Kong">Hong Kong</SelectItem>
+                    <SelectItem value="Singapore">Singapore</SelectItem>
+                    <SelectItem value="Shanghai">Shanghai</SelectItem>
+                    <SelectItem value="Australia/NZ">Australia/NZ</SelectItem>
+                    <SelectItem value="Indonesia">Indonesia</SelectItem>
+                    <SelectItem value="Malaysia">Malaysia</SelectItem>
+                    <SelectItem value="Guangzhou">Guangzhou</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {newUser.role === "salesman" && (
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
                   <Label htmlFor="new-manager">Manager</Label>
                   <Select
                     value={newUser.managerId}
@@ -549,6 +571,7 @@ export default function AdminPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Regional Office</TableHead>
                   <TableHead>Manager</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -577,6 +600,9 @@ export default function AdminPage() {
                         <Badge variant="outline" data-testid={`badge-user-role-${user.id}`}>
                           {getRoleDisplayName(user.role as UserRole)}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground" data-testid={`text-user-regional-office-${user.id}`}>
+                        {user.regionalOffice || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground" data-testid={`text-user-manager-${user.id}`}>
                         {managerUser ? managerUser.name : "-"}

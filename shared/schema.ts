@@ -3,6 +3,16 @@ import { pgTable, text, varchar, integer, timestamp, decimal, boolean } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const REGIONAL_OFFICES = [
+  "Hong Kong",
+  "Singapore", 
+  "Shanghai",
+  "Australia/NZ",
+  "Indonesia",
+  "Malaysia",
+  "Guangzhou",
+] as const;
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -11,6 +21,7 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("salesman"),
   managerId: varchar("manager_id"),
   country: text("country"),
+  regionalOffice: text("regional_office"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -172,6 +183,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   password: z.string().min(6),
   name: z.string().min(1),
   managerId: z.string().optional().nullable(),
+  regionalOffice: z.enum(REGIONAL_OFFICES).optional().nullable(),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
