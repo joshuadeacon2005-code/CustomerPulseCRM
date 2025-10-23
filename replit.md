@@ -4,6 +4,12 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, multi-country customer data management, brand assignments, monthly target setting, to-do list management, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## Recent Changes (October 2025)
+- **Customer Form and Contact Management Restructuring (Oct 23)**: Complete overhaul of customer form and detail modal for better UX:
+  - Removed "Basic Information" section and consolidated all fields into single "Main Contact Information" section
+  - Main contact section now includes company details (name, email, phone, country) and primary contact person (name, title, phone, email)
+  - Customer detail modal displays readonly view by default with Edit/Save Changes buttons for editing
+  - Added "Additional Contacts" card with plus button to manage multiple contacts per customer
+  - Backend updated to include additional contacts array in CustomerWithDetails type
 - **Backend Authorization Backward Compatibility (Oct 23)**: Fixed authorization middleware to accept legacy "admin" role. Updated `isAdmin`, `isCEO`, and `isManager` middleware functions to treat "admin" role as equivalent to "sales_director" level access, ensuring users with legacy role names can create users and access admin features.
 - **Monthly Targets Integration (Oct 23)**: Consolidated Monthly Targets functionality into Sales Dashboard page. Removed "Monthly Targets" navigation link from all role sidebars. Fixed critical security issue where personal targets were not user-scoped, and moved form reset from useMemo to useEffect to prevent React warnings.
 - **Login Flow Fixed (Oct 23)**: Resolved double-login issue where users needed to click login twice. Implemented proper async flow with user data refetch and 100ms delay before navigation to ensure Router component sees authenticated user. Login now works on first attempt and redirects to /dashboard correctly.
