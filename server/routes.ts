@@ -33,7 +33,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertCustomerSchema.parse(req.body);
+      // Check if request includes additional contacts (new format)
+      const hasContacts = req.body.customer && Array.isArray(req.body.contacts);
+      const customerPayload = hasContacts ? req.body.customer : req.body;
+      
+      const validatedData = insertCustomerSchema.parse(customerPayload);
       
       // Use provided assignedTo if present, otherwise assign to current user
       const customerData = {
@@ -42,11 +46,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const customer = await storage.createCustomer(customerData);
+      
+      // Create additional contacts if provided
+      if (hasContacts && req.body.contacts.length > 0) {
+        const { insertCustomerContactSchema } = await import("@shared/schema");
+        
+        for (const contact of req.body.contacts) {
+          const validatedContact = insertCustomerContactSchema.parse({
+            ...contact,
+            customerId: customer.id,
+          });
+          await storage.createCustomerContact(validatedContact);
+        }
+      }
+      
       res.status(201).json(customer);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid customer data", details: error });
       }
+      console.error("Error creating customer:", error);
       res.status(500).json({ error: "Failed to create customer" });
     }
   });

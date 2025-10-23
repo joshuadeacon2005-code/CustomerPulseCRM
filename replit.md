@@ -4,12 +4,15 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, multi-country customer data management, brand assignments, monthly target setting, to-do list management, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## Recent Changes (October 2025)
-- **Customer Form and Contact Management Restructuring (Oct 23)**: Complete overhaul of customer form and detail modal for better UX:
-  - Removed "Basic Information" section and consolidated all fields into single "Main Contact Information" section
-  - Main contact section now includes company details (name, email, phone, country) and primary contact person (name, title, phone, email)
-  - Customer detail modal displays readonly view by default with Edit/Save Changes buttons for editing
-  - Added "Additional Contacts" card with plus button to manage multiple contacts per customer
-  - Backend updated to include additional contacts array in CustomerWithDetails type
+- **Company vs Contact Information Separation (Oct 23)**: Simplified customer data model to distinguish company-level from contact-level information:
+  - **Database Schema**: Made `email` and `phone` fields optional (nullable) in customers table since they represent contact data, not company data
+  - **Form Structure**: Reorganized customer form with two clear sections:
+    - "Company Information": Company Name (required) and Country (required) only
+    - "Main Contact": Name, Title, Phone, Email (all optional but recommended)
+  - **Additional Contacts on Creation**: Users can now add multiple additional contacts when creating a new customer (previously only available when editing)
+  - **Detail Modal**: Updated to show "Company & Main Contact" card with separate display of company info (name, country) and main contact details
+  - **Search Enhancement**: Updated customer search to search across company name, main contact fields, and additional contact information
+  - **Backward Compatible**: Existing customers retain their data; nullable fields handled with optional chaining throughout the application
 - **Backend Authorization Backward Compatibility (Oct 23)**: Fixed authorization middleware to accept legacy "admin" role. Updated `isAdmin`, `isCEO`, and `isManager` middleware functions to treat "admin" role as equivalent to "sales_director" level access, ensuring users with legacy role names can create users and access admin features.
 - **Monthly Targets Integration (Oct 23)**: Consolidated Monthly Targets functionality into Sales Dashboard page. Removed "Monthly Targets" navigation link from all role sidebars. Fixed critical security issue where personal targets were not user-scoped, and moved form reset from useMemo to useEffect to prevent React warnings.
 - **Login Flow Fixed (Oct 23)**: Resolved double-login issue where users needed to click login twice. Implemented proper async flow with user data refetch and 100ms delay before navigation to ensure Router component sees authenticated user. Login now works on first attempt and redirects to /dashboard correctly.
