@@ -14,9 +14,8 @@ export function useAuth() {
       const response = await apiRequest("POST", "/api/login", credentials);
       return response.json();
     },
-    onSuccess: async () => {
-      // Wait for user data to be refetched before allowing navigation
-      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
   });
 
@@ -44,6 +43,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!user,
     login: loginMutation.mutate,
+    loginAsync: loginMutation.mutateAsync,
     register: registerMutation.mutate,
     logout: logoutMutation.mutate,
     isLoggingIn: loginMutation.isPending,

@@ -13,8 +13,12 @@ import type { User, UserRole } from "@shared/schema";
 
 export default function AuthPage() {
   const [, navigate] = useLocation();
-  const { login, register, isLoggingIn, isRegistering } = useAuth();
+  const { loginAsync, register, isLoggingIn, isRegistering } = useAuth();
   const { toast } = useToast();
+  const { refetch: refetchUser } = useQuery<User>({
+    queryKey: ["/api/user"],
+    enabled: false,
+  });
 
   const [loginData, setLoginData] = useState({
     username: "",
@@ -39,26 +43,18 @@ export default function AuthPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      login(loginData, {
-        onSuccess: () => {
-          toast({
-            title: "Success",
-            description: "Logged in successfully",
-          });
-          navigate("/dashboard");
-        },
-        onError: (error: Error) => {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        },
+      await loginAsync(loginData);
+      // Wait for user data to be fully loaded before navigating
+      await refetchUser();
+      toast({
+        title: "Success",
+        description: "Logged in successfully",
       });
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Error",
-        description: "An error occurred",
+        description: error instanceof Error ? error.message : "Login failed",
         variant: "destructive",
       });
     }

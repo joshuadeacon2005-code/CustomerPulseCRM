@@ -133,6 +133,54 @@ export function AppSidebar() {
     },
   ];
 
+  const regionalManagerNav = [
+    {
+      title: "Home",
+      url: "/dashboard",
+      icon: Home,
+    },
+    {
+      title: "Admin Dashboard",
+      url: "/admin",
+      icon: BarChart3,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
+    },
+    {
+      title: "Customers",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
+    },
+    {
+      title: "Monthly Targets",
+      url: "/targets",
+      icon: TrendingUp,
+    },
+    {
+      title: "To Do List",
+      url: "/tasks",
+      icon: CheckSquare,
+    },
+    {
+      title: "Sales Reports",
+      url: "/reports",
+      icon: FileText,
+    },
+  ];
+
   const managerNav = [
     {
       title: "Home",
@@ -218,7 +266,7 @@ export function AppSidebar() {
       case "sales_director":
         return adminNav;
       case "regional_manager":
-        return managerNav;
+        return regionalManagerNav;
       case "manager":
         return managerNav;
       case "salesman":
