@@ -177,22 +177,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsers(userId: string, userRole: UserRole): Promise<User[]> {
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
-    if (effectiveRole === "ceo") {
-      return await db.select().from(users);
-    } else if (effectiveRole === "manager") {
-      // Include the manager themselves along with their team members
-      const manager = await this.getUser(userId);
-      const teamMembers = await this.getTeamMembers(userId);
-      return manager ? [manager, ...teamMembers] : teamMembers;
-    } else {
-      const user = await this.getUser(userId);
-      return user ? [user] : [];
-    }
+    // Allow all authenticated users to see all users (needed for Assigned To dropdown)
+    return await db.select().from(users);
   }
 
   async getSales(userId: string, userRole: UserRole): Promise<Sale[]> {
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       return await db.select().from(sales).orderBy(desc(sales.date));
     } else if (effectiveRole === "manager") {
@@ -241,7 +231,7 @@ export class DatabaseStorage implements IStorage {
     const allSales = await db.select().from(sales);
 
     let allSalesmen: User[];
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       allSalesmen = await db.select().from(users).where(eq(users.role, "salesman"));
     } else if (effectiveRole === "manager") {
@@ -270,7 +260,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async canViewUserDetails(requestingUserId: string, targetUserId: string, requestingUserRole: UserRole): Promise<boolean> {
-    const effectiveRole = requestingUserRole === "admin" ? "ceo" : requestingUserRole;
+    const effectiveRole = requestingUserRole === "sales_director" ? "ceo" : requestingUserRole;
     
     if (effectiveRole === "ceo") {
       return true; // CEO can view everyone
@@ -289,7 +279,7 @@ export class DatabaseStorage implements IStorage {
   async getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats> {
     let relevantSales: Sale[];
 
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       relevantSales = await db.select().from(sales);
     } else if (effectiveRole === "manager") {
@@ -318,8 +308,8 @@ export class DatabaseStorage implements IStorage {
   async getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]> {
     let allCustomers: Customer[];
 
-    // Treat 'admin' role as 'ceo' for data visibility
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    // Treat 'sales_director' role as 'ceo' for data visibility
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
 
     if (effectiveRole === "ceo") {
       allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
@@ -495,7 +485,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]> {
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       return await db
         .select()
@@ -569,7 +559,7 @@ export class DatabaseStorage implements IStorage {
 
     let allowedCustomerIds: string[];
 
-    if (userRole === "admin") {
+    if (userRole === "sales_director") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
     } else if (userRole === "manager") {
@@ -686,7 +676,7 @@ export class DatabaseStorage implements IStorage {
 
     let allowedCustomerIds: string[];
 
-    const effectiveRole = userRole === "admin" ? "ceo" : userRole;
+    const effectiveRole = userRole === "sales_director" ? "ceo" : userRole;
     if (effectiveRole === "ceo") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
@@ -825,7 +815,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserDetails(requestingUserId: string, requestingUserRole: UserRole, targetUserId: string): Promise<UserDetails | null> {
     // Authorization: check if requesting user has access to target user
-    const effectiveRole = requestingUserRole === "admin" ? "ceo" : requestingUserRole;
+    const effectiveRole = requestingUserRole === "sales_director" ? "ceo" : requestingUserRole;
     
     if (effectiveRole === "manager") {
       // Managers can only view their direct team members

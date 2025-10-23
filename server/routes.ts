@@ -35,11 +35,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertCustomerSchema.parse(req.body);
       
-      // Always assign customer to current user (ignore any provided assignedTo value)
-      // This ensures assignedTo always contains a valid user ID, never a name
+      // Use provided assignedTo if present, otherwise assign to current user
       const customerData = {
         ...validatedData,
-        assignedTo: req.user!.id
+        assignedTo: validatedData.assignedTo || req.user!.id
       };
       
       const customer = await storage.createCustomer(customerData);
@@ -56,11 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = updateCustomerSchema.parse(req.body);
       
-      // Remove assignedTo from updates - it should not be changed via this endpoint
-      // If we need to reassign customers, create a separate endpoint with proper validation
-      const { assignedTo, ...updateData } = validatedData;
-      
-      const customer = await storage.updateCustomer(req.params.id, updateData);
+      // Allow assignedTo to be updated via this endpoint
+      const customer = await storage.updateCustomer(req.params.id, validatedData);
       if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
       }
@@ -393,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/sales", isAuthenticated, async (req, res) => {
     try {
-      if (req.user!.role === "admin") {
+      if (req.user!.role === "ceo" || req.user!.role === "sales_director" || req.user!.role === "regional_manager" || req.user!.role === "manager") {
         const sales = await storage.getSales(req.user!.id, req.user!.role as UserRole);
         res.json(sales);
       } else {

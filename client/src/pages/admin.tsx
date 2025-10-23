@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,7 @@ export default function AdminPage() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
+  const [addUserOpen, setAddUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
@@ -82,7 +84,7 @@ export default function AdminPage() {
     enabled: !!selectedUserId && userDetailsOpen,
   });
 
-  const managers = allUsers.filter(u => u.role === "admin" || u.role === "manager");
+  const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
 
   const getUserById = (userId: string | null) => {
     if (!userId) return null;
@@ -91,8 +93,12 @@ export default function AdminPage() {
 
   const getRoleDisplayName = (role: UserRole): string => {
     switch (role) {
-      case "admin":
-        return "Admin";
+      case "ceo":
+        return "CEO";
+      case "sales_director":
+        return "Sales Director";
+      case "regional_manager":
+        return "Regional Manager";
       case "manager":
         return "Manager";
       case "salesman":
@@ -278,20 +284,29 @@ export default function AdminPage() {
       <div>
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          {currentUser?.role === "admin" ? "Manage all users and view company-wide statistics" : "Manage your team and view team statistics"}
+          {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "Manage all users and view company-wide statistics" : "Manage your team and view team statistics"}
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            Add New User
-          </CardTitle>
-          <CardDescription>Create new team member accounts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreateUser} className="space-y-4">
+      <Collapsible open={addUserOpen} onOpenChange={setAddUserOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <CardTitle className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Add New User
+                </div>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-add-user">
+                  {addUserOpen ? "Hide" : "Show"}
+                </Button>
+              </CardTitle>
+              <CardDescription>Create new team member accounts</CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <form onSubmit={handleCreateUser} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="new-name">Full Name</Label>
@@ -336,7 +351,9 @@ export default function AdminPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin" data-testid="option-new-admin">Admin</SelectItem>
+                    <SelectItem value="ceo" data-testid="option-new-ceo">CEO</SelectItem>
+                    <SelectItem value="sales_director" data-testid="option-new-sales-director">Sales Director</SelectItem>
+                    <SelectItem value="regional_manager" data-testid="option-new-regional-manager">Regional Manager</SelectItem>
                     <SelectItem value="manager" data-testid="option-new-manager">Manager</SelectItem>
                     <SelectItem value="salesman" data-testid="option-new-salesman">Salesman</SelectItem>
                   </SelectContent>
@@ -390,16 +407,18 @@ export default function AdminPage() {
             >
               {createUserMutation.isPending ? "Creating..." : "Create User"}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+              </form>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Total Sales</CardTitle>
             <CardDescription>
-              {currentUser?.role === "admin" ? "All sales across all team members" : "Sales from your team"}
+              {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All sales across all team members" : "Sales from your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -413,7 +432,7 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>Total Revenue</CardTitle>
             <CardDescription>
-              {currentUser?.role === "admin" ? "Total revenue across all team members" : "Revenue from your team"}
+              {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "Total revenue across all team members" : "Revenue from your team"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -428,14 +447,14 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UsersIcon className="h-5 w-5" />
-            {currentUser?.role === "admin" ? "All Salespeople Performance" : "Team Performance"}
+            {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All Salespeople Performance" : "Team Performance"}
           </CardTitle>
           <CardDescription>Individual performance statistics</CardDescription>
         </CardHeader>
         <CardContent>
           {stats?.salesmenStats.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              {currentUser?.role === "admin" ? "No salespeople registered yet" : "No team members yet"}
+              {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "No salespeople registered yet" : "No team members yet"}
             </div>
           ) : (
             <div className="space-y-6">
@@ -771,8 +790,8 @@ export default function AdminPage() {
               <SelectContent>
                 {allUsers
                   .filter(u => {
-                    if (currentUser?.role === "admin") return true;
-                    if (currentUser?.role === "manager") {
+                    if (currentUser?.role === "sales_director" || currentUser?.role === "ceo") return true;
+                    if (currentUser?.role === "manager" || currentUser?.role === "regional_manager") {
                       return u.managerId === currentUser.id || u.id === currentUser.id;
                     }
                     return false;

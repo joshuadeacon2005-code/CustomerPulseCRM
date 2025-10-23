@@ -29,7 +29,7 @@ export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   salesmanId: varchar("salesman_id").notNull(),
   customerName: text("customer_name").notNull(),
-  product: text("product").notNull(),
+  product: text("product").notNull().default("General Sale"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   country: text("country"),
@@ -177,7 +177,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 }).extend({
-  role: z.enum(["ceo", "admin", "manager", "salesman"]).optional().default("salesman"),
+  role: z.enum(["ceo", "sales_director", "regional_manager", "manager", "salesman"]).optional().default("salesman"),
   username: z.string().min(3).max(50),
   password: z.string().min(6),
   name: z.string().min(1),
@@ -191,7 +191,7 @@ export const insertSaleSchema = createInsertSchema(sales).omit({
 }).extend({
   salesmanId: z.string().min(1),
   customerName: z.string().min(1),
-  product: z.string().min(1),
+  product: z.string().optional().default("General Sale"),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
 });
 
@@ -318,7 +318,7 @@ export type InsertBasecampConnection = z.infer<typeof insertBasecampConnectionSc
 export type OauthState = typeof oauthStates.$inferSelect;
 export type InsertOauthState = z.infer<typeof insertOauthStateSchema>;
 
-export type UserRole = "ceo" | "admin" | "manager" | "salesman";
+export type UserRole = "ceo" | "sales_director" | "regional_manager" | "manager" | "salesman";
 export type RetailerType = typeof RETAILER_TYPES[number];
 export type MeetingType = typeof MEETING_TYPES[number];
 export type CustomerStage = "lead" | "prospect" | "customer";

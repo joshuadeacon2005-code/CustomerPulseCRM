@@ -49,7 +49,7 @@ export default function Dashboard() {
 
   const { data: teamMembers = [] } = useQuery<Omit<User, 'password'>[]>({
     queryKey: ["/api/users"],
-    enabled: user?.role === "manager" || user?.role === "ceo" || user?.role === "admin",
+    enabled: user?.role === "manager" || user?.role === "ceo" || user?.role === "sales_director" || user?.role === "regional_manager",
   });
 
   // Calculate current month stats
@@ -93,8 +93,8 @@ export default function Dashboard() {
 
   // Role-based view rendering
   const isIndividual = user?.role === "salesman";
-  const isManager = user?.role === "manager" || user?.role === "admin";
-  const isCEO = user?.role === "ceo" || user?.role === "admin";
+  const isManager = user?.role === "manager" || user?.role === "sales_director" || user?.role === "regional_manager";
+  const isCEO = user?.role === "ceo" || user?.role === "sales_director";
 
   // Get the name of the user being viewed
   const viewedUserName = selectedUserId 

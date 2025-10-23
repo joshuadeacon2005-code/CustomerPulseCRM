@@ -24,8 +24,10 @@ export function AppSidebar() {
     switch (role) {
       case "ceo":
         return "CEO";
-      case "admin":
-        return "Admin";
+      case "sales_director":
+        return "Sales Director";
+      case "regional_manager":
+        return "Regional Manager";
       case "manager":
         return "Manager";
       case "salesman":
@@ -47,7 +49,7 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Log Sales",
+      title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
     },
@@ -95,7 +97,7 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Log Sales",
+      title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
     },
@@ -181,7 +183,7 @@ export function AppSidebar() {
       icon: Home,
     },
     {
-      title: "Log Sales",
+      title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
     },
@@ -213,8 +215,10 @@ export function AppSidebar() {
     switch (role) {
       case "ceo":
         return ceoNav;
-      case "admin":
+      case "sales_director":
         return adminNav;
+      case "regional_manager":
+        return managerNav;
       case "manager":
         return managerNav;
       case "salesman":

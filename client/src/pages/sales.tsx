@@ -15,7 +15,6 @@ export default function SalesPage() {
   const { toast } = useToast();
   const [saleData, setSaleData] = useState({
     customerName: "",
-    product: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
   });
@@ -33,7 +32,6 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       setSaleData({
         customerName: "",
-        product: "",
         amount: "",
         date: new Date().toISOString().split("T")[0],
       });
@@ -82,16 +80,6 @@ export default function SalesPage() {
                   data-testid="input-customer-name"
                   value={saleData.customerName}
                   onChange={(e) => setSaleData({ ...saleData, customerName: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="product">Product Name</Label>
-                <Input
-                  id="product"
-                  data-testid="input-product-name"
-                  value={saleData.product}
-                  onChange={(e) => setSaleData({ ...saleData, product: e.target.value })}
                   required
                 />
               </div>
