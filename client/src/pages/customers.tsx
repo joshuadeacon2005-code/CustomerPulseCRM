@@ -183,7 +183,7 @@ export default function Customers() {
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-8">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-customers-title">Customers</h1>
@@ -322,13 +322,13 @@ export default function Customers() {
       </Card>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
       ) : filteredCustomers && filteredCustomers.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="grid-customers">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="grid-customers">
           {filteredCustomers.map((customer) => (
             <CustomerCard
               key={customer.id}

@@ -14,8 +14,9 @@ export function useAuth() {
       const response = await apiRequest("POST", "/api/login", credentials);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+    onSuccess: async () => {
+      // Wait for user data to be refetched before allowing navigation
+      await queryClient.refetchQueries({ queryKey: ["/api/user"] });
     },
   });
 

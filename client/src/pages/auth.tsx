@@ -34,7 +34,7 @@ export default function AuthPage() {
     enabled: false,
   });
 
-  const managers = users.filter(u => u.role === "admin" || u.role === "manager");
+  const managers = users.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,7 @@ export default function AuthPage() {
             title: "Success",
             description: "Logged in successfully",
           });
-          navigate("/sales");
+          navigate("/dashboard");
         },
         onError: (error: Error) => {
           toast({

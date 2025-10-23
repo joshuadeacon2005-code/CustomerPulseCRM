@@ -199,7 +199,28 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
 }).extend({
+  // Only require essential fields for customer creation
+  name: z.string().min(1, "Company name is required"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().min(1, "Phone number is required"),
   stage: z.enum(["lead", "prospect", "customer"]).default("lead"),
+  // Make all other fields optional
+  contactName: z.string().optional(),
+  contactTitle: z.string().optional(),
+  contactPhone: z.string().optional(),
+  contactEmail: z.string().optional(),
+  assignedTo: z.string().optional(),
+  personalNotes: z.string().optional(),
+  registeredWithBC: z.boolean().optional().default(false),
+  ordersViaBC: z.boolean().optional().default(false),
+  firstOrderDate: z.date().optional().nullable(),
+  storeAddress: z.string().optional(),
+  retailerType: z.string().optional().nullable(),
+  quarterlySoftTarget: z.string().optional(),
+  lastContactDate: z.date().optional().nullable(),
+  dateOfFirstContact: z.date().optional().nullable(),
+  leadGeneratedBy: z.string().optional(),
+  country: z.string().optional(),
 });
 
 export const updateCustomerSchema = createInsertSchema(customers).omit({
