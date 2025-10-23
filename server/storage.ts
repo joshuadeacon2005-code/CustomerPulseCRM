@@ -417,6 +417,7 @@ export class DatabaseStorage implements IStorage {
       .from(monthlySalesTracking)
       .where(eq(monthlySalesTracking.customerId, id))
       .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
+    const additionalContacts = await this.getCustomerContacts(id);
 
     return {
       ...customer,
@@ -424,6 +425,7 @@ export class DatabaseStorage implements IStorage {
       brands: customerBrandsList,
       actionItems: customerActionItems,
       monthlySales: customerMonthlySales,
+      additionalContacts,
     };
   }
 

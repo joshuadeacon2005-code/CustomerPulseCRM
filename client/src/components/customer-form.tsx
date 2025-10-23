@@ -104,19 +104,19 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Basic Information */}
+        {/* Main Contact Information */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Main Contact Information</h3>
           
           <FormField
             control={form.control}
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>Company Name</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="John Doe" 
+                    placeholder="Company Name" 
                     {...field} 
                     data-testid="input-customer-name"
                   />
@@ -131,11 +131,11 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Company Email</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
-                    placeholder="john@example.com" 
+                    placeholder="company@example.com" 
                     {...field} 
                     data-testid="input-customer-email"
                   />
@@ -150,7 +150,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>Company Phone</FormLabel>
                 <FormControl>
                   <Input 
                     type="tel" 
@@ -182,20 +182,13 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
               </FormItem>
             )}
           />
-        </div>
-
-        <Separator />
-
-        {/* Main Contact */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Main Contact</h3>
 
           <FormField
             control={form.control}
             name="contactName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Name</FormLabel>
+                <FormLabel>Contact Person Name</FormLabel>
                 <FormControl>
                   <Input 
                     placeholder="Primary contact person" 
@@ -214,7 +207,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactTitle"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Title</FormLabel>
+                <FormLabel>Contact Person Title</FormLabel>
                 <FormControl>
                   <Input 
                     placeholder="e.g., Owner, Manager" 
@@ -233,7 +226,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactPhone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Phone</FormLabel>
+                <FormLabel>Contact Person Phone</FormLabel>
                 <FormControl>
                   <Input 
                     type="tel" 
@@ -253,7 +246,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactEmail"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Email</FormLabel>
+                <FormLabel>Contact Person Email</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 

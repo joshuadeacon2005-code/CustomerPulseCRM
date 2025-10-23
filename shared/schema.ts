@@ -358,6 +358,7 @@ export type CustomerWithDetails = Customer & {
   brands: Brand[];
   actionItems: ActionItem[];
   monthlySales: MonthlySalesTracking[];
+  additionalContacts: CustomerContact[];
 };
 
 export type ActionItemWithCustomer = ActionItem & {

@@ -137,6 +137,7 @@ export function CustomerDetailModal({
   const [isAddingActionItem, setIsAddingActionItem] = useState(false);
   const [isAddingSales, setIsAddingSales] = useState(false);
   const [editingSalesId, setEditingSalesId] = useState<string | null>(null);
+  const [isAddingAdditionalContact, setIsAddingAdditionalContact] = useState(false);
   const { toast } = useToast();
 
   const { data: allBrands } = useQuery<Brand[]>({
@@ -255,6 +256,26 @@ export function CustomerDetailModal({
     onError: () => {
       toast({ 
         title: "Failed to delete customer", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteAdditionalContactMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/customer-contacts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      toast({ 
+        title: "Contact deleted",
+        description: "The additional contact has been removed." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete contact", 
         description: "Please try again.",
         variant: "destructive" 
       });
@@ -395,10 +416,22 @@ export function CustomerDetailModal({
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Contact Information</CardTitle>
+                    <CardTitle className="text-lg">Main Contact Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Company Name</p>
+                        <p className="text-sm font-medium" data-testid="text-company-name">{customer.name}</p>
+                      </div>
+                      {customer.country && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Country</p>
+                          <p className="text-sm" data-testid="text-customer-country">{customer.country}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm" data-testid="text-customer-email">{customer.email}</span>
                     </div>
@@ -406,8 +439,36 @@ export function CustomerDetailModal({
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm" data-testid="text-customer-phone">{customer.phone}</span>
                     </div>
+                    {(customer.contactName || customer.contactEmail || customer.contactPhone) && (
+                      <>
+                        <div className="border-t pt-3 mt-3">
+                          <p className="text-xs text-muted-foreground mb-2">Primary Contact Person</p>
+                          {customer.contactName && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm" data-testid="text-contact-name">
+                                {customer.contactName}
+                                {customer.contactTitle && <span className="text-muted-foreground"> - {customer.contactTitle}</span>}
+                              </span>
+                            </div>
+                          )}
+                          {customer.contactEmail && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm" data-testid="text-contact-email">{customer.contactEmail}</span>
+                            </div>
+                          )}
+                          {customer.contactPhone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm" data-testid="text-contact-phone">{customer.contactPhone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                     {customer.assignedTo && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 pt-2 border-t">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm" data-testid="text-customer-assigned">Assigned to: {customer.assignedTo}</span>
                       </div>
@@ -415,6 +476,77 @@ export function CustomerDetailModal({
                     <div className="text-sm text-muted-foreground pt-2 border-t">
                       Customer since {format(new Date(customer.createdAt), "MMMM d, yyyy")}
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-lg">Additional Contacts</CardTitle>
+                    <Button 
+                      size="sm" 
+                      onClick={() => setIsAddingAdditionalContact(true)}
+                      data-testid="button-add-additional-contact"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Contact
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isAddingAdditionalContact && (
+                      <div className="mb-4 p-4 border rounded-md">
+                        <AdditionalContactForm
+                          customerId={customer.id}
+                          onSuccess={() => {
+                            setIsAddingAdditionalContact(false);
+                            queryClient.invalidateQueries({ queryKey: ['/api/customers', customer.id] });
+                          }}
+                          onCancel={() => setIsAddingAdditionalContact(false)}
+                        />
+                      </div>
+                    )}
+                    {customer.additionalContacts && customer.additionalContacts.length > 0 ? (
+                      <div className="space-y-3">
+                        {customer.additionalContacts.map((contact: any) => (
+                          <div key={contact.id} className="flex items-start justify-between p-3 border rounded-md hover-elevate">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">
+                                  {contact.name}
+                                  {contact.title && <span className="text-muted-foreground font-normal"> - {contact.title}</span>}
+                                </span>
+                              </div>
+                              {contact.email && (
+                                <div className="flex items-center gap-2 ml-6">
+                                  <Mail className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{contact.email}</span>
+                                </div>
+                              )}
+                              {contact.phone && (
+                                <div className="flex items-center gap-2 ml-6">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteAdditionalContactMutation.mutate(contact.id)}
+                              data-testid={`button-delete-contact-${contact.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      !isAddingAdditionalContact && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No additional contacts. Click "Add Contact" to add one.
+                        </p>
+                      )
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1265,5 +1397,99 @@ function MonthlySalesForm({
         </div>
       </form>
     </Form>
+  );
+}
+
+function AdditionalContactForm({
+  customerId,
+  onSuccess,
+  onCancel,
+}: {
+  customerId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const { toast } = useToast();
+  const form = useForm({
+    defaultValues: {
+      name: '',
+      title: '',
+      phone: '',
+      email: '',
+    },
+  });
+
+  const createContactMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('POST', `/api/customers/${customerId}/contacts`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Contact added successfully" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to add contact", variant: "destructive" });
+    },
+  });
+
+  return (
+    <form onSubmit={form.handleSubmit((data) => createContactMutation.mutate(data))} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Name *</Label>
+          <Input
+            id="name"
+            placeholder="Contact name"
+            {...form.register('name', { required: true })}
+            data-testid="input-additional-contact-name"
+          />
+        </div>
+        <div>
+          <Label htmlFor="title">Title</Label>
+          <Input
+            id="title"
+            placeholder="e.g., Manager"
+            {...form.register('title')}
+            data-testid="input-additional-contact-title"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="+1 (555) 123-4567"
+            {...form.register('phone')}
+            data-testid="input-additional-contact-phone"
+          />
+        </div>
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="contact@example.com"
+            {...form.register('email')}
+            data-testid="input-additional-contact-email"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={createContactMutation.isPending}
+          data-testid="button-cancel-additional-contact"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={createContactMutation.isPending} data-testid="button-submit-additional-contact">
+          {createContactMutation.isPending ? 'Adding...' : 'Add Contact'}
+        </Button>
+      </div>
+    </form>
   );
 }
