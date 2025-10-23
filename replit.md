@@ -60,7 +60,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
   - **Role-Specific Messaging**: Personalized welcome messages and contextual information based on user role
 - **Customer Management**: Comprehensive customer profiles with country tracking, main contact information (name, title, phone, email), support for additional contacts, personal notes, BC marketplace integration details, store address, structured retailer type selection (14 categories), quarterly soft targets, last contact date, lead management (date of first contact, lead source), and interaction tracking. Advanced filtering by brand and retailer type. Customer deletion functionality.
 - **Brand Management**: Many-to-many relationship allowing multi-brand assignment per customer with inline brand creation.
-- **Target Management**: Supports both Personal (individual salespeople) and General (company/team-wide) monthly sales targets, with role-based target setting capabilities.
+- **Target Management**: Supports both Personal (individual salespeople) and General (company/team-wide) monthly sales targets, with role-based target setting capabilities. Monthly targets functionality is integrated into the Sales Dashboard page for easier access and consolidated workflow.
 - **To Do List**: Task management functionality with status tracking (overdue, today, upcoming), color coding, visit/call logging, and CSV bulk import.
 - **CSV Todo Import**: Flexible CSV import feature for bulk uploading todos from any source. Features include:
   - **Simple CSV Format**: Accepts CSV with columns: title (required), description (optional), due_date (optional), type (optional: visit/call)

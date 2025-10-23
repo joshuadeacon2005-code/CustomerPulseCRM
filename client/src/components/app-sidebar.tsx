@@ -69,11 +69,6 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
-    },
-    {
       title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
@@ -115,11 +110,6 @@ export function AppSidebar() {
       title: "Segments",
       url: "/segments",
       icon: Target,
-    },
-    {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
     },
     {
       title: "To Do List",
@@ -165,11 +155,6 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
-    },
-    {
       title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
@@ -208,11 +193,6 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
-    },
-    {
       title: "To Do List",
       url: "/tasks",
       icon: CheckSquare,
@@ -239,11 +219,6 @@ export function AppSidebar() {
       title: "Customers",
       url: "/customers",
       icon: Users,
-    },
-    {
-      title: "Monthly Targets",
-      url: "/targets",
-      icon: TrendingUp,
     },
     {
       title: "To Do List",
