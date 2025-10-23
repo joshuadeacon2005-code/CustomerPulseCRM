@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users as UsersIcon, Filter, X } from "lucide-react";
-import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand } from "@shared/schema";
+import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +69,24 @@ export default function Customers() {
   });
 
   const addCustomerMutation = useMutation({
-    mutationFn: (data: InsertCustomer) => apiRequest("POST", "/api/customers", data),
+    mutationFn: async ({ customer, contacts }: { customer: InsertCustomer; contacts?: Omit<InsertCustomerContact, 'customerId'>[] }) => {
+      // First create the customer
+      const newCustomer = await apiRequest("POST", "/api/customers", customer) as unknown as Customer;
+      
+      // Then create additional contacts if any
+      if (contacts && contacts.length > 0) {
+        await Promise.all(
+          contacts.map(contact =>
+            apiRequest("POST", "/api/customer-contacts", {
+              ...contact,
+              customerId: newCustomer.id,
+            })
+          )
+        );
+      }
+      
+      return newCustomer;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
@@ -131,8 +148,11 @@ export default function Customers() {
   const filteredCustomers = customers?.filter((customer) => {
     const matchesSearch = 
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm);
+      customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone?.includes(searchTerm) ||
+      customer.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.contactEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.contactPhone?.includes(searchTerm);
     
     const matchesStage = stageFilterLocal === "all" || customer.stage === stageFilterLocal;
     
@@ -363,7 +383,12 @@ export default function Customers() {
             <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
           <CustomerForm
-            onSubmit={(data) => addCustomerMutation.mutate(data as InsertCustomer)}
+            onSubmit={(data, additionalContacts) => 
+              addCustomerMutation.mutate({ 
+                customer: data as InsertCustomer, 
+                contacts: additionalContacts 
+              })
+            }
             onCancel={() => setIsAddDialogOpen(false)}
             isLoading={addCustomerMutation.isPending}
           />

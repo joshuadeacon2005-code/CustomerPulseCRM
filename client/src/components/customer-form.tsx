@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, type Customer, type InsertCustomer, type UpdateCustomer, type User } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -30,9 +30,16 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+interface AdditionalContact {
+  name: string;
+  title: string;
+  phone: string;
+  email: string;
+}
+
 interface CustomerFormProps {
   customer?: Customer;
-  onSubmit: (data: InsertCustomer | UpdateCustomer) => void;
+  onSubmit: (data: InsertCustomer | UpdateCustomer, additionalContacts?: Omit<InsertCustomerContact, 'customerId'>[]) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -54,12 +61,20 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
   const [leadSource, setLeadSource] = useState(isOtherSource ? "Others" : currentLeadSource);
   const [otherSourceText, setOtherSourceText] = useState(isOtherSource ? currentLeadSource : "");
   
+  // Additional contacts state (only for creating new customers)
+  const [additionalContacts, setAdditionalContacts] = useState<AdditionalContact[]>([]);
+  const [isAddingContact, setIsAddingContact] = useState(false);
+  const [newContact, setNewContact] = useState<AdditionalContact>({
+    name: "",
+    title: "",
+    phone: "",
+    email: "",
+  });
+  
   const form = useForm<InsertCustomer | UpdateCustomer>({
     resolver: zodResolver(isEditing ? updateCustomerSchema : insertCustomerSchema),
     defaultValues: customer ? {
       name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
       stage: customer.stage as "lead" | "prospect" | "customer",
       assignedTo: customer.assignedTo || "",
       personalNotes: customer.personalNotes || "",
@@ -79,8 +94,6 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       leadGeneratedBy: customer.leadGeneratedBy || "",
     } : {
       name: "",
-      email: "",
-      phone: "",
       stage: "lead" as "lead" | "prospect" | "customer",
       assignedTo: "",
       personalNotes: "",
@@ -101,12 +114,21 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
     },
   });
 
+  const handleFormSubmit = (data: InsertCustomer | UpdateCustomer) => {
+    // For new customers, pass additional contacts. For editing, just pass the customer data
+    if (!isEditing && additionalContacts.length > 0) {
+      onSubmit(data, additionalContacts);
+    } else {
+      onSubmit(data);
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Main Contact Information */}
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        {/* Company Information */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Main Contact Information</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Company Information</h3>
           
           <FormField
             control={form.control}
@@ -119,44 +141,6 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     placeholder="Company Name" 
                     {...field} 
                     data-testid="input-customer-name"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Email</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="email" 
-                    placeholder="company@example.com" 
-                    {...field} 
-                    data-testid="input-customer-email"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Phone</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="tel" 
-                    placeholder="+1 (555) 123-4567" 
-                    {...field} 
-                    data-testid="input-customer-phone"
                   />
                 </FormControl>
                 <FormMessage />
@@ -182,16 +166,23 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
               </FormItem>
             )}
           />
+        </div>
 
+        <Separator />
+
+        {/* Main Contact */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Main Contact</h3>
+          
           <FormField
             control={form.control}
             name="contactName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Person Name</FormLabel>
+                <FormLabel>Name</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="Primary contact person" 
+                    placeholder="Contact person name" 
                     {...field} 
                     value={field.value || ""}
                     data-testid="input-contact-name"
@@ -207,7 +198,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactTitle"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Person Title</FormLabel>
+                <FormLabel>Title</FormLabel>
                 <FormControl>
                   <Input 
                     placeholder="e.g., Owner, Manager" 
@@ -226,7 +217,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactPhone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Person Phone</FormLabel>
+                <FormLabel>Phone</FormLabel>
                 <FormControl>
                   <Input 
                     type="tel" 
@@ -246,7 +237,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             name="contactEmail"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Person Email</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input 
                     type="email" 
@@ -263,6 +254,116 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
         </div>
 
         <Separator />
+
+        {/* Additional Contacts - only show when creating new customer */}
+        {!isEditing && (
+          <>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Additional Contacts</h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsAddingContact(true)}
+                  data-testid="button-show-add-contact"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Contact
+                </Button>
+              </div>
+
+              {isAddingContact && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <Input
+                    placeholder="Contact Name"
+                    value={newContact.name}
+                    onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
+                    data-testid="input-new-contact-name"
+                  />
+                  <Input
+                    placeholder="Title (optional)"
+                    value={newContact.title}
+                    onChange={(e) => setNewContact({ ...newContact, title: e.target.value })}
+                    data-testid="input-new-contact-title"
+                  />
+                  <Input
+                    type="tel"
+                    placeholder="Phone (optional)"
+                    value={newContact.phone}
+                    onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
+                    data-testid="input-new-contact-phone"
+                  />
+                  <Input
+                    type="email"
+                    placeholder="Email (optional)"
+                    value={newContact.email}
+                    onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
+                    data-testid="input-new-contact-email"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (newContact.name.trim()) {
+                          setAdditionalContacts([...additionalContacts, newContact]);
+                          setNewContact({ name: "", title: "", phone: "", email: "" });
+                          setIsAddingContact(false);
+                        }
+                      }}
+                      data-testid="button-save-new-contact"
+                    >
+                      Add Contact
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setNewContact({ name: "", title: "", phone: "", email: "" });
+                        setIsAddingContact(false);
+                      }}
+                      data-testid="button-cancel-new-contact"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {additionalContacts.length > 0 && (
+                <div className="space-y-2">
+                  {additionalContacts.map((contact, index) => (
+                    <div key={index} className="flex items-center justify-between border rounded-lg p-3" data-testid={`contact-item-${index}`}>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{contact.name}</p>
+                        {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
+                        <div className="flex gap-3 mt-1">
+                          {contact.phone && <p className="text-xs text-muted-foreground">{contact.phone}</p>}
+                          {contact.email && <p className="text-xs text-muted-foreground">{contact.email}</p>}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setAdditionalContacts(additionalContacts.filter((_, i) => i !== index));
+                        }}
+                        data-testid={`button-delete-contact-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+          </>
+        )}
 
         {/* Lead Management */}
         <div className="space-y-4">

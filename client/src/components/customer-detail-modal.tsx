@@ -416,33 +416,23 @@ export function CustomerDetailModal({
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Main Contact Information</CardTitle>
+                    <CardTitle className="text-lg">Company & Main Contact</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Company Name</p>
+                      <p className="text-sm font-medium" data-testid="text-company-name">{customer.name}</p>
+                    </div>
+                    {customer.country && (
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Company Name</p>
-                        <p className="text-sm font-medium" data-testid="text-company-name">{customer.name}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Country</p>
+                        <p className="text-sm" data-testid="text-customer-country">{customer.country}</p>
                       </div>
-                      {customer.country && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Country</p>
-                          <p className="text-sm" data-testid="text-customer-country">{customer.country}</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm" data-testid="text-customer-email">{customer.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm" data-testid="text-customer-phone">{customer.phone}</span>
-                    </div>
+                    )}
                     {(customer.contactName || customer.contactEmail || customer.contactPhone) && (
                       <>
-                        <div className="border-t pt-3 mt-3">
-                          <p className="text-xs text-muted-foreground mb-2">Primary Contact Person</p>
+                        <div className="border-t pt-3">
+                          <p className="text-xs text-muted-foreground mb-2">Main Contact</p>
                           {customer.contactName && (
                             <div className="flex items-center gap-2 mb-2">
                               <User className="h-4 w-4 text-muted-foreground" />

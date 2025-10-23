@@ -39,8 +39,8 @@ export const sales = pgTable("sales", {
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  email: text("email").notNull(),
-  phone: text("phone").notNull(),
+  email: text("email"),
+  phone: text("phone"),
   contactName: text("contact_name"),
   contactTitle: text("contact_title"),
   contactPhone: text("contact_phone"),
@@ -199,10 +199,10 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
 }).extend({
-  // Only require essential fields for customer creation
+  // Only require company name
   name: z.string().min(1, "Company name is required"),
-  email: z.string().email("Valid email is required"),
-  phone: z.string().min(1, "Phone number is required"),
+  email: z.string().optional(),
+  phone: z.string().optional(),
   stage: z.enum(["lead", "prospect", "customer"]).default("lead"),
   // Make all other fields optional
   contactName: z.string().optional(),
