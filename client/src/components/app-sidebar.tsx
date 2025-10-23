@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +36,11 @@ export function AppSidebar() {
   };
 
   const ceoNav = [
+    {
+      title: "Home",
+      url: "/dashboard",
+      icon: Home,
+    },
     {
       title: "Admin Dashboard",
       url: "/admin",
@@ -80,6 +85,11 @@ export function AppSidebar() {
 
   const adminNav = [
     {
+      title: "Home",
+      url: "/dashboard",
+      icon: Home,
+    },
+    {
       title: "Admin Dashboard",
       url: "/admin",
       icon: BarChart3,
@@ -123,6 +133,11 @@ export function AppSidebar() {
 
   const managerNav = [
     {
+      title: "Home",
+      url: "/dashboard",
+      icon: Home,
+    },
+    {
       title: "Manager Dashboard",
       url: "/admin",
       icon: BarChart3,
@@ -160,6 +175,11 @@ export function AppSidebar() {
   ];
 
   const salesmanNav = [
+    {
+      title: "Home",
+      url: "/dashboard",
+      icon: Home,
+    },
     {
       title: "Log Sales",
       url: "/sales",

@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/auth";
+import Dashboard from "@/pages/dashboard";
 import SalesPage from "@/pages/sales";
 import AdminPage from "@/pages/admin";
 import CustomersPage from "@/pages/customers";
@@ -41,7 +42,12 @@ function AuthenticatedApp() {
           <main className="flex-1 overflow-y-auto">
             <Switch>
               <Route path="/">
-                {user?.role === "admin" ? <Redirect to="/admin" /> : <Redirect to="/sales" />}
+                <Redirect to="/dashboard" />
+              </Route>
+              <Route path="/dashboard">
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
               </Route>
               <Route path="/sales">
                 <ProtectedRoute>
