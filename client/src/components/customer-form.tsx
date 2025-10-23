@@ -46,7 +46,6 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       phone: customer.phone,
       stage: customer.stage as "lead" | "prospect" | "customer",
       assignedTo: customer.assignedTo || "",
-      leadScore: customer.leadScore,
       personalNotes: customer.personalNotes || "",
       registeredWithBC: customer.registeredWithBC,
       ordersViaBC: customer.ordersViaBC,
@@ -68,7 +67,6 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       phone: "",
       stage: "lead" as "lead" | "prospect" | "customer",
       assignedTo: "",
-      leadScore: 0,
       personalNotes: "",
       registeredWithBC: false,
       ordersViaBC: false,
@@ -296,28 +294,6 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     {...field} 
                     value={field.value || ""}
                     data-testid="input-customer-assigned"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="leadScore"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Lead Score (0-100)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="0" 
-                    max="100" 
-                    {...field}
-                    value={field.value || 0}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    data-testid="input-customer-score"
                   />
                 </FormControl>
                 <FormMessage />

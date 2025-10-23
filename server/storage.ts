@@ -412,35 +412,7 @@ export class DatabaseStorage implements IStorage {
 
   async createInteraction(interactionData: InsertInteraction): Promise<Interaction> {
     const [interaction] = await db.insert(interactions).values(interactionData).returning();
-    await this.updateLeadScore(interactionData.customerId);
     return interaction;
-  }
-
-  private async updateLeadScore(customerId: string): Promise<void> {
-    const customer = await this.getCustomer(customerId);
-    if (!customer) return;
-
-    const customerInteractions = await this.getInteractionsByCustomer(customerId);
-
-    let score = 0;
-    score += Math.min(customerInteractions.length * 5, 30);
-
-    const salesInteractions = customerInteractions.filter(i => i.category === "sales").length;
-    score += Math.min(salesInteractions * 10, 30);
-
-    const marketingInteractions = customerInteractions.filter(i => i.category === "marketing").length;
-    score += Math.min(marketingInteractions * 3, 15);
-
-    const supportInteractions = customerInteractions.filter(i => i.category === "support").length;
-    score += Math.min(supportInteractions * 5, 15);
-
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentInteractions = customerInteractions.filter(i => new Date(i.date) >= sevenDaysAgo).length;
-    score += Math.min(recentInteractions * 5, 10);
-
-    score = Math.min(Math.max(score, 0), 100);
-
-    await this.updateCustomer(customerId, { leadScore: score });
   }
 
   async getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined> {
@@ -767,12 +739,11 @@ export class DatabaseStorage implements IStorage {
     const segments: Segment[] = [
       {
         id: "high-value-leads",
-        name: "High-Value Leads",
-        description: "Leads with high engagement scores ready for conversion",
-        count: allCustomers.filter(c => c.stage === "lead" && c.leadScore >= 71).length,
+        name: "All Leads",
+        description: "All leads in the pipeline",
+        count: allCustomers.filter(c => c.stage === "lead").length,
         criteria: {
           stage: ["lead"],
-          minScore: 71,
         },
       },
       {
@@ -795,12 +766,11 @@ export class DatabaseStorage implements IStorage {
       },
       {
         id: "at-risk-leads",
-        name: "At-Risk Leads",
-        description: "Leads with low engagement that need attention",
-        count: allCustomers.filter(c => c.stage === "lead" && c.leadScore <= 30).length,
+        name: "Leads Needing Attention",
+        description: "Leads with no recent activity",
+        count: allCustomers.filter(c => c.stage === "lead" && (!c.lastContactDate || new Date(c.lastContactDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))).length,
         criteria: {
           stage: ["lead"],
-          maxScore: 30,
         },
       },
     ];
@@ -836,10 +806,6 @@ export class DatabaseStorage implements IStorage {
     const prospectCount = filteredCustomers.filter(c => c.stage === "prospect").length;
     const customerCount = filteredCustomers.filter(c => c.stage === "customer").length;
 
-    const averageLeadScore = filteredCustomers.length > 0
-      ? filteredCustomers.reduce((sum, c) => sum + c.leadScore, 0) / filteredCustomers.length
-      : 0;
-
     // For monthly view, show interactions this month; for overall, last 7 days
     const recentInteractions = isMonthlyView
       ? filteredInteractions.length
@@ -853,7 +819,6 @@ export class DatabaseStorage implements IStorage {
       leadCount,
       prospectCount,
       customerCount,
-      averageLeadScore,
       recentInteractions,
     };
   }

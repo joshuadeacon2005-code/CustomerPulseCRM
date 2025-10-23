@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DashboardStats, Customer, User, UserRole } from "@shared/schema";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Users as UsersIcon, Target, Activity, UserCheck, Building2 } from "lucide-react";
+import { Users as UsersIcon, Target, Activity, UserCheck, Building2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -101,19 +101,6 @@ export default function Analytics() {
     { name: "Customers", value: stats?.customerCount || 0, fill: STAGE_COLORS.customer },
   ];
 
-  const scoreDistribution = customers?.reduce((acc, customer) => {
-    if (customer.leadScore <= 30) acc.low++;
-    else if (customer.leadScore <= 70) acc.medium++;
-    else acc.high++;
-    return acc;
-  }, { low: 0, medium: 0, high: 0 });
-
-  const scoreData = [
-    { name: "Low (0-30)", value: scoreDistribution?.low || 0, fill: STAGE_COLORS.lead },
-    { name: "Medium (31-70)", value: scoreDistribution?.medium || 0, fill: STAGE_COLORS.prospect },
-    { name: "High (71-100)", value: scoreDistribution?.high || 0, fill: STAGE_COLORS.customer },
-  ];
-
   // Fix: Use user names instead of IDs
   const assignmentData = customers?.reduce((acc, customer) => {
     if (customer.assignedTo && userMap) {
@@ -198,7 +185,7 @@ export default function Analytics() {
 
         <TabsContent value={view} className="space-y-6">
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Total Customers</h3>
@@ -207,17 +194,6 @@ export default function Analytics() {
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-customers">{stats?.totalCustomers || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Across all stages</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Avg Lead Score</h3>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-avg-lead-score">{stats?.averageLeadScore?.toFixed(1) || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Out of 100</p>
           </CardContent>
         </Card>
 
@@ -359,42 +335,8 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Lead Score Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={scoreData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fill: 'hsl(var(--foreground))' }}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fill: 'hsl(var(--foreground))' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px',
-                  }}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {scoreData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {assignmentChartData.length > 0 && (
-          <Card className="md:col-span-2">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Customers by Sales Rep</CardTitle>
               <CardDescription>Customer distribution across team members</CardDescription>

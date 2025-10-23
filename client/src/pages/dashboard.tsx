@@ -327,9 +327,6 @@ export default function Dashboard() {
                           <p className="text-sm text-muted-foreground">{lead.email}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">Score: {lead.leadScore}</p>
-                      </div>
                     </div>
                   </Link>
                 ))}

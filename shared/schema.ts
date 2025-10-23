@@ -47,7 +47,6 @@ export const customers = pgTable("customers", {
   contactEmail: text("contact_email"),
   stage: text("stage").notNull().default("lead"),
   assignedTo: text("assigned_to"),
-  leadScore: integer("lead_score").notNull().default(0),
   personalNotes: text("personal_notes"),
   registeredWithBC: boolean("registered_with_bc").notNull().default(false),
   ordersViaBC: boolean("orders_via_bc").notNull().default(false),
@@ -201,7 +200,6 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   createdAt: true,
 }).extend({
   stage: z.enum(["lead", "prospect", "customer"]).default("lead"),
-  leadScore: z.number().min(0).max(100).default(0),
 });
 
 export const updateCustomerSchema = createInsertSchema(customers).omit({
@@ -209,7 +207,6 @@ export const updateCustomerSchema = createInsertSchema(customers).omit({
   createdAt: true,
 }).partial().extend({
   stage: z.enum(["lead", "prospect", "customer"]).optional(),
-  leadScore: z.number().min(0).max(100).optional(),
 });
 
 export const insertInteractionSchema = createInsertSchema(interactions).omit({
@@ -364,7 +361,6 @@ export type DashboardStats = {
   leadCount: number;
   prospectCount: number;
   customerCount: number;
-  averageLeadScore: number;
   recentInteractions: number;
 };
 

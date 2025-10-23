@@ -308,10 +308,6 @@ export function CustomerDetailModal({
                   >
                     {customer.stage}
                   </Badge>
-                  <div className="flex items-center gap-1 text-sm">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold">Score: {customer.leadScore}</span>
-                  </div>
                 </div>
               </div>
             </div>

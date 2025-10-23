@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Customer, CustomerWithBrands } from "@shared/schema";
-import { Mail, Phone, User, TrendingUp } from "lucide-react";
+import { Mail, Phone, User } from "lucide-react";
 import { format } from "date-fns";
 
 interface CustomerCardProps {
@@ -14,12 +14,6 @@ const stageColors = {
   lead: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-};
-
-const getScoreColor = (score: number) => {
-  if (score >= 71) return "text-green-600 dark:text-green-500";
-  if (score >= 31) return "text-amber-600 dark:text-amber-500";
-  return "text-blue-600 dark:text-blue-500";
 };
 
 const getInitials = (name: string) => {
@@ -63,19 +57,9 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
         </Badge>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" />
-            <span className="text-xs">{customer.phone}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className={`text-sm font-semibold ${getScoreColor(customer.leadScore)}`} data-testid={`text-score-${customer.id}`}>
-                {customer.leadScore}
-              </span>
-            </div>
-          </div>
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Phone className="h-3.5 w-3.5" />
+          <span className="text-xs">{customer.phone}</span>
         </div>
         {customer.assignedTo && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2 pt-2 border-t">

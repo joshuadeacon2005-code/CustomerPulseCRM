@@ -4,11 +4,12 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, multi-country customer data management, brand assignments, monthly target setting, to-do list management, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## Recent Changes (October 2025)
+- **Lead Score System Removed**: Completely removed the automatic lead score calculation and display system from the entire application (schema, UI components, analytics, customer cards, forms). Lead quality is now assessed through other metrics like last contact date and interaction history.
 - **Regional Office Assignment**: All users can now be assigned to regional offices (Hong Kong, Singapore, Shanghai, Australia/NZ, Indonesia, Malaysia, Guangzhou). Regional office is displayed on the dashboard and in the admin user management table.
 - **Role-Based Homepage Dashboard**: Complete homepage redesign with role-specific quick actions and performance widgets. Features include:
   - Quick action cards for logging interactions, sales, customers, and leads (all user roles)
   - Current month performance metrics with real sales data (target vs. sales progress with visual progress bar)
-  - Leads widget showing new opportunities with lead scores
+  - Leads widget showing new opportunities with company details
   - To-do list widget with color-coded categorization (overdue, today, upcoming)
   - Team member selector for managers and CEOs to view team member dashboards with filtered data
   - Regional office badge display on dashboard header
@@ -44,7 +45,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Homepage Dashboard**: Comprehensive role-based dashboard serving as the application's landing page (`/dashboard`). All users start here after login. Features:
   - **Quick Actions**: Four prominent cards for logging interactions, sales, customers, and leads with colored icons
   - **Performance Metrics**: Three-card layout showing current month target, sales to date, and progress percentage with visual progress bar
-  - **Leads Overview**: Widget displaying top 5 leads with lead scores, company details, and "View All" link for full lead list
+  - **Leads Overview**: Widget displaying top 5 leads with company details and "View All" link for full lead list
   - **To-Do List Widget**: Categorized task display (overdue in red, today in amber, upcoming in blue) with truncated task descriptions and due dates
   - **Team View Toggle**: Managers and CEOs can select team members to view their dashboards
   - **Historical Access**: Quick link to view historical and future month targets
