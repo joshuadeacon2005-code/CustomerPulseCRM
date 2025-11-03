@@ -66,6 +66,12 @@ export default function AdminPage() {
     amount: "",
     date: "",
   });
+  
+  // User list filters
+  const [userNameFilter, setUserNameFilter] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
+  const [userOfficeFilter, setUserOfficeFilter] = useState<string>("all");
+  const [userManagerFilter, setUserManagerFilter] = useState<string>("all");
 
   const { data: stats, isLoading: isLoadingStats } = useQuery<AdminDashboardStats>({
     queryKey: ["/api/admin/stats"],
@@ -107,6 +113,63 @@ export default function AdminPage() {
         return role;
     }
   };
+  
+  const getRoleRank = (role: UserRole): number => {
+    switch (role) {
+      case "ceo": return 5;
+      case "sales_director": return 4;
+      case "regional_manager": return 3;
+      case "manager": return 2;
+      case "salesman": return 1;
+      default: return 0;
+    }
+  };
+  
+  // Get unique regional offices
+  const regionalOffices = Array.from(new Set(allUsers.map(u => u.regionalOffice).filter(Boolean))) as string[];
+  
+  // Filter and sort users
+  const filteredUsers = allUsers
+    .filter(user => {
+      // Name filter
+      if (userNameFilter && !user.name.toLowerCase().includes(userNameFilter.toLowerCase())) {
+        return false;
+      }
+      
+      // Role filter
+      if (userRoleFilter !== "all" && user.role !== userRoleFilter) {
+        return false;
+      }
+      
+      // Regional office filter
+      if (userOfficeFilter !== "all" && user.regionalOffice !== userOfficeFilter) {
+        return false;
+      }
+      
+      // Manager filter
+      if (userManagerFilter !== "all" && user.managerId !== userManagerFilter) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort by role rank (highest to lowest)
+      const rankDiff = getRoleRank(b.role as UserRole) - getRoleRank(a.role as UserRole);
+      if (rankDiff !== 0) return rankDiff;
+      
+      // Then by name
+      return a.name.localeCompare(b.name);
+    });
+  
+  // Calculate select-all checkbox state
+  const selectableFilteredUserIds = filteredUsers
+    .filter(u => u.id !== currentUser?.id)
+    .map(u => u.id);
+  const allFilteredSelected = selectableFilteredUserIds.length > 0 && 
+    selectableFilteredUserIds.every(id => selectedUserIds.includes(id));
+  const someFilteredSelected = selectableFilteredUserIds.some(id => selectedUserIds.includes(id));
+  const isIndeterminate = someFilteredSelected && !allFilteredSelected;
 
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
@@ -199,11 +262,16 @@ export default function AdminPage() {
   };
 
   const toggleAllUsers = () => {
-    const selectableUsers = allUsers.filter(u => u.id !== currentUser?.id);
-    if (selectedUserIds.length === selectableUsers.length) {
-      setSelectedUserIds([]);
+    const selectableUsers = filteredUsers.filter(u => u.id !== currentUser?.id);
+    const allFilteredSelected = selectableUsers.every(u => selectedUserIds.includes(u.id));
+    
+    if (allFilteredSelected) {
+      // Deselect all filtered users
+      setSelectedUserIds(prev => prev.filter(id => !selectableUsers.some(u => u.id === id)));
     } else {
-      setSelectedUserIds(selectableUsers.map(u => u.id));
+      // Select all filtered users (add to existing selections)
+      const newSelections = selectableUsers.map(u => u.id);
+      setSelectedUserIds(prev => Array.from(new Set([...prev, ...newSelections])));
     }
   };
 
@@ -572,17 +640,87 @@ export default function AdminPage() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="user-name-filter">Search by Name</Label>
+                <Input
+                  id="user-name-filter"
+                  placeholder="Filter by name..."
+                  value={userNameFilter}
+                  onChange={(e) => setUserNameFilter(e.target.value)}
+                  data-testid="input-filter-user-name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="user-role-filter">Filter by Position</Label>
+                <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+                  <SelectTrigger id="user-role-filter" data-testid="select-filter-user-role">
+                    <SelectValue placeholder="All positions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
+                    <SelectItem value="ceo">CEO</SelectItem>
+                    <SelectItem value="sales_director">Sales Director</SelectItem>
+                    <SelectItem value="regional_manager">Regional Manager</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="salesman">Salesman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="user-office-filter">Filter by Office</Label>
+                <Select value={userOfficeFilter} onValueChange={setUserOfficeFilter}>
+                  <SelectTrigger id="user-office-filter" data-testid="select-filter-user-office">
+                    <SelectValue placeholder="All offices" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Offices</SelectItem>
+                    {regionalOffices.map(office => (
+                      <SelectItem key={office} value={office}>{office}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="user-manager-filter">Filter by Manager</Label>
+                <Select value={userManagerFilter} onValueChange={setUserManagerFilter}>
+                  <SelectTrigger id="user-manager-filter" data-testid="select-filter-user-manager">
+                    <SelectValue placeholder="All managers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Managers</SelectItem>
+                    {managers.map(manager => (
+                      <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              Showing {filteredUsers.length} of {allUsers.length} users
+            </div>
+          </div>
+          
           {allUsers.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               No users found
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8 mt-4">
+              No users match the current filters
+            </div>
           ) : (
-            <Table>
+            <Table className="mt-4">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedUserIds.length === allUsers.filter(u => u.id !== currentUser?.id).length && allUsers.length > 1}
+                      checked={allFilteredSelected}
                       onCheckedChange={toggleAllUsers}
                       data-testid="checkbox-select-all-users"
                     />
@@ -596,7 +734,7 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allUsers.map((user) => {
+                {filteredUsers.map((user) => {
                   const managerUser = user.managerId ? getUserById(user.managerId) : null;
                   const isCurrentUser = user.id === currentUser?.id;
                   return (
