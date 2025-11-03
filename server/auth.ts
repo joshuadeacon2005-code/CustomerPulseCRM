@@ -125,6 +125,43 @@ export function setupAuth(app: Express) {
     }
   });
 
+  app.put("/api/admin/users/:id", isAdmin, async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      
+      // Validate update data with partial schema (all fields optional)
+      const validatedData = insertUserSchema.partial().parse(req.body);
+
+      // Check if username is being changed and if it conflicts with another user
+      if (validatedData.username) {
+        const existingUser = await storage.getUserByUsername(validatedData.username);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).send("Username already exists");
+        }
+      }
+
+      // Hash password if it's being updated
+      if (validatedData.password) {
+        validatedData.password = await hashPassword(validatedData.password);
+      }
+
+      const updatedUser = await storage.updateUser(id, validatedData);
+      if (!updatedUser) {
+        return res.status(404).send("User not found");
+      }
+
+      const userWithoutPassword = { ...updatedUser };
+      delete (userWithoutPassword as any).password;
+
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid user data", details: error });
+      }
+      next(error);
+    }
+  });
+
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: DbUser | false, info: any) => {
       if (err) return next(err);

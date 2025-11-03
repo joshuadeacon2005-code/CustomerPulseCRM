@@ -58,6 +58,16 @@ export default function AdminPage() {
     managerId: "",
     regionalOffice: "",
   });
+  const [editUserOpen, setEditUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Omit<User, 'password'> | null>(null);
+  const [editUserData, setEditUserData] = useState({
+    username: "",
+    password: "",
+    name: "",
+    role: "salesman" as UserRole,
+    managerId: "",
+    regionalOffice: "",
+  });
   const [editSaleDialog, setEditSaleDialog] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [editSaleData, setEditSaleData] = useState({
@@ -212,6 +222,25 @@ export default function AdminPage() {
     createUserMutation.mutate(newUser);
   };
 
+  const handleEditUser = (user: Omit<User, 'password'>) => {
+    setEditingUser(user);
+    setEditUserData({
+      username: user.username,
+      password: "", // Leave empty - only update if user enters new password
+      name: user.name,
+      role: user.role as UserRole,
+      managerId: user.managerId || "",
+      regionalOffice: user.regionalOffice || "",
+    });
+    setEditUserOpen(true);
+  };
+
+  const handleUpdateUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    editUserMutation.mutate({ id: editingUser.id, data: editUserData });
+  };
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       return await apiRequest("DELETE", `/api/users/${userId}`);
@@ -228,6 +257,52 @@ export default function AdminPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof editUserData }) => {
+      const requestData: any = {
+        username: data.username,
+        name: data.name,
+        role: data.role,
+        // Always include managerId: set to actual value for salesman, null for others to clear stale assignments
+        managerId: data.role === "salesman" && data.managerId ? data.managerId : null,
+        regionalOffice: data.regionalOffice || undefined,
+      };
+      
+      // Only include password if it was changed (not empty)
+      if (data.password) {
+        requestData.password = data.password;
+      }
+      
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestData),
+      });
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || "Failed to update user");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      setEditUserOpen(false);
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
         variant: "destructive",
       });
     },
@@ -777,6 +852,15 @@ export default function AdminPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditUser(user)}
+                            disabled={isCurrentUser}
+                            data-testid={`button-edit-user-${user.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -1013,6 +1097,139 @@ export default function AdminPage() {
                 data-testid="button-save-edit-sale"
               >
                 {updateSaleMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editUserOpen} onOpenChange={setEditUserOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information. Leave password blank to keep current password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateUser} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-name">Name</Label>
+                <Input
+                  id="edit-user-name"
+                  data-testid="input-edit-user-name"
+                  value={editUserData.name}
+                  onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-username">Username</Label>
+                <Input
+                  id="edit-user-username"
+                  data-testid="input-edit-user-username"
+                  value={editUserData.username}
+                  onChange={(e) => setEditUserData({ ...editUserData, username: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-user-password">Password (leave blank to keep current)</Label>
+              <Input
+                id="edit-user-password"
+                data-testid="input-edit-user-password"
+                type="password"
+                value={editUserData.password}
+                onChange={(e) => setEditUserData({ ...editUserData, password: e.target.value })}
+                placeholder="Enter new password or leave blank"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-role">Role</Label>
+                <Select 
+                  value={editUserData.role} 
+                  onValueChange={(value) => {
+                    const newRole = value as UserRole;
+                    // Clear managerId when changing from salesman to another role
+                    setEditUserData({ 
+                      ...editUserData, 
+                      role: newRole,
+                      managerId: newRole !== "salesman" ? "" : editUserData.managerId
+                    });
+                  }}
+                >
+                  <SelectTrigger id="edit-user-role" data-testid="select-edit-user-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ceo">CEO</SelectItem>
+                    <SelectItem value="sales_director">Sales Director</SelectItem>
+                    <SelectItem value="regional_manager">Regional Manager</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="salesman">Salesman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-regional-office">Regional Office</Label>
+                <Select 
+                  value={editUserData.regionalOffice} 
+                  onValueChange={(value) => setEditUserData({ ...editUserData, regionalOffice: value })}
+                >
+                  <SelectTrigger id="edit-user-regional-office" data-testid="select-edit-user-regional-office">
+                    <SelectValue placeholder="Select office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="Hong Kong">Hong Kong</SelectItem>
+                    <SelectItem value="Singapore">Singapore</SelectItem>
+                    <SelectItem value="Shanghai">Shanghai</SelectItem>
+                    <SelectItem value="Australia/NZ">Australia/NZ</SelectItem>
+                    <SelectItem value="Indonesia">Indonesia</SelectItem>
+                    <SelectItem value="Malaysia">Malaysia</SelectItem>
+                    <SelectItem value="Guangzhou">Guangzhou</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {editUserData.role === "salesman" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-manager">Manager</Label>
+                <Select 
+                  value={editUserData.managerId} 
+                  onValueChange={(value) => setEditUserData({ ...editUserData, managerId: value })}
+                >
+                  <SelectTrigger id="edit-user-manager" data-testid="select-edit-user-manager">
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Manager</SelectItem>
+                    {managers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id}>
+                        {manager.name} ({getRoleDisplayName(manager.role as UserRole)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditUserOpen(false)}
+                data-testid="button-cancel-edit-user"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={editUserMutation.isPending}
+                data-testid="button-save-edit-user"
+              >
+                {editUserMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>
           </form>
