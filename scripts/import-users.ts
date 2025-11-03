@@ -78,7 +78,7 @@ async function importUsersFromExcel() {
         const [user] = await db.insert(users).values({
           username,
           password: hashedPassword,
-          fullName: name,
+          name,
           role,
           country: region || 'AU',
           regionalOffice,
