@@ -1175,14 +1175,13 @@ export default function AdminPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit-user-regional-office">Regional Office</Label>
                 <Select 
-                  value={editUserData.regionalOffice} 
+                  value={editUserData.regionalOffice || undefined} 
                   onValueChange={(value) => setEditUserData({ ...editUserData, regionalOffice: value })}
                 >
                   <SelectTrigger id="edit-user-regional-office" data-testid="select-edit-user-regional-office">
-                    <SelectValue placeholder="Select office" />
+                    <SelectValue placeholder="No office assigned" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
                     <SelectItem value="Hong Kong">Hong Kong</SelectItem>
                     <SelectItem value="Singapore">Singapore</SelectItem>
                     <SelectItem value="Shanghai">Shanghai</SelectItem>
@@ -1198,14 +1197,13 @@ export default function AdminPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit-user-manager">Manager</Label>
                 <Select 
-                  value={editUserData.managerId} 
+                  value={editUserData.managerId || undefined} 
                   onValueChange={(value) => setEditUserData({ ...editUserData, managerId: value })}
                 >
                   <SelectTrigger id="edit-user-manager" data-testid="select-edit-user-manager">
-                    <SelectValue placeholder="Select manager" />
+                    <SelectValue placeholder="No manager assigned" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Manager</SelectItem>
                     {managers.map((manager) => (
                       <SelectItem key={manager.id} value={manager.id}>
                         {manager.name} ({getRoleDisplayName(manager.role as UserRole)})

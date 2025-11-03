@@ -235,13 +235,15 @@ export function AppSidebar() {
   const getNavigationForRole = (role: UserRole | undefined) => {
     if (!role) return salesmanNav;
     
+    // Normalize role to lowercase for case-insensitive matching
+    const roleStr = (role as string).toLowerCase();
+    
     // Handle both old "admin" role and new "sales_director" for backward compatibility
-    const roleStr = role as string;
     if (roleStr === "admin" || roleStr === "sales_director") {
       return adminNav;
     }
     
-    switch (role) {
+    switch (roleStr) {
       case "ceo":
         return ceoNav;
       case "regional_manager":

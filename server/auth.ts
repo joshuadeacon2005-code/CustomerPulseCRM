@@ -132,6 +132,11 @@ export function setupAuth(app: Express) {
       // Validate update data with partial schema (all fields optional)
       const validatedData = insertUserSchema.partial().parse(req.body);
 
+      // Explicitly handle managerId null values (Zod might strip them)
+      if ('managerId' in req.body && req.body.managerId === null) {
+        validatedData.managerId = null as any;
+      }
+
       // Check if username is being changed and if it conflicts with another user
       if (validatedData.username) {
         const existingUser = await storage.getUserByUsername(validatedData.username);
@@ -207,14 +212,16 @@ export function isAuthenticated(req: any, res: any, next: any) {
 }
 
 export function isAdmin(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "ceo" || req.user?.role === "sales_director" || req.user?.role === "admin" || req.user?.role === "regional_manager" || req.user?.role === "manager")) {
+  const userRole = req.user?.role?.toLowerCase();
+  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "admin" || userRole === "regional_manager" || userRole === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Admin access required");
 }
 
 export function isCEO(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "ceo" || req.user?.role === "sales_director" || req.user?.role === "admin")) {
+  const userRole = req.user?.role?.toLowerCase();
+  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "admin")) {
     return next();
   }
   res.status(403).send("Forbidden: CEO/Sales Director access required");
