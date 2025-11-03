@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -211,13 +211,25 @@ export default function Customers() {
             Manage your leads, prospects, and customers
           </p>
         </div>
-        <Button 
-          onClick={() => setIsAddDialogOpen(true)}
-          data-testid="button-add-customer"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            asChild
+            data-testid="button-download-template"
+          >
+            <a href="/customer_import_template.csv" download="customer_import_template.csv">
+              <Download className="h-4 w-4 mr-2" />
+              Download Template
+            </a>
+          </Button>
+          <Button 
+            onClick={() => setIsAddDialogOpen(true)}
+            data-testid="button-add-customer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       <Card>
