@@ -217,7 +217,7 @@ export default function Customers() {
             asChild
             data-testid="button-download-template"
           >
-            <a href="/customer_import_template.csv" download="customer_import_template.csv">
+            <a href="/api/download/customer-template" download="customer_import_template.xlsx">
               <Download className="h-4 w-4 mr-2" />
               Download Template
             </a>
