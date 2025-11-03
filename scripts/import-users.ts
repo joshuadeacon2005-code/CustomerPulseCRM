@@ -3,6 +3,7 @@ import { db } from '../server/db';
 import { users } from '../shared/schema';
 import { scrypt, randomBytes } from 'crypto';
 import { promisify } from 'util';
+import { eq } from 'drizzle-orm';
 
 const scryptAsync = promisify(scrypt);
 
@@ -105,7 +106,7 @@ async function importUsersFromExcel() {
     for (const [userId, managerName] of userManagerMapping.entries()) {
       const managerId = createdUsers.get(managerName);
       if (managerId) {
-        await db.update(users).set({ managerId }).where({ id: userId });
+        await db.update(users).set({ managerId }).where(eq(users.id, userId));
         console.log(`✓ Updated manager for user ID ${userId} -> ${managerName}`);
       } else {
         console.log(`⚠ Manager "${managerName}" not found for user ID ${userId}`);
