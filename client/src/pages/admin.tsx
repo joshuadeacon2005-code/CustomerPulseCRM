@@ -51,6 +51,8 @@ export default function AdminPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
+  const [salesPeopleOpen, setSalesPeopleOpen] = useState(true);
+  const [allUsersOpen, setAllUsersOpen] = useState(true);
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
@@ -587,15 +589,24 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-5 w-5" />
-            {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All Salespeople Performance" : "Team Performance"}
-          </CardTitle>
-          <CardDescription>Individual performance statistics</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Collapsible open={salesPeopleOpen} onOpenChange={setSalesPeopleOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <CardTitle className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <UsersIcon className="h-5 w-5" />
+                  {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All Salespeople Performance" : "Team Performance"}
+                </div>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-salespeople">
+                  {salesPeopleOpen ? "Hide" : "Show"}
+                </Button>
+              </CardTitle>
+              <CardDescription>Individual performance statistics</CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
           {stats?.salesmenStats.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "No salespeople registered yet" : "No team members yet"}
@@ -670,19 +681,32 @@ export default function AdminPage() {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <UsersIcon className="h-5 w-5" />
-                All Users
-              </CardTitle>
-              <CardDescription>Manage system users</CardDescription>
-            </div>
+      <Collapsible open={allUsersOpen} onOpenChange={setAllUsersOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <UsersIcon className="h-5 w-5" />
+                    All Users
+                  </CardTitle>
+                  <CardDescription>Manage system users</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-all-users">
+                  {allUsersOpen ? "Hide" : "Show"}
+                </Button>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardHeader className="pt-0">
+              <div className="flex items-center justify-end flex-wrap gap-4">
             {selectedUserIds.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -898,8 +922,10 @@ export default function AdminPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Card>
         <CardHeader>
