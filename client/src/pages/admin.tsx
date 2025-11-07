@@ -434,131 +434,6 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <Collapsible open={addUserOpen} onOpenChange={setAddUserOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover-elevate">
-              <CardTitle className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  Add New User
-                </div>
-                <Button variant="ghost" size="sm" data-testid="button-toggle-add-user">
-                  {addUserOpen ? "Hide" : "Show"}
-                </Button>
-              </CardTitle>
-              <CardDescription>Create new team member accounts</CardDescription>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <form onSubmit={handleCreateUser} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="new-name">Full Name</Label>
-                <Input
-                  id="new-name"
-                  data-testid="input-new-name"
-                  type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-username">Username</Label>
-                <Input
-                  id="new-username"
-                  data-testid="input-new-username"
-                  type="text"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-password">Password</Label>
-                <Input
-                  id="new-password"
-                  data-testid="input-new-password"
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-role">Role</Label>
-                <Select
-                  value={newUser.role}
-                  onValueChange={(value: UserRole) => setNewUser({ ...newUser, role: value, managerId: "" })}
-                >
-                  <SelectTrigger id="new-role" data-testid="select-new-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ceo" data-testid="option-new-ceo">CEO</SelectItem>
-                    <SelectItem value="sales_director" data-testid="option-new-sales-director">Sales Director</SelectItem>
-                    <SelectItem value="regional_manager" data-testid="option-new-regional-manager">Regional Manager</SelectItem>
-                    <SelectItem value="manager" data-testid="option-new-manager">Manager</SelectItem>
-                    <SelectItem value="salesman" data-testid="option-new-salesman">Salesman</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-regional-office">Regional Office</Label>
-                <Select
-                  value={newUser.regionalOffice}
-                  onValueChange={(value) => setNewUser({ ...newUser, regionalOffice: value })}
-                >
-                  <SelectTrigger id="new-regional-office" data-testid="select-new-regional-office">
-                    <SelectValue placeholder="Select regional office" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Hong Kong">Hong Kong</SelectItem>
-                    <SelectItem value="Singapore">Singapore</SelectItem>
-                    <SelectItem value="Shanghai">Shanghai</SelectItem>
-                    <SelectItem value="Australia/NZ">Australia/NZ</SelectItem>
-                    <SelectItem value="Indonesia">Indonesia</SelectItem>
-                    <SelectItem value="Malaysia">Malaysia</SelectItem>
-                    <SelectItem value="Guangzhou">Guangzhou</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {newUser.role === "salesman" && (
-                <div className="space-y-2">
-                  <Label htmlFor="new-manager">Manager</Label>
-                  <Select
-                    value={newUser.managerId}
-                    onValueChange={(value) => setNewUser({ ...newUser, managerId: value })}
-                  >
-                    <SelectTrigger id="new-manager" data-testid="select-new-manager">
-                      <SelectValue placeholder="Select a manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id} data-testid={`option-new-manager-${manager.id}`}>
-                          {manager.name} ({getRoleDisplayName(manager.role as UserRole)})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            <Button
-              type="submit"
-              disabled={createUserMutation.isPending}
-              data-testid="button-create-user"
-            >
-              {createUserMutation.isPending ? "Creating..." : "Create User"}
-            </Button>
-              </form>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -1020,6 +895,129 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <Collapsible open={addUserOpen} onOpenChange={setAddUserOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <CardTitle className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-5 w-5 text-sm" />
+                  Add New User
+                </div>
+                <Button variant="ghost" size="sm" data-testid="button-toggle-add-user">
+                  {addUserOpen ? "Hide" : "Show"}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <form onSubmit={handleCreateUser} className="space-y-3 max-w-md">
+                <div className="space-y-2">
+                  <Label htmlFor="new-name" className="text-sm">Full Name</Label>
+                  <Input
+                    id="new-name"
+                    data-testid="input-new-name"
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-username" className="text-sm">Username</Label>
+                  <Input
+                    id="new-username"
+                    data-testid="input-new-username"
+                    type="text"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password" className="text-sm">Password</Label>
+                  <Input
+                    id="new-password"
+                    data-testid="input-new-password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-role" className="text-sm">Role</Label>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={(value: UserRole) => setNewUser({ ...newUser, role: value, managerId: "" })}
+                  >
+                    <SelectTrigger id="new-role" data-testid="select-new-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ceo" data-testid="option-new-ceo">CEO</SelectItem>
+                      <SelectItem value="sales_director" data-testid="option-new-sales-director">Sales Director</SelectItem>
+                      <SelectItem value="regional_manager" data-testid="option-new-regional-manager">Regional Manager</SelectItem>
+                      <SelectItem value="manager" data-testid="option-new-manager">Manager</SelectItem>
+                      <SelectItem value="salesman" data-testid="option-new-salesman">Salesman</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-regional-office" className="text-sm">Regional Office</Label>
+                  <Select
+                    value={newUser.regionalOffice}
+                    onValueChange={(value) => setNewUser({ ...newUser, regionalOffice: value })}
+                  >
+                    <SelectTrigger id="new-regional-office" data-testid="select-new-regional-office">
+                      <SelectValue placeholder="Select regional office" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Hong Kong">Hong Kong</SelectItem>
+                      <SelectItem value="Singapore">Singapore</SelectItem>
+                      <SelectItem value="Shanghai">Shanghai</SelectItem>
+                      <SelectItem value="Australia/NZ">Australia/NZ</SelectItem>
+                      <SelectItem value="Indonesia">Indonesia</SelectItem>
+                      <SelectItem value="Malaysia">Malaysia</SelectItem>
+                      <SelectItem value="Guangzhou">Guangzhou</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {newUser.role === "salesman" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="new-manager" className="text-sm">Manager</Label>
+                    <Select
+                      value={newUser.managerId}
+                      onValueChange={(value) => setNewUser({ ...newUser, managerId: value })}
+                    >
+                      <SelectTrigger id="new-manager" data-testid="select-new-manager">
+                        <SelectValue placeholder="Select a manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {managers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id} data-testid={`option-new-manager-${manager.id}`}>
+                            {manager.name} ({getRoleDisplayName(manager.role as UserRole)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                  data-testid="button-create-user"
+                  size="sm"
+                >
+                  {createUserMutation.isPending ? "Creating..." : "Create User"}
+                </Button>
+              </form>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Card>
         <CardHeader>
