@@ -64,7 +64,7 @@ type UserDetails = {
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function UserDetailsPage() {
-  const [, params] = useRoute("/user-details/:userId");
+  const [, params] = useRoute("/admin/user-details/:userId");
   const userId = params?.userId;
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");

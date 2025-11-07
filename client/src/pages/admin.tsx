@@ -42,6 +42,7 @@ import type { AdminDashboardStats, User, UserRole, Sale, UserDetails } from "@sh
 import { format } from "date-fns";
 import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 
 export default function AdminPage() {
   const { user: currentUser } = useAuth();
@@ -844,13 +845,12 @@ export default function AdminPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => {
-                              setSelectedUserId(user.id);
-                              setUserDetailsOpen(true);
-                            }}
+                            asChild
                             data-testid={`button-view-user-${user.id}`}
                           >
-                            <Eye className="h-4 w-4" />
+                            <Link href={`/admin/user-details/${user.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
                           </Button>
                           <Button
                             variant="ghost"

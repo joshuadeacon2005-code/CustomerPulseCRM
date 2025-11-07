@@ -79,7 +79,7 @@ function AuthenticatedApp() {
                   <TargetsPage />
                 </ProtectedRoute>
               </Route>
-              <Route path="/user-details/:userId">
+              <Route path="/admin/user-details/:userId">
                 <AdminRoute>
                   <UserDetailsPage />
                 </AdminRoute>
