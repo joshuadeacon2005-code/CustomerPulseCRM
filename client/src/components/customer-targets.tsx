@@ -94,12 +94,31 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     mutationFn: async (id: string) => {
       return await apiRequest('DELETE', `/api/customers/${customerId}/targets/${id}`);
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/customers', customerId, 'targets'] });
+      
+      // Snapshot the previous value
+      const previousTargets = queryClient.getQueryData<CustomerMonthlyTarget[]>(['/api/customers', customerId, 'targets']);
+      
+      // Optimistically update to remove the target
+      queryClient.setQueryData<CustomerMonthlyTarget[]>(
+        ['/api/customers', customerId, 'targets'],
+        (old) => old?.filter((t) => t.id !== id) ?? []
+      );
+      
+      return { previousTargets };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId, 'targets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
       toast({ title: "Target deleted successfully" });
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      // Rollback on error
+      if (context?.previousTargets) {
+        queryClient.setQueryData(['/api/customers', customerId, 'targets'], context.previousTargets);
+      }
       toast({ title: "Failed to delete target", variant: "destructive" });
     },
   });
