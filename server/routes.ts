@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, updateMonthlySalesTrackingSchema, type UserRole } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, type UserRole } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -348,6 +348,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(actionItem);
     } catch (error) {
       res.status(500).json({ error: "Failed to complete action item" });
+    }
+  });
+
+  // Customer monthly targets routes
+  app.get("/api/customers/:customerId/targets", isAuthenticated, async (req, res) => {
+    try {
+      const targets = await storage.getCustomerMonthlyTargets(req.params.customerId);
+      res.json(targets);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch customer targets" });
+    }
+  });
+
+  app.post("/api/customers/:customerId/targets", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertCustomerMonthlyTargetSchema.parse({
+        ...req.body,
+        customerId: req.params.customerId,
+        createdBy: req.user!.id,
+      });
+      const target = await storage.createCustomerMonthlyTarget(validatedData);
+      res.status(201).json(target);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid target data", details: error });
+      }
+      res.status(500).json({ error: "Failed to create customer target" });
+    }
+  });
+
+  app.patch("/api/customers/:customerId/targets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existingTarget = await storage.getCustomerMonthlyTargetById(req.params.id);
+      if (!existingTarget) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      if (existingTarget.customerId !== req.params.customerId) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      const validatedData = insertCustomerMonthlyTargetSchema.partial().parse(req.body);
+      const target = await storage.updateCustomerMonthlyTarget(req.params.id, req.params.customerId, validatedData);
+      if (!target) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      res.json(target);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid target data", details: error });
+      }
+      res.status(500).json({ error: "Failed to update customer target" });
+    }
+  });
+
+  app.delete("/api/customers/:customerId/targets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existingTarget = await storage.getCustomerMonthlyTargetById(req.params.id);
+      if (!existingTarget) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      if (existingTarget.customerId !== req.params.customerId) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      const success = await storage.deleteCustomerMonthlyTarget(req.params.id, req.params.customerId);
+      if (!success) {
+        return res.status(404).json({ error: "Target not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete customer target" });
     }
   });
 

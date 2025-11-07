@@ -36,6 +36,8 @@ import {
   type InsertBasecampConnection,
   type OauthState,
   type InsertOauthState,
+  type CustomerMonthlyTarget,
+  type InsertCustomerMonthlyTarget,
   users,
   sales,
   customers,
@@ -48,6 +50,7 @@ import {
   customerContacts,
   basecampConnections,
   oauthStates,
+  customerMonthlyTargets,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -106,6 +109,12 @@ export interface IStorage {
   getActionItemsByCustomer(customerId: string): Promise<ActionItem[]>;
   createActionItem(item: InsertActionItem): Promise<ActionItem>;
   completeActionItem(id: string): Promise<ActionItem | undefined>;
+
+  getCustomerMonthlyTargets(customerId: string): Promise<CustomerMonthlyTarget[]>;
+  getCustomerMonthlyTargetById(id: string): Promise<CustomerMonthlyTarget | undefined>;
+  createCustomerMonthlyTarget(target: InsertCustomerMonthlyTarget): Promise<CustomerMonthlyTarget>;
+  updateCustomerMonthlyTarget(id: string, customerId: string, target: Partial<InsertCustomerMonthlyTarget>): Promise<CustomerMonthlyTarget | undefined>;
+  deleteCustomerMonthlyTarget(id: string, customerId: string): Promise<boolean>;
 
   getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]>;
   createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
@@ -675,6 +684,52 @@ export class DatabaseStorage implements IStorage {
       .where(eq(actionItems.id, id))
       .returning();
     return item;
+  }
+
+  async getCustomerMonthlyTargets(customerId: string): Promise<CustomerMonthlyTarget[]> {
+    return await db
+      .select()
+      .from(customerMonthlyTargets)
+      .where(eq(customerMonthlyTargets.customerId, customerId))
+      .orderBy(desc(customerMonthlyTargets.year), desc(customerMonthlyTargets.month));
+  }
+
+  async getCustomerMonthlyTargetById(id: string): Promise<CustomerMonthlyTarget | undefined> {
+    const [target] = await db
+      .select()
+      .from(customerMonthlyTargets)
+      .where(eq(customerMonthlyTargets.id, id));
+    return target;
+  }
+
+  async createCustomerMonthlyTarget(target: InsertCustomerMonthlyTarget): Promise<CustomerMonthlyTarget> {
+    const [newTarget] = await db
+      .insert(customerMonthlyTargets)
+      .values(target)
+      .returning();
+    return newTarget;
+  }
+
+  async updateCustomerMonthlyTarget(id: string, customerId: string, target: Partial<InsertCustomerMonthlyTarget>): Promise<CustomerMonthlyTarget | undefined> {
+    const [updated] = await db
+      .update(customerMonthlyTargets)
+      .set(target)
+      .where(and(
+        eq(customerMonthlyTargets.id, id),
+        eq(customerMonthlyTargets.customerId, customerId)
+      ))
+      .returning();
+    return updated;
+  }
+
+  async deleteCustomerMonthlyTarget(id: string, customerId: string): Promise<boolean> {
+    const result = await db
+      .delete(customerMonthlyTargets)
+      .where(and(
+        eq(customerMonthlyTargets.id, id),
+        eq(customerMonthlyTargets.customerId, customerId)
+      ));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]> {

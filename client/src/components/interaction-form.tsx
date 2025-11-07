@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertInteractionSchema, type InsertInteraction } from "@shared/schema";
+import { insertInteractionSchema, type InsertInteraction, INTERACTION_TYPES } from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -33,7 +33,7 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: I
     defaultValues: {
       customerId,
       category: "sales",
-      type: "",
+      type: "Call",
       description: "",
     },
   });
@@ -70,13 +70,20 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: I
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="e.g., Phone Call, Email, Demo Request" 
-                  {...field} 
-                  data-testid="input-interaction-type"
-                />
-              </FormControl>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-interaction-type">
+                    <SelectValue placeholder="Select interaction type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {INTERACTION_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

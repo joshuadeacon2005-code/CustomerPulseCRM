@@ -109,6 +109,16 @@ export const actionItems = pgTable("action_items", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const customerMonthlyTargets = pgTable("customer_monthly_targets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 
 export const monthlySalesTracking = pgTable("monthly_sales_tracking", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -173,6 +183,8 @@ export const RETAILER_TYPES = [
 
 export const MEETING_TYPES = ["In Person", "Phone", "Online Meeting"] as const;
 
+export const INTERACTION_TYPES = ["Call", "Email", "Meeting", "Follow-up"] as const;
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -235,7 +247,7 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
   date: true,
 }).extend({
   category: z.enum(["marketing", "sales", "support"]),
-  type: z.string().min(1),
+  type: z.enum(INTERACTION_TYPES),
   meetingType: z.enum(MEETING_TYPES).optional(),
 });
 
@@ -267,6 +279,17 @@ export const updateMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit
   createdAt: true,
   salesmanId: true,
 }).partial();
+
+export const insertCustomerMonthlyTargetSchema = createInsertSchema(customerMonthlyTargets).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  month: z.number().min(1).max(12),
+  year: z.number().min(2020).max(2100),
+  targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  customerId: z.string().min(1),
+  createdBy: z.string().min(1),
+});
 
 export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   id: true,
@@ -329,6 +352,8 @@ export type InsertMonthlyTarget = z.infer<typeof insertMonthlyTargetSchema>;
 export type UpdateMonthlyTarget = z.infer<typeof updateMonthlyTargetSchema>;
 export type ActionItem = typeof actionItems.$inferSelect;
 export type InsertActionItem = z.infer<typeof insertActionItemSchema>;
+export type CustomerMonthlyTarget = typeof customerMonthlyTargets.$inferSelect;
+export type InsertCustomerMonthlyTarget = z.infer<typeof insertCustomerMonthlyTargetSchema>;
 export type MonthlySalesTracking = typeof monthlySalesTracking.$inferSelect;
 export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTrackingSchema>;
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;

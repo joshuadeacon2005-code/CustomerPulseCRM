@@ -85,6 +85,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { CustomerForm } from "./customer-form";
 import { InteractionForm } from "./interaction-form";
+import { CustomerTargets } from "./customer-targets";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -380,10 +381,13 @@ export function CustomerDetailModal({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="brands" data-testid="tab-brands">
               Brands ({customer.brands?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="targets" data-testid="tab-targets">
+              Targets
             </TabsTrigger>
             <TabsTrigger value="actions" data-testid="tab-actions">
               Action Items ({customer.actionItems?.filter(a => !a.completedAt).length || 0})
@@ -752,6 +756,11 @@ export function CustomerDetailModal({
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Monthly Targets Tab */}
+          <TabsContent value="targets" className="space-y-4">
+            <CustomerTargets customerId={customer.id} />
           </TabsContent>
 
           {/* Action Items Tab */}
