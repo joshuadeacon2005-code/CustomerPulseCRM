@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Calendar, dateFnsLocalizer, View } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, parseISO, startOfDay, isToday, isPast } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "@/styles/calendar.css";
@@ -49,7 +49,8 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
     // Add action items as events
     actionItems.forEach(item => {
       if (item.dueDate) {
-        const dueDate = new Date(item.dueDate);
+        // Parse date string as local date to avoid UTC shift issues
+        const dueDate = startOfDay(parseISO(item.dueDate.toString()));
         calendarEvents.push({
           id: `action-${item.id}`,
           title: item.description,
@@ -68,7 +69,8 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
     // Add interactions as events
     interactions.forEach(interaction => {
       if (interaction.date) {
-        const interactionDate = new Date(interaction.date);
+        // Parse date as local date to avoid UTC shift issues
+        const interactionDate = startOfDay(parseISO(interaction.date.toString()));
         const customerName = customerMap.get(interaction.customerId);
         calendarEvents.push({
           id: `interaction-${interaction.id}`,
@@ -95,14 +97,12 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
       if (event.resource.status === 'completed') {
         backgroundColor = '#10b981'; // green for completed
       } else {
-        const now = new Date();
-        const eventDate = new Date(event.start);
-        eventDate.setHours(0, 0, 0, 0);
-        now.setHours(0, 0, 0, 0);
+        // Use date-fns helpers for accurate date comparison
+        const eventDate = event.start;
         
-        if (eventDate < now) {
+        if (isPast(eventDate) && !isToday(eventDate)) {
           backgroundColor = '#ef4444'; // red for overdue
-        } else if (eventDate.getTime() === now.getTime()) {
+        } else if (isToday(eventDate)) {
           backgroundColor = '#f59e0b'; // amber for today
         } else {
           backgroundColor = '#3b82f6'; // blue for upcoming
