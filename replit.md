@@ -24,7 +24,14 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management.
 - **Role-Based Access Control**: Multi-level roles (CEO, Sales Director, Regional Manager, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to 'salesman'. Authorization middleware provides backward compatibility for legacy "admin" role. CEO and admin roles have identical permissions across all features for viewing team member data.
 - **Regional Office Management**: Users can be assigned to regional offices (Hong Kong, Singapore, Shanghai, Australia/NZ, Indonesia, Malaysia, Guangzhou).
-- **Homepage Dashboard**: Role-based dashboard (`/dashboard`) with quick actions, five performance metrics (Target, Sales to Date, Progress, Monthly Interactions, New Customers), interactive calendar view, filterable action items list, team member selector for managers/CEOs, and regional office display. Calendar positioned between Quick Actions and Performance sections for optimal UX flow.
+- **Homepage Dashboard**: Role-based dashboard (`/dashboard`) with comprehensive productivity features:
+  - **Today's Priorities**: Alert-style banner displaying overdue tasks, today's tasks, and customers needing follow-up (>14 days no contact) with quick action links
+  - **Floating Quick Action Button**: Fixed bottom-right "+" menu providing instant access to Log Interaction, Log Sale, Add Customer, Add Lead, and Create Task actions from any page
+  - **Global Search**: Command palette (Cmd+K) for searching across customers, interactions, and tasks with instant navigation
+  - **Enhanced KPI Cards**: Five performance metrics (Target, Sales to Date, Progress, Monthly Interactions, New Customers) with month-over-month trend indicators (↑/↓ with percentages), color-coded progress bars (green/yellow/red), and full ARIA accessibility support
+  - **At-Risk Customers Widget**: Displays up to 10 customers requiring attention (below target, no recent contact, or overdue follow-ups) with color-coded reason badges
+  - **Team Performance Summary**: CEO/Manager-only widget showing team members' sales progress with visual indicators and drill-down links to user details
+  - Interactive calendar view, filterable action items list, team member selector for managers/CEOs, and regional office display
 - **Customer Management**: Comprehensive profiles with country tracking, main and additional contacts, notes, BC marketplace integration, store address, structured retailer type selection (14 categories), quarterly soft targets, last contact date, lead management (date of first contact, lead source), and interaction tracking. Advanced filtering by brand and retailer type. Includes downloadable Excel template for bulk customer imports with pre-formatted columns and example data.
 - **Brand Management**: Many-to-many relationship for multi-brand assignment per customer with inline brand creation.
 - **Target Management**: Supports Personal and General monthly sales targets, with role-based setting capabilities, integrated into the Sales Dashboard.

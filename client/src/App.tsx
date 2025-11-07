@@ -7,6 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { QuickActionMenu } from "@/components/quick-action-menu";
+import { GlobalSearch } from "@/components/global-search";
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/auth";
@@ -35,8 +37,11 @@ function AuthenticatedApp() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-16 px-4 border-b shrink-0">
+          <header className="flex items-center justify-between gap-4 h-16 px-4 border-b shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex-1 flex justify-center">
+              <GlobalSearch />
+            </div>
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-y-auto">
@@ -98,6 +103,7 @@ function AuthenticatedApp() {
             </Switch>
           </main>
         </div>
+        <QuickActionMenu />
       </div>
     </SidebarProvider>
   );

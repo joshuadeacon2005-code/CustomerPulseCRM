@@ -17,6 +17,7 @@ import {
   Circle,
   AlertCircle,
   TrendingUp,
+  TrendingDown,
   Building2,
   Filter
 } from "lucide-react";
@@ -67,10 +68,21 @@ export default function Dashboard() {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
+  // Calculate previous month
+  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
   // Find target for current user (or selected team member)
   const currentMonthTarget = monthlyTargets.find(
     t => t.month === currentMonth && 
          t.year === currentYear &&
+         (t.salesmanId === effectiveUserId || (t.targetType === "general" && !t.salesmanId))
+  );
+
+  // Find previous month's target
+  const previousMonthTarget = monthlyTargets.find(
+    t => t.month === prevMonth && 
+         t.year === prevYear &&
          (t.salesmanId === effectiveUserId || (t.targetType === "general" && !t.salesmanId))
   );
 
@@ -88,6 +100,25 @@ export default function Dashboard() {
   const currentMonthSales = currentMonthSalesData.reduce((total, sale) => {
     return total + (sale.actual ? Number(sale.actual) : 0);
   }, 0);
+
+  // Calculate previous month's sales
+  const previousMonthSalesData = monthlySales.filter(
+    s => s.month === prevMonth && 
+         s.year === prevYear &&
+         userCustomerIds.includes(s.customerId)
+  );
+
+  const previousMonthSales = previousMonthSalesData.reduce((total, sale) => {
+    return total + (sale.actual ? Number(sale.actual) : 0);
+  }, 0);
+
+  // Calculate month-over-month changes
+  const salesChange = previousMonthSales > 0 
+    ? ((currentMonthSales - previousMonthSales) / previousMonthSales) * 100 
+    : 0;
+  const targetChange = previousMonthTarget?.targetAmount && currentMonthTarget?.targetAmount
+    ? ((Number(currentMonthTarget.targetAmount) - Number(previousMonthTarget.targetAmount)) / Number(previousMonthTarget.targetAmount)) * 100
+    : 0;
 
   // Filter leads for the effective user
   const userLeads = userCustomers.filter(c => c.stage === "lead");
@@ -109,12 +140,33 @@ export default function Dashboard() {
     return interactionDate.getMonth() === currentMonth - 1 && interactionDate.getFullYear() === currentYear;
   });
 
+  // Calculate previous month interactions
+  const previousMonthInteractions = userInteractions.filter(interaction => {
+    const interactionDate = new Date(interaction.date);
+    return interactionDate.getMonth() === prevMonth - 1 && interactionDate.getFullYear() === prevYear;
+  });
+
+  const interactionsChange = previousMonthInteractions.length > 0
+    ? ((currentMonthInteractions.length - previousMonthInteractions.length) / previousMonthInteractions.length) * 100
+    : 0;
+
   // Calculate new customers this month for effective user
   const newCustomersThisMonth = userCustomers.filter(customer => {
     if (!customer.dateOfFirstContact) return false;
     const firstContactDate = new Date(customer.dateOfFirstContact);
     return firstContactDate.getMonth() === currentMonth - 1 && firstContactDate.getFullYear() === currentYear;
   });
+
+  // Calculate new customers previous month
+  const newCustomersPreviousMonth = userCustomers.filter(customer => {
+    if (!customer.dateOfFirstContact) return false;
+    const firstContactDate = new Date(customer.dateOfFirstContact);
+    return firstContactDate.getMonth() === prevMonth - 1 && firstContactDate.getFullYear() === prevYear;
+  });
+
+  const newCustomersChange = newCustomersPreviousMonth.length > 0
+    ? ((newCustomersThisMonth.length - newCustomersPreviousMonth.length) / newCustomersPreviousMonth.length) * 100
+    : 0;
 
   // Role-based view rendering
   const isIndividual = user?.role === "salesman";
@@ -125,6 +177,13 @@ export default function Dashboard() {
   const viewedUserName = selectedUserId 
     ? teamMembers.find(m => m.id === selectedUserId)?.name 
     : user?.name;
+
+  // Calculate customers needing follow-up (not contacted in 14+ days)
+  const customersNeedingFollowUp = userCustomers.filter(customer => {
+    if (!customer.lastContactDate) return true; // Never contacted
+    const daysSinceContact = Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
+    return daysSinceContact >= 14;
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -177,6 +236,116 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Today Summary Strip - Only show if there are items needing attention */}
+      {(overdueTasks.length > 0 || todayTasks.length > 0 || customersNeedingFollowUp.length > 0) && (
+        <Card className="bg-gradient-to-r from-orange-500/10 via-orange-500/5 to-transparent border-l-4 border-l-orange-500">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              <CardTitle className="text-lg">Today's Priorities</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* Overdue Tasks */}
+              {overdueTasks.length > 0 && (
+                <div className="space-y-2" data-testid="card-overdue-tasks">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Overdue Tasks</span>
+                    <Badge variant="destructive" className="ml-2">
+                      {overdueTasks.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {overdueTasks.slice(0, 3).map(task => {
+                      const customer = customers.find(c => c.id === task.customerId);
+                      return (
+                        <div key={task.id} className="text-sm">
+                          <Link href="/tasks" className="text-red-600 dark:text-red-400 hover:underline">
+                            {customer?.name} - {task.description}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                    {overdueTasks.length > 3 && (
+                      <Link href="/tasks">
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                          +{overdueTasks.length - 3} more
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Today's Tasks */}
+              {todayTasks.length > 0 && (
+                <div className="space-y-2" data-testid="card-today-tasks">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Due Today</span>
+                    <Badge variant="secondary" className="ml-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                      {todayTasks.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {todayTasks.slice(0, 3).map(task => {
+                      const customer = customers.find(c => c.id === task.customerId);
+                      return (
+                        <div key={task.id} className="text-sm">
+                          <Link href="/tasks" className="text-blue-600 dark:text-blue-400 hover:underline">
+                            {customer?.name} - {task.description}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                    {todayTasks.length > 3 && (
+                      <Link href="/tasks">
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                          +{todayTasks.length - 3} more
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Customers Needing Follow-Up */}
+              {customersNeedingFollowUp.length > 0 && (
+                <div className="space-y-2" data-testid="card-followup-needed">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Need Follow-Up</span>
+                    <Badge variant="secondary" className="ml-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                      {customersNeedingFollowUp.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {customersNeedingFollowUp.slice(0, 3).map(customer => {
+                      const daysSinceContact = customer.lastContactDate 
+                        ? Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
+                        : null;
+                      return (
+                        <div key={customer.id} className="text-sm">
+                          <Link href="/customers" className="text-amber-600 dark:text-amber-400 hover:underline">
+                            {customer.name} {daysSinceContact && `(${daysSinceContact}d ago)`}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                    {customersNeedingFollowUp.length > 3 && (
+                      <Link href="/customers">
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                          +{customersNeedingFollowUp.length - 3} more
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -267,13 +436,22 @@ export default function Dashboard() {
           {isViewingOwnDashboard ? "Current Month Performance" : `${viewedUserName}'s Current Month Performance`}
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {/* Target Card */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Target</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold" data-testid="text-target-amount">
-                ${currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
+              <div className="flex items-baseline justify-between">
+                <div className="text-3xl font-bold" data-testid="text-target-amount">
+                  ${currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
+                </div>
+                {targetChange !== 0 && (
+                  <div className={`flex items-center gap-1 text-xs ${targetChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {targetChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    <span>{Math.abs(targetChange).toFixed(1)}%</span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {format(new Date(), 'MMMM yyyy')}
@@ -281,20 +459,28 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          {/* Sales Card */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Sales to Date</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
-                ${currentMonthSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div className="flex items-baseline justify-between">
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
+                  ${currentMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
+                <div className={`flex items-center gap-1 text-xs ${salesChange > 0 ? 'text-green-600 dark:text-green-400' : salesChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} aria-label={`Trend: ${salesChange > 0 ? 'up' : salesChange < 0 ? 'down' : 'no change'} ${Math.abs(salesChange).toFixed(1)}%`}>
+                  {salesChange > 0 ? <TrendingUp className="h-3 w-3" /> : salesChange < 0 ? <TrendingDown className="h-3 w-3" /> : <span className="h-3 w-3" />}
+                  <span>{previousMonthSales > 0 ? `${Math.abs(salesChange).toFixed(1)}%` : '--'}</span>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                As of {format(new Date(), 'MMM d')}
+                vs ${previousMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} last month
               </p>
             </CardContent>
           </Card>
 
+          {/* Progress Card with Color-Coded Bar */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
@@ -305,42 +491,81 @@ export default function Dashboard() {
                   ? Math.round((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100)
                   : 0}%
               </div>
-              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={currentMonthTarget?.targetAmount ? Math.min((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100, 100) : 0} aria-valuemin={0} aria-valuemax={100}>
                 <div 
-                  className="h-full bg-primary rounded-full transition-all"
+                  className={`h-full rounded-full transition-all ${
+                    currentMonthTarget?.targetAmount
+                      ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 1.0
+                        ? 'bg-green-600'
+                        : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.75
+                        ? 'bg-blue-600'
+                        : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.5
+                        ? 'bg-amber-600'
+                        : 'bg-red-600'
+                      : 'bg-muted'
+                  }`}
                   style={{ 
                     width: `${currentMonthTarget?.targetAmount ? Math.min((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100, 100) : 0}%` 
                   }}
                   data-testid="progress-bar"
                 />
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {currentMonthTarget?.targetAmount
+                  ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 1.0
+                    ? 'Target achieved!'
+                    : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.75
+                    ? 'On track'
+                    : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.5
+                    ? 'Behind pace'
+                    : 'Needs attention'
+                  : 'No target set'}
+              </p>
             </CardContent>
           </Card>
 
+          {/* Interactions Card */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Interactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400" data-testid="text-interaction-count">
-                {currentMonthInteractions.length}
+              <div className="flex items-baseline justify-between">
+                <div className="text-3xl font-bold text-purple-600 dark:text-purple-400" data-testid="text-interaction-count">
+                  {currentMonthInteractions.length}
+                </div>
+                {previousMonthInteractions.length > 0 && (
+                  <div className={`flex items-center gap-1 text-xs ${interactionsChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {interactionsChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    <span>{Math.abs(interactionsChange).toFixed(1)}%</span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                This month
+                {previousMonthInteractions.length} last month
               </p>
             </CardContent>
           </Card>
 
+          {/* New Customers Card */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">New Customers</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-new-customers-count">
-                {newCustomersThisMonth.length}
+              <div className="flex items-baseline justify-between">
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-new-customers-count">
+                  {newCustomersThisMonth.length}
+                </div>
+                {newCustomersPreviousMonth.length > 0 && (
+                  <div className={`flex items-center gap-1 text-xs ${newCustomersChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {newCustomersChange > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    <span>{Math.abs(newCustomersChange).toFixed(1)}%</span>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Added this month
+                {newCustomersPreviousMonth.length} last month
               </p>
             </CardContent>
           </Card>
@@ -356,6 +581,182 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* At-Risk Customers Widget */}
+      {(() => {
+        // Calculate at-risk customers
+        const atRiskCustomers = userCustomers.filter(customer => {
+          // Check if not contacted recently (14+ days)
+          const needsFollowUp = !customer.lastContactDate || 
+            Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)) >= 14;
+          
+          // Check if below monthly target
+          const customerSales = monthlySales.filter(s => 
+            s.customerId === customer.id &&
+            s.month === currentMonth &&
+            s.year === currentYear
+          );
+          const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+          const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
+          const belowTarget = budget > 0 && actual < budget * 0.5; // Below 50% of target
+          
+          // Check if has overdue follow-ups
+          const customerActionItems = userActionItems.filter(item => item.customerId === customer.id);
+          const hasOverdueItems = customerActionItems.some(item => 
+            !item.completedAt && item.dueDate && isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate))
+          );
+          
+          return needsFollowUp || belowTarget || hasOverdueItems;
+        }).map(customer => {
+          const needsFollowUp = !customer.lastContactDate || 
+            Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)) >= 14;
+          const customerSales = monthlySales.filter(s => 
+            s.customerId === customer.id &&
+            s.month === currentMonth &&
+            s.year === currentYear
+          );
+          const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+          const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
+          const belowTarget = budget > 0 && actual < budget * 0.5;
+          const customerActionItems = userActionItems.filter(item => item.customerId === customer.id);
+          const hasOverdueItems = customerActionItems.some(item => 
+            !item.completedAt && item.dueDate && isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate))
+          );
+          
+          const reasons = [];
+          if (needsFollowUp) reasons.push('No recent contact');
+          if (belowTarget) reasons.push('Below target');
+          if (hasOverdueItems) reasons.push('Overdue tasks');
+          
+          return { customer, reasons };
+        });
+
+        if (atRiskCustomers.length === 0) return null;
+
+        return (
+          <Card className="border-amber-500/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-lg">At-Risk Customers</CardTitle>
+              </div>
+              <CardDescription>
+                Customers that need immediate attention
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {atRiskCustomers.slice(0, 10).map(({ customer, reasons }) => (
+                  <div key={customer.id} className="flex items-center justify-between p-3 rounded-lg border hover-elevate" data-testid={`at-risk-customer-${customer.id}`}>
+                    <div className="flex-1">
+                      <Link href="/customers" className="font-medium hover:underline">
+                        {customer.name}
+                      </Link>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {reasons.map((reason, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
+                            {reason}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <Link href="/customers">
+                      <Button variant="outline" size="sm">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+                {atRiskCustomers.length > 10 && (
+                  <p className="text-sm text-muted-foreground text-center pt-2">
+                    +{atRiskCustomers.length - 10} more customers need attention
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Team Performance Summary - For CEOs and Managers viewing own dashboard */}
+      {(isCEO || isManager) && isViewingOwnDashboard && teamMembers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Team Performance</CardTitle>
+            <CardDescription>
+              Your team's current month performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {teamMembers
+                .filter(member => member.id !== user?.id)
+                .map(member => {
+                  const memberCustomers = customers.filter(c => c.assignedTo === member.id);
+                  const memberCustomerIds = memberCustomers.map(c => c.id);
+                  
+                  const memberSales = monthlySales.filter(s => 
+                    s.month === currentMonth && 
+                    s.year === currentYear &&
+                    memberCustomerIds.includes(s.customerId)
+                  ).reduce((total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0);
+                  
+                  const memberTarget = monthlyTargets.find(
+                    t => t.month === currentMonth && 
+                         t.year === currentYear &&
+                         (t.salesmanId === member.id || (t.targetType === "general" && !t.salesmanId))
+                  );
+                  
+                  const progress = memberTarget?.targetAmount 
+                    ? Math.round((memberSales / Number(memberTarget.targetAmount)) * 100)
+                    : 0;
+                  
+                  return (
+                    <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border hover-elevate" data-testid={`team-member-${member.id}`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/admin/user-details/${member.id}`} className="font-medium hover:underline">
+                            {member.name}
+                          </Link>
+                          <Badge variant="outline" className="text-xs capitalize">{member.role}</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          <span>${memberSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ${memberTarget?.targetAmount ? Number(memberTarget.targetAmount).toLocaleString() : '0'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-32">
+                          <div className="h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min(progress, 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${member.name} progress`}>
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                progress >= 100 ? 'bg-green-600' : 
+                                progress >= 75 ? 'bg-blue-600' : 
+                                progress >= 50 ? 'bg-amber-600' : 
+                                'bg-red-600'
+                              }`}
+                              style={{ width: `${Math.min(progress, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <Badge variant={progress >= 100 ? "default" : progress >= 75 ? "secondary" : "outline"}>
+                          {progress}%
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })
+                .slice(0, 8)}
+              {teamMembers.length > 9 && (
+                <Link href="/analytics">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View Full Team Performance →
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Customer-Specific Progress Bars */}
       <Card>
