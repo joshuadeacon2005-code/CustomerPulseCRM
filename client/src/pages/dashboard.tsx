@@ -357,6 +357,86 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Customer-Specific Progress Bars */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Customer Performance</CardTitle>
+          <CardDescription>
+            {isViewingOwnDashboard ? "Monthly progress with each customer" : `${viewedUserName}'s customer progress`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {userCustomers.map((customer) => {
+              // Get current month sales tracking for this customer
+              const customerSales = monthlySales.filter(s => 
+                s.customerId === customer.id &&
+                s.month === currentMonth &&
+                s.year === currentYear
+              );
+              
+              const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+              const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
+              const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
+              const variance = actual - budget;
+
+              // Skip customers with no budget set
+              if (budget === 0) return null;
+
+              return (
+                <div key={customer.id} className="space-y-2" data-testid={`customer-progress-${customer.id}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{customer.name}</p>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        <span>Target: ${budget.toLocaleString()}</span>
+                        <span>•</span>
+                        <span>Actual: ${actual.toLocaleString()}</span>
+                        <span>•</span>
+                        <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                          {variance >= 0 ? '+' : ''}{variance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge variant={progress >= 100 ? "default" : progress >= 75 ? "secondary" : "outline"}>
+                      {progress}%
+                    </Badge>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all ${
+                        progress >= 100 ? 'bg-green-600' : 
+                        progress >= 75 ? 'bg-blue-600' : 
+                        progress >= 50 ? 'bg-amber-600' : 
+                        'bg-red-600'
+                      }`}
+                      style={{ width: `${Math.min(progress, 100)}%` }}
+                      data-testid={`progress-bar-${customer.id}`}
+                    />
+                  </div>
+                </div>
+              );
+            }).filter(Boolean)}
+
+            {userCustomers.every(customer => {
+              const customerSales = monthlySales.filter(s => 
+                s.customerId === customer.id &&
+                s.month === currentMonth &&
+                s.year === currentYear
+              );
+              const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+              return budget === 0;
+            }) && (
+              <div className="text-center py-8">
+                <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-sm text-muted-foreground">No customer budgets set for this month</p>
+                <p className="text-xs text-muted-foreground mt-1">Add monthly sales budgets to track customer progress</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Leads Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
