@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,15 +17,21 @@ import {
   Circle,
   AlertCircle,
   TrendingUp,
-  Building2
+  Building2,
+  Filter
 } from "lucide-react";
 import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction } from "@shared/schema";
-import { format, isToday, isPast } from "date-fns";
+import { format, isToday, isPast, parseISO } from "date-fns";
 import { CalendarView } from "@/components/calendar-view";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [filterCustomer, setFilterCustomer] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   
   // Determine which user's data to show (for managers/CEOs viewing team member dashboards)
   const effectiveUserId = selectedUserId || user?.id;
@@ -96,10 +102,24 @@ export default function Dashboard() {
   const todayTasks = userActionItems.filter(item => !item.completedAt && item.dueDate && isToday(new Date(item.dueDate)));
   const upcomingTasks = userActionItems.filter(item => !item.completedAt && item.dueDate && !isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate)));
 
+  // Calculate monthly interaction count for effective user
+  const userInteractions = interactions.filter(i => userCustomerIds.includes(i.customerId));
+  const currentMonthInteractions = userInteractions.filter(interaction => {
+    const interactionDate = new Date(interaction.date);
+    return interactionDate.getMonth() === currentMonth - 1 && interactionDate.getFullYear() === currentYear;
+  });
+
+  // Calculate new customers this month for effective user
+  const newCustomersThisMonth = userCustomers.filter(customer => {
+    if (!customer.dateOfFirstContact) return false;
+    const firstContactDate = new Date(customer.dateOfFirstContact);
+    return firstContactDate.getMonth() === currentMonth - 1 && firstContactDate.getFullYear() === currentYear;
+  });
+
   // Role-based view rendering
   const isIndividual = user?.role === "salesman";
   const isManager = user?.role === "manager" || user?.role === "sales_director" || user?.role === "regional_manager";
-  const isCEO = user?.role === "ceo" || user?.role === "sales_director";
+  const isCEO = user?.role === "ceo" || user?.role === "sales_director" || user?.role === "admin";
 
   // Get the name of the user being viewed
   const viewedUserName = selectedUserId 
@@ -234,12 +254,19 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Calendar View - Shows action items and interactions */}
+      <CalendarView 
+        actionItems={userActionItems} 
+        interactions={interactions.filter(i => userCustomerIds.includes(i.customerId))}
+        customers={customers}
+      />
+
       {/* Statistics - Current Month */}
       <div>
         <h2 className="text-xl font-semibold mb-4">
           {isViewingOwnDashboard ? "Current Month Performance" : `${viewedUserName}'s Current Month Performance`}
         </h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Target</CardTitle>
@@ -287,6 +314,34 @@ export default function Dashboard() {
                   data-testid="progress-bar"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Interactions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400" data-testid="text-interaction-count">
+                {currentMonthInteractions.length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                This month
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">New Customers</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-new-customers-count">
+                {newCustomersThisMonth.length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Added this month
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -359,12 +414,165 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Calendar View - Replaces To Do List */}
-      <CalendarView 
-        actionItems={userActionItems} 
-        interactions={interactions.filter(i => userCustomerIds.includes(i.customerId))}
-        customers={customers}
-      />
+      {/* Overall Action Items List */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle className="text-lg">Action Items</CardTitle>
+            <CardDescription>
+              {isViewingOwnDashboard ? "Manage all your action items" : `${viewedUserName}'s action items`}
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Badge variant="secondary" data-testid="badge-action-items-count">
+              {userActionItems.filter(item => {
+                if (filterStatus === "pending") return !item.completedAt;
+                if (filterStatus === "completed") return item.completedAt;
+                if (filterStatus === "overdue") return !item.completedAt && item.dueDate && isPast(parseISO(item.dueDate.toString())) && !isToday(parseISO(item.dueDate.toString()));
+                return true;
+              }).filter(item => {
+                if (filterCustomer === "all") return true;
+                return item.customerId === filterCustomer;
+              }).length}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Filters:</span>
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px]" data-testid="select-filter-status">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterCustomer} onValueChange={setFilterCustomer}>
+              <SelectTrigger className="w-[200px]" data-testid="select-filter-customer">
+                <SelectValue placeholder="Filter by customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {userCustomers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Action Items List */}
+          <div className="space-y-2">
+            {userActionItems
+              .filter(item => {
+                if (filterStatus === "pending") return !item.completedAt;
+                if (filterStatus === "completed") return item.completedAt;
+                if (filterStatus === "overdue") return !item.completedAt && item.dueDate && isPast(parseISO(item.dueDate.toString())) && !isToday(parseISO(item.dueDate.toString()));
+                return true;
+              })
+              .filter(item => {
+                if (filterCustomer === "all") return true;
+                return item.customerId === filterCustomer;
+              })
+              .slice(0, 10)
+              .map((item) => {
+                const customer = customers.find(c => c.id === item.customerId);
+                const isOverdue = !item.completedAt && item.dueDate && isPast(parseISO(item.dueDate.toString())) && !isToday(parseISO(item.dueDate.toString()));
+                const isDueToday = !item.completedAt && item.dueDate && isToday(parseISO(item.dueDate.toString()));
+
+                return (
+                  <div 
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-md hover-elevate"
+                    data-testid={`action-item-${item.id}`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      {item.completedAt ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      ) : isOverdue ? (
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                      ) : isDueToday ? (
+                        <Circle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                      ) : (
+                        <Circle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium ${item.completedAt ? 'line-through text-muted-foreground' : ''}`}>
+                          {item.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-sm text-muted-foreground">{customer?.name}</span>
+                          {item.dueDate && (
+                            <>
+                              <span className="text-sm text-muted-foreground">•</span>
+                              <span className={`text-sm ${isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : isDueToday ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'}`}>
+                                {format(parseISO(item.dueDate.toString()), 'MMM d, yyyy')}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {item.completedAt ? (
+                        <Badge variant="default" className="bg-green-600">Completed</Badge>
+                      ) : isOverdue ? (
+                        <Badge variant="destructive">Overdue</Badge>
+                      ) : isDueToday ? (
+                        <Badge className="bg-amber-600">Due Today</Badge>
+                      ) : (
+                        <Badge variant="secondary">Pending</Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+            {userActionItems.filter(item => {
+              if (filterStatus === "pending") return !item.completedAt;
+              if (filterStatus === "completed") return item.completedAt;
+              if (filterStatus === "overdue") return !item.completedAt && item.dueDate && isPast(parseISO(item.dueDate.toString())) && !isToday(parseISO(item.dueDate.toString()));
+              return true;
+            }).filter(item => {
+              if (filterCustomer === "all") return true;
+              return item.customerId === filterCustomer;
+            }).length === 0 && (
+              <div className="text-center py-8">
+                <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-sm text-muted-foreground">No action items found</p>
+              </div>
+            )}
+
+            {userActionItems.filter(item => {
+              if (filterStatus === "pending") return !item.completedAt;
+              if (filterStatus === "completed") return item.completedAt;
+              if (filterStatus === "overdue") return !item.completedAt && item.dueDate && isPast(parseISO(item.dueDate.toString())) && !isToday(parseISO(item.dueDate.toString()));
+              return true;
+            }).filter(item => {
+              if (filterCustomer === "all") return true;
+              return item.customerId === filterCustomer;
+            }).length > 10 && (
+              <Link href="/tasks">
+                <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-all-actions">
+                  View All Action Items
+                </Button>
+              </Link>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -132,7 +132,7 @@ export default function Analytics() {
     );
   }
 
-  const isCEO = currentUser?.role === "sales_director" || currentUser?.role === "ceo";
+  const isCEO = currentUser?.role === "sales_director" || currentUser?.role === "ceo" || currentUser?.role === "admin";
   const isManager = currentUser?.role === "manager";
 
   // Filter team structure based on role

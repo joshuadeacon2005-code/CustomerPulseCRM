@@ -238,14 +238,17 @@ export function AppSidebar() {
     // Normalize role to lowercase for case-insensitive matching
     const roleStr = (role as string).toLowerCase();
     
-    // Handle both old "admin" role and new "sales_director" for backward compatibility
-    if (roleStr === "admin" || roleStr === "sales_director") {
+    // CEO and admin have identical permissions and navigation
+    if (roleStr === "ceo" || roleStr === "admin") {
+      return ceoNav;
+    }
+    
+    // Sales director uses the admin navigation
+    if (roleStr === "sales_director") {
       return adminNav;
     }
     
     switch (roleStr) {
-      case "ceo":
-        return ceoNav;
       case "regional_manager":
         return regionalManagerNav;
       case "manager":
