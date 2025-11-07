@@ -19,8 +19,9 @@ import {
   TrendingUp,
   Building2
 } from "lucide-react";
-import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking } from "@shared/schema";
+import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction } from "@shared/schema";
 import { format, isToday, isPast } from "date-fns";
+import { CalendarView } from "@/components/calendar-view";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -45,6 +46,10 @@ export default function Dashboard() {
 
   const { data: actionItems = [] } = useQuery<ActionItem[]>({
     queryKey: ["/api/action-items"],
+  });
+
+  const { data: interactions = [] } = useQuery<Interaction[]>({
+    queryKey: ["/api/interactions"],
   });
 
   const { data: teamMembers = [] } = useQuery<Omit<User, 'password'>[]>({
@@ -297,157 +302,69 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Leads Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-            <div>
-              <CardTitle className="text-lg">Leads</CardTitle>
-              <CardDescription>
-                {isViewingOwnDashboard ? "New opportunities to pursue" : `${viewedUserName}'s leads`}
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" data-testid="badge-lead-count">{userLeads.length}</Badge>
-          </CardHeader>
-          <CardContent>
-            {userLeads.length > 0 ? (
-              <div className="space-y-2">
-                {userLeads.slice(0, 5).map((lead) => (
-                  <Link key={lead.id} href={`/customers?id=${lead.id}`}>
-                    <div 
-                      className="flex items-center justify-between p-3 rounded-md hover-elevate cursor-pointer"
-                      data-testid={`item-lead-${lead.id}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                          <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{lead.name}</p>
-                          <p className="text-sm text-muted-foreground">{lead.email}</p>
-                        </div>
+      {/* Leads Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle className="text-lg">Leads</CardTitle>
+            <CardDescription>
+              {isViewingOwnDashboard ? "New opportunities to pursue" : `${viewedUserName}'s leads`}
+            </CardDescription>
+          </div>
+          <Badge variant="secondary" data-testid="badge-lead-count">{userLeads.length}</Badge>
+        </CardHeader>
+        <CardContent>
+          {userLeads.length > 0 ? (
+            <div className="space-y-2">
+              {userLeads.slice(0, 5).map((lead) => (
+                <Link key={lead.id} href={`/customers?id=${lead.id}`}>
+                  <div 
+                    className="flex items-center justify-between p-3 rounded-md hover-elevate cursor-pointer"
+                    data-testid={`item-lead-${lead.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{lead.name}</p>
+                        <p className="text-sm text-muted-foreground">{lead.email}</p>
                       </div>
                     </div>
-                  </Link>
-                ))}
-                {userLeads.length > 5 && (
-                  <Link href="/customers?stage=lead">
-                    <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-all-leads">
-                      View All {userLeads.length} Leads
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <TargetIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">No leads yet</p>
-                {isViewingOwnDashboard && (
-                  <Link href="/customers?action=lead">
-                    <Button variant="outline" size="sm" className="mt-4" data-testid="button-add-first-lead">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Lead
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* To Do List */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-            <div>
-              <CardTitle className="text-lg">To Do List</CardTitle>
-              <CardDescription>
-                {isViewingOwnDashboard ? "From customer interactions" : `${viewedUserName}'s tasks`}
-              </CardDescription>
+                  </div>
+                </Link>
+              ))}
+              {userLeads.length > 5 && (
+                <Link href="/customers?stage=lead">
+                  <Button variant="ghost" size="sm" className="w-full mt-2" data-testid="button-view-all-leads">
+                    View All {userLeads.length} Leads
+                  </Button>
+                </Link>
+              )}
             </div>
-            <Badge variant="secondary" data-testid="badge-task-count">{userActionItems.filter(i => !i.completedAt).length}</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Overdue */}
-              {overdueTasks.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm font-semibold text-red-500">Overdue ({overdueTasks.length})</span>
-                  </div>
-                  <div className="space-y-1">
-                    {overdueTasks.slice(0, 3).map((task) => (
-                      <Link key={task.id} href="/tasks">
-                        <div className="p-2 rounded-md bg-red-500/5 hover-elevate cursor-pointer" data-testid={`task-overdue-${task.id}`}>
-                          <p className="text-sm line-clamp-1">{task.description}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {task.dueDate && format(new Date(task.dueDate), 'MMM d')}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+          ) : (
+            <div className="text-center py-8">
+              <TargetIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+              <p className="text-sm text-muted-foreground">No leads yet</p>
+              {isViewingOwnDashboard && (
+                <Link href="/customers?action=lead">
+                  <Button variant="outline" size="sm" className="mt-4" data-testid="button-add-first-lead">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Lead
+                  </Button>
+                </Link>
               )}
-
-              {/* Today */}
-              {todayTasks.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Circle className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-semibold text-amber-500">Today ({todayTasks.length})</span>
-                  </div>
-                  <div className="space-y-1">
-                    {todayTasks.slice(0, 3).map((task) => (
-                      <Link key={task.id} href="/tasks">
-                        <div className="p-2 rounded-md bg-amber-500/5 hover-elevate cursor-pointer" data-testid={`task-today-${task.id}`}>
-                          <p className="text-sm line-clamp-1">{task.description}</p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Upcoming */}
-              {upcomingTasks.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-semibold text-blue-500">Upcoming ({upcomingTasks.length})</span>
-                  </div>
-                  <div className="space-y-1">
-                    {upcomingTasks.slice(0, 3).map((task) => (
-                      <Link key={task.id} href="/tasks">
-                        <div className="p-2 rounded-md bg-blue-500/5 hover-elevate cursor-pointer" data-testid={`task-upcoming-${task.id}`}>
-                          <p className="text-sm line-clamp-1">{task.description}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {task.dueDate && format(new Date(task.dueDate), 'MMM d')}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {userActionItems.filter(i => !i.completedAt).length === 0 && (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground">All caught up!</p>
-                </div>
-              )}
-
-              <Link href="/tasks">
-                <Button variant="outline" size="sm" className="w-full mt-4" data-testid="button-view-all-tasks">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  View All Tasks
-                </Button>
-              </Link>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Calendar View - Replaces To Do List */}
+      <CalendarView 
+        actionItems={userActionItems} 
+        interactions={interactions.filter(i => userCustomerIds.includes(i.customerId))}
+        customers={customers}
+      />
     </div>
   );
 }
