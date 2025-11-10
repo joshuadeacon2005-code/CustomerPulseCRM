@@ -45,6 +45,12 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Calendar View on Dashboard**: Interactive calendar (using react-big-calendar) replacing the To Do List widget, displaying both action items and customer interactions. Features color-coded events (overdue/today/upcoming/completed tasks, interactions), multiple view modes (month/week/day/agenda), proper timezone handling with parseISO and startOfDay, filtering by user's assigned customers, and clickable events that open a dialog showing full action item or interaction details with ability to mark items complete/incomplete.
 - **Action Items Management**: Comprehensive filterable action items list below the calendar with filters for customer (dropdown) and status (All/Pending/Completed/Overdue). Displays up to 10 items with color-coded status badges, overdue indicators, and quick completion toggle. Shows customer name, due date, and status for each item.
 - **Enhanced Dashboard Metrics**: Five performance cards showing Target, Sales to Date, Progress percentage with visual progress bar, Monthly Interactions count (number of customer interactions this month), and New Customers count (customers added this month based on first contact date). All metrics are role-based and filter according to user's assigned customers or team hierarchy.
+- **AI-Powered Insights**: OpenAI integration (GPT-4o-mini via Replit AI Integrations) providing intelligent analysis:
+  - **Customer AI Insights**: Dedicated tab in customer detail modal analyzing sales performance, purchasing patterns, engagement metrics, and providing actionable recommendations. Displays quick stats (Total Sales, Avg Monthly Sales, Interaction Count, Last Contact) and AI-generated insights with secure authorization (user must be assigned to customer, admin, or manager of assigned user).
+  - **User Performance AI Summary**: Admin page AI button (Sparkles icon) next to each user in management table. Generates comprehensive performance analysis including sales vs targets, customer engagement, team dynamics, and coaching recommendations. Authorization enforces hierarchical access (own performance, admin roles, or direct manager only).
+  - **Sales Forecasting**: AI endpoint for predictive analytics based on historical sales data and current trends (endpoint ready, UI integration pending).
+  - **Interaction Note Summarization**: AI-powered summarization of interaction notes for quick insights (endpoint ready, UI integration pending).
+  - Security: All AI endpoints enforce role-based authorization with team hierarchy validation to prevent cross-team data exposure.
 
 **System Design Choices:**
 - **Frontend Framework**: React 18 with TypeScript, Wouter for routing, TanStack Query for data fetching.
@@ -74,5 +80,8 @@ The application is built with a React and TypeScript frontend, an Express.js and
     - Drizzle ORM
     - connect-pg-simple
     - Zod
+    - OpenAI SDK (via Replit AI Integrations)
 - **Database**:
     - PostgreSQL (Neon)
+- **AI/ML**:
+    - OpenAI GPT-4o-mini (via Replit AI Integrations, uses Replit credits)
