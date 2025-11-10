@@ -6,6 +6,13 @@ import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
 import * as XLSX from "xlsx";
+import OpenAI from "openai";
+
+// Initialize OpenAI client with Replit AI Integrations
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -1263,6 +1270,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating Excel template:", error);
       res.status(500).json({ error: "Failed to generate Excel template" });
+    }
+  });
+
+  // AI Analysis Endpoints
+  
+  // Customer AI Insights
+  app.post("/api/ai/customer-insights/:customerId", isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.params.customerId;
+      const customer = await storage.getCustomerWithDetails(customerId);
+      
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      // Gather customer data
+      const sales = await storage.getMonthlySalesForCustomer(customerId);
+      const interactions = await storage.getInteractionsForCustomer(customerId);
+      const targets = await storage.getCustomerMonthlyTargets(customerId);
+      
+      // Build context for AI
+      const totalSales = sales.reduce((sum, s) => sum + Number(s.amount), 0);
+      const avgMonthlySales = sales.length > 0 ? totalSales / sales.length : 0;
+      const recentSales = sales.slice(-6); // Last 6 months
+      const salesTrend = recentSales.map(s => ({ month: s.month, year: s.year, amount: Number(s.amount) }));
+      
+      const interactionCount = interactions.length;
+      const lastInteractionDate = interactions.length > 0 ? interactions[0].date : 'Never';
+      
+      const prompt = `Analyze this customer's performance and provide actionable insights:
+
+Customer: ${customer.name}
+Country: ${customer.country}
+Retailer Type: ${customer.retailerType || 'Not specified'}
+
+Sales Performance:
+- Total lifetime sales: $${totalSales.toFixed(2)}
+- Average monthly sales: $${avgMonthlySales.toFixed(2)}
+- Recent 6-month sales trend: ${JSON.stringify(salesTrend)}
+
+Engagement:
+- Total interactions: ${interactionCount}
+- Last contact: ${lastInteractionDate}
+
+Provide a concise analysis (3-4 paragraphs) covering:
+1. Overall performance summary
+2. Purchasing patterns and habits identified
+3. Potential reasons for any sales dips or variations
+4. Specific actionable recommendations to improve sales
+
+Be specific, data-driven, and focus on actionable insights.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales analytics expert helping sales teams understand customer behavior and improve performance. Provide clear, actionable insights based on data."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      });
+
+      const insights = completion.choices[0].message.content;
+      
+      res.json({ 
+        insights,
+        metadata: {
+          totalSales,
+          avgMonthlySales,
+          interactionCount,
+          lastInteractionDate,
+          salesTrend
+        }
+      });
+    } catch (error) {
+      console.error("Error generating customer insights:", error);
+      res.status(500).json({ error: "Failed to generate AI insights" });
+    }
+  });
+
+  // User Performance AI Summary
+  app.post("/api/ai/user-performance/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      
+      // Only admins/managers can view other users' performance
+      if (req.user!.id !== userId && !['ceo', 'admin', 'sales_director', 'regional_manager', 'manager'].includes(req.user!.role as string)) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get user's customers and sales data
+      const customers = await storage.getCustomers(userId, user.role as UserRole);
+      const targets = await storage.getTargets(userId);
+      const sales = await storage.getMonthlySales(userId);
+      const interactions = await storage.getInteractions(userId, user.role as UserRole);
+      
+      const totalSales = sales.reduce((sum, s) => sum + Number(s.amount), 0);
+      const currentMonthTarget = targets.find(t => {
+        const now = new Date();
+        return t.month === now.getMonth() + 1 && t.year === now.getFullYear();
+      });
+      const currentMonthSales = sales.filter(s => {
+        const now = new Date();
+        return s.month === now.getMonth() + 1 && s.year === now.getFullYear();
+      }).reduce((sum, s) => sum + Number(s.amount), 0);
+      
+      const targetProgress = currentMonthTarget 
+        ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100 
+        : 0;
+
+      const prompt = `Analyze this salesperson's performance and provide a comprehensive summary:
+
+Salesperson: ${user.name}
+Role: ${user.role}
+Regional Office: ${user.regionalOffice || 'Not assigned'}
+
+Performance Metrics:
+- Total customers managed: ${customers.length}
+- Total sales (all-time): $${totalSales.toFixed(2)}
+- Current month target: $${currentMonthTarget ? Number(currentMonthTarget.targetAmount).toFixed(2) : '0.00'}
+- Current month sales: $${currentMonthSales.toFixed(2)}
+- Target achievement: ${targetProgress.toFixed(1)}%
+- Total customer interactions: ${interactions.length}
+
+Recent sales trend (last 6 months): ${JSON.stringify(sales.slice(-6).map(s => ({ 
+  month: s.month, 
+  year: s.year, 
+  amount: Number(s.amount) 
+})))}
+
+Provide a detailed analysis (4-5 paragraphs) covering:
+1. Overall performance assessment
+2. Strengths and areas of excellence
+3. Areas needing improvement or attention
+4. Sales patterns and trends identified
+5. Specific, actionable recommendations for improvement
+
+Be professional, constructive, and data-driven.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales performance analyst helping managers evaluate and develop their sales teams. Provide balanced, constructive feedback that highlights both strengths and growth opportunities."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const summary = completion.choices[0].message.content;
+      
+      res.json({ 
+        summary,
+        metrics: {
+          customerCount: customers.length,
+          totalSales,
+          currentMonthTarget: currentMonthTarget ? Number(currentMonthTarget.targetAmount) : 0,
+          currentMonthSales,
+          targetProgress,
+          interactionCount: interactions.length,
+          salesTrend: sales.slice(-6).map(s => ({ 
+            month: s.month, 
+            year: s.year, 
+            amount: Number(s.amount) 
+          }))
+        }
+      });
+    } catch (error) {
+      console.error("Error generating user performance summary:", error);
+      res.status(500).json({ error: "Failed to generate AI summary" });
+    }
+  });
+
+  // Sales Forecasting
+  app.post("/api/ai/sales-forecast", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const role = req.user!.role as UserRole;
+      
+      const sales = await storage.getMonthlySales(userId);
+      const targets = await storage.getTargets(userId);
+      
+      // Get historical sales data (last 12 months)
+      const historicalSales = sales.slice(-12).map(s => ({
+        month: s.month,
+        year: s.year,
+        amount: Number(s.amount)
+      }));
+
+      if (historicalSales.length < 3) {
+        return res.json({
+          forecast: "Insufficient historical data for accurate forecasting. Need at least 3 months of sales data.",
+          confidence: "low",
+          predictedAmount: 0,
+          trend: "insufficient_data"
+        });
+      }
+
+      const prompt = `Based on the following sales history, provide a sales forecast for the next month:
+
+Historical Sales (last ${historicalSales.length} months):
+${JSON.stringify(historicalSales, null, 2)}
+
+Analyze the data and provide:
+1. Predicted sales amount for next month
+2. Confidence level (high/medium/low) with reasoning
+3. Trend direction (growing/stable/declining)
+4. Key factors influencing the forecast
+5. Risk factors or considerations
+
+Format your response as a structured analysis that's easy to parse for display.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales forecasting expert. Analyze historical sales data and provide accurate, data-driven predictions with clear confidence indicators."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.5,
+        max_tokens: 600,
+      });
+
+      const forecastText = completion.choices[0].message.content || "";
+      
+      // Extract predicted amount (simple regex - AI should format consistently)
+      const amountMatch = forecastText.match(/\$?([\d,]+\.?\d*)/);
+      const predictedAmount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
+      
+      // Determine confidence and trend from response
+      const confidenceLower = forecastText.toLowerCase();
+      let confidence = "medium";
+      if (confidenceLower.includes("high confidence")) confidence = "high";
+      else if (confidenceLower.includes("low confidence")) confidence = "low";
+      
+      let trend = "stable";
+      if (confidenceLower.includes("growing") || confidenceLower.includes("increasing")) trend = "growing";
+      else if (confidenceLower.includes("declining") || confidenceLower.includes("decreasing")) trend = "declining";
+
+      res.json({
+        forecast: forecastText,
+        confidence,
+        predictedAmount,
+        trend,
+        historicalData: historicalSales
+      });
+    } catch (error) {
+      console.error("Error generating sales forecast:", error);
+      res.status(500).json({ error: "Failed to generate forecast" });
+    }
+  });
+
+  // Interaction Note Summarization
+  app.post("/api/ai/summarize-note", isAuthenticated, async (req, res) => {
+    try {
+      const { note } = req.body;
+      
+      if (!note || note.trim().length < 50) {
+        return res.status(400).json({ error: "Note is too short to summarize. Minimum 50 characters required." });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional note summarizer for sales interactions. Create concise, clear summaries that capture key points, action items, and outcomes."
+          },
+          {
+            role: "user",
+            content: `Summarize the following customer interaction note into 2-3 concise sentences that capture the main points, decisions, and any action items:\n\n${note}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      });
+
+      const summary = completion.choices[0].message.content;
+      
+      res.json({ summary });
+    } catch (error) {
+      console.error("Error summarizing note:", error);
+      res.status(500).json({ error: "Failed to summarize note" });
     }
   });
 
