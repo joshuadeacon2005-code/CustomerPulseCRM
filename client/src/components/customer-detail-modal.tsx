@@ -74,6 +74,8 @@ import {
   Tag,
   DollarSign,
   Trash2,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { useState } from "react";
@@ -86,6 +88,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { CustomerForm } from "./customer-form";
 import { InteractionForm } from "./interaction-form";
 import { CustomerTargets } from "./customer-targets";
+import { AIInsightsPanel } from "./ai-insights-panel";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -381,8 +384,12 @@ export function CustomerDetailModal({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="ai-insights" data-testid="tab-ai-insights">
+              <Sparkles className="h-3 w-3 mr-1" />
+              AI Insights
+            </TabsTrigger>
             <TabsTrigger value="brands" data-testid="tab-brands">
               Brands ({customer.brands?.length || 0})
             </TabsTrigger>
@@ -628,6 +635,11 @@ export function CustomerDetailModal({
                 )}
               </>
             )}
+          </TabsContent>
+
+          {/* AI Insights Tab */}
+          <TabsContent value="ai-insights" className="space-y-4">
+            <AIInsightsPanel customerId={customer.id} />
           </TabsContent>
 
           {/* Brands Tab */}

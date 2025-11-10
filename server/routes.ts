@@ -1286,15 +1286,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Gather customer data
-      const sales = await storage.getMonthlySalesForCustomer(customerId);
-      const interactions = await storage.getInteractionsForCustomer(customerId);
+      const sales = await storage.getMonthlySales(req.user!.id, req.user!.role as UserRole, customerId);
+      const interactions = await storage.getInteractionsByCustomer(customerId);
       const targets = await storage.getCustomerMonthlyTargets(customerId);
       
       // Build context for AI
-      const totalSales = sales.reduce((sum, s) => sum + Number(s.amount), 0);
+      const totalSales = sales.reduce((sum: number, s: any) => sum + Number(s.actual || 0), 0);
       const avgMonthlySales = sales.length > 0 ? totalSales / sales.length : 0;
       const recentSales = sales.slice(-6); // Last 6 months
-      const salesTrend = recentSales.map(s => ({ month: s.month, year: s.year, amount: Number(s.amount) }));
+      const salesTrend = recentSales.map((s: any) => ({ month: s.month, year: s.year, amount: Number(s.actual || 0) }));
       
       const interactionCount = interactions.length;
       const lastInteractionDate = interactions.length > 0 ? interactions[0].date : 'Never';
@@ -1366,26 +1366,28 @@ Be specific, data-driven, and focus on actionable insights.`;
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      const user = await storage.getUserById(userId);
+      const allUsers = await storage.getUsers(req.user!.id, req.user!.role as UserRole);
+      const user = allUsers.find(u => u.id === userId);
+      
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
       // Get user's customers and sales data
       const customers = await storage.getCustomers(userId, user.role as UserRole);
-      const targets = await storage.getTargets(userId);
-      const sales = await storage.getMonthlySales(userId);
-      const interactions = await storage.getInteractions(userId, user.role as UserRole);
+      const targets = await storage.getMonthlyTargets(userId);
+      const sales = await storage.getMonthlySales(userId, user.role as UserRole);
+      const allInteractions = await storage.getInteractions();
       
-      const totalSales = sales.reduce((sum, s) => sum + Number(s.amount), 0);
-      const currentMonthTarget = targets.find(t => {
+      const totalSales = sales.reduce((sum: number, s: any) => sum + Number(s.actual || 0), 0);
+      const currentMonthTarget = targets.find((t: any) => {
         const now = new Date();
         return t.month === now.getMonth() + 1 && t.year === now.getFullYear();
       });
-      const currentMonthSales = sales.filter(s => {
+      const currentMonthSales = sales.filter((s: any) => {
         const now = new Date();
         return s.month === now.getMonth() + 1 && s.year === now.getFullYear();
-      }).reduce((sum, s) => sum + Number(s.amount), 0);
+      }).reduce((sum: number, s: any) => sum + Number(s.actual || 0), 0);
       
       const targetProgress = currentMonthTarget 
         ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100 
@@ -1403,12 +1405,12 @@ Performance Metrics:
 - Current month target: $${currentMonthTarget ? Number(currentMonthTarget.targetAmount).toFixed(2) : '0.00'}
 - Current month sales: $${currentMonthSales.toFixed(2)}
 - Target achievement: ${targetProgress.toFixed(1)}%
-- Total customer interactions: ${interactions.length}
+- Total customer interactions: ${allInteractions.length}
 
-Recent sales trend (last 6 months): ${JSON.stringify(sales.slice(-6).map(s => ({ 
+Recent sales trend (last 6 months): ${JSON.stringify(sales.slice(-6).map((s: any) => ({ 
   month: s.month, 
   year: s.year, 
-  amount: Number(s.amount) 
+  amount: Number(s.actual || 0) 
 })))}
 
 Provide a detailed analysis (4-5 paragraphs) covering:
@@ -1446,11 +1448,11 @@ Be professional, constructive, and data-driven.`;
           currentMonthTarget: currentMonthTarget ? Number(currentMonthTarget.targetAmount) : 0,
           currentMonthSales,
           targetProgress,
-          interactionCount: interactions.length,
-          salesTrend: sales.slice(-6).map(s => ({ 
+          interactionCount: allInteractions.length,
+          salesTrend: sales.slice(-6).map((s: any) => ({ 
             month: s.month, 
             year: s.year, 
-            amount: Number(s.amount) 
+            amount: Number(s.actual || 0) 
           }))
         }
       });
@@ -1466,14 +1468,14 @@ Be professional, constructive, and data-driven.`;
       const userId = req.user!.id;
       const role = req.user!.role as UserRole;
       
-      const sales = await storage.getMonthlySales(userId);
-      const targets = await storage.getTargets(userId);
+      const sales = await storage.getMonthlySales(userId, role);
+      const targets = await storage.getMonthlyTargets(userId);
       
       // Get historical sales data (last 12 months)
-      const historicalSales = sales.slice(-12).map(s => ({
+      const historicalSales = sales.slice(-12).map((s: any) => ({
         month: s.month,
         year: s.year,
-        amount: Number(s.amount)
+        amount: Number(s.actual || 0)
       }));
 
       if (historicalSales.length < 3) {
