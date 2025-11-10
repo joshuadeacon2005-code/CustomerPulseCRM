@@ -1285,6 +1285,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Customer not found" });
       }
 
+      // Authorization: Only allow access if user is assigned to customer or is admin
+      const userRole = req.user!.role as UserRole;
+      const userId = req.user!.id;
+      const isAdminRole = ['ceo', 'admin', 'sales_director'].includes(userRole);
+      const isAssignedToCustomer = customer.assignedTo === userId;
+      
+      // For managers/regional managers, check if customer is assigned to their team
+      let isTeamCustomer = false;
+      if (['manager', 'regional_manager'].includes(userRole)) {
+        const teamMembers = await storage.getUsers(userId, userRole);
+        const teamMemberIds = teamMembers.map(u => u.id);
+        isTeamCustomer = teamMemberIds.includes(customer.assignedTo);
+      }
+      
+      if (!isAdminRole && !isAssignedToCustomer && !isTeamCustomer) {
+        return res.status(403).json({ error: "Unauthorized to access this customer's insights" });
+      }
+
       // Gather customer data
       const sales = await storage.getMonthlySales(req.user!.id, req.user!.role as UserRole, customerId);
       const interactions = await storage.getInteractionsByCustomer(customerId);
@@ -1360,23 +1378,35 @@ Be specific, data-driven, and focus on actionable insights.`;
   app.post("/api/ai/user-performance/:userId", isAuthenticated, async (req, res) => {
     try {
       const userId = req.params.userId;
+      const currentUserRole = req.user!.role as UserRole;
+      const currentUserId = req.user!.id;
       
-      // Only admins/managers can view other users' performance
-      if (req.user!.id !== userId && !['ceo', 'admin', 'sales_director', 'regional_manager', 'manager'].includes(req.user!.role as string)) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-
-      const allUsers = await storage.getUsers(req.user!.id, req.user!.role as UserRole);
-      const user = allUsers.find(u => u.id === userId);
+      // Authorization: Can only view own performance or if user is in your team/hierarchy
+      const allUsers = await storage.getUsers(currentUserId, currentUserRole);
+      const targetUser = allUsers.find(u => u.id === userId);
       
-      if (!user) {
+      if (!targetUser) {
         return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check authorization
+      const isOwnPerformance = currentUserId === userId;
+      const isAdminRole = ['ceo', 'admin', 'sales_director'].includes(currentUserRole);
+      
+      // For managers, only allow if target user is their direct report
+      let isDirectReport = false;
+      if (['manager', 'regional_manager'].includes(currentUserRole)) {
+        isDirectReport = targetUser.managerId === currentUserId;
+      }
+      
+      if (!isOwnPerformance && !isAdminRole && !isDirectReport) {
+        return res.status(403).json({ error: "Unauthorized to access this user's performance data" });
       }
 
       // Get user's customers and sales data
-      const customers = await storage.getCustomers(userId, user.role as UserRole);
+      const customers = await storage.getCustomers(userId, targetUser.role as UserRole);
       const targets = await storage.getMonthlyTargets(userId);
-      const sales = await storage.getMonthlySales(userId, user.role as UserRole);
+      const sales = await storage.getMonthlySales(userId, targetUser.role as UserRole);
       const allInteractions = await storage.getInteractions();
       
       const totalSales = sales.reduce((sum: number, s: any) => sum + Number(s.actual || 0), 0);
