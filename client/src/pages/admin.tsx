@@ -40,7 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AdminDashboardStats, User, UserRole, Sale, UserDetails } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -79,6 +79,9 @@ export default function AdminPage() {
     amount: "",
     date: "",
   });
+  const [aiSummaryDialog, setAiSummaryDialog] = useState(false);
+  const [selectedUserForAI, setSelectedUserForAI] = useState<Omit<User, 'password'> | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
   
   // User list filters
   const [userNameFilter, setUserNameFilter] = useState("");
@@ -396,6 +399,30 @@ export default function AdminPage() {
       });
     },
   });
+
+  const generateUserAISummaryMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("POST", `/api/ai/user-performance/${userId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setAiSummary(data.summary);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate AI summary",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateUserAISummary = (user: Omit<User, 'password'>) => {
+    setSelectedUserForAI(user);
+    setAiSummary(null);
+    setAiSummaryDialog(true);
+    generateUserAISummaryMutation.mutate(user.id);
+  };
 
   const handleEditSale = (sale: Sale) => {
     setEditingSale(sale);
@@ -750,6 +777,15 @@ export default function AdminPage() {
                             <Link href={`/admin/user-details/${user.id}`}>
                               <Eye className="h-4 w-4" />
                             </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleGenerateUserAISummary(user)}
+                            data-testid={`button-ai-summary-${user.id}`}
+                            title="Generate AI Performance Summary"
+                          >
+                            <Sparkles className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1446,6 +1482,64 @@ export default function AdminPage() {
           ) : (
             <div className="py-8 text-center text-muted-foreground">User not found or unauthorized</div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Performance Summary Dialog */}
+      <Dialog open={aiSummaryDialog} onOpenChange={setAiSummaryDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI Performance Summary - {selectedUserForAI?.name}
+            </DialogTitle>
+            <DialogDescription>
+              AI-generated analysis of performance trends, strengths, and areas for improvement
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {generateUserAISummaryMutation.isPending ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-sm text-muted-foreground">Analyzing performance data...</p>
+              </div>
+            ) : aiSummary ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    {aiSummary.split('\n\n').map((paragraph, idx) => (
+                      <p key={idx} className="text-sm mb-3 last:mb-0">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No summary available
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAiSummaryDialog(false)}
+              data-testid="button-close-ai-summary"
+            >
+              Close
+            </Button>
+            {aiSummary && (
+              <Button
+                onClick={() => generateUserAISummaryMutation.mutate(selectedUserForAI!.id)}
+                disabled={generateUserAISummaryMutation.isPending}
+                data-testid="button-regenerate-ai-summary"
+              >
+                {generateUserAISummaryMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Regenerate
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
