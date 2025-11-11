@@ -1493,7 +1493,7 @@ Be professional, constructive, and data-driven.`;
   });
 
   // Sales Forecasting
-  app.post("/api/ai/sales-forecast", isAuthenticated, async (req, res) => {
+  app.get("/api/ai/sales-forecast", isAuthenticated, async (req, res) => {
     try {
       const userId = req.user!.id;
       const role = req.user!.role as UserRole;
@@ -1509,11 +1509,17 @@ Be professional, constructive, and data-driven.`;
       }));
 
       if (historicalSales.length < 3) {
+        const now = new Date();
+        const forecastMonth = now.getMonth() === 11 ? 1 : now.getMonth() + 2;
+        const forecastYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+        
         return res.json({
-          forecast: "Insufficient historical data for accurate forecasting. Need at least 3 months of sales data.",
-          confidence: "low",
-          predictedAmount: 0,
-          trend: "insufficient_data"
+          predictedSales: 0,
+          confidence: 30,
+          trend: "insufficient_data",
+          insights: "Insufficient historical data for accurate forecasting. Need at least 3 months of sales data to generate reliable predictions. Start logging sales to enable AI-powered forecasts.",
+          forecastMonth,
+          forecastYear
         });
       }
 
@@ -1555,20 +1561,26 @@ Format your response as a structured analysis that's easy to parse for display.`
       
       // Determine confidence and trend from response
       const confidenceLower = forecastText.toLowerCase();
-      let confidence = "medium";
-      if (confidenceLower.includes("high confidence")) confidence = "high";
-      else if (confidenceLower.includes("low confidence")) confidence = "low";
+      let confidenceLevel = 70; // default medium confidence
+      if (confidenceLower.includes("high confidence")) confidenceLevel = 85;
+      else if (confidenceLower.includes("low confidence")) confidenceLevel = 50;
       
       let trend = "stable";
-      if (confidenceLower.includes("growing") || confidenceLower.includes("increasing")) trend = "growing";
+      if (confidenceLower.includes("growing") || confidenceLower.includes("increasing")) trend = "upward";
       else if (confidenceLower.includes("declining") || confidenceLower.includes("decreasing")) trend = "declining";
+      
+      // Calculate forecast month/year (next month)
+      const now = new Date();
+      const forecastMonth = now.getMonth() === 11 ? 1 : now.getMonth() + 2; // getMonth() is 0-indexed
+      const forecastYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
 
       res.json({
-        forecast: forecastText,
-        confidence,
-        predictedAmount,
+        predictedSales: Math.round(predictedAmount),
+        confidence: confidenceLevel,
         trend,
-        historicalData: historicalSales
+        insights: forecastText,
+        forecastMonth,
+        forecastYear
       });
     } catch (error) {
       console.error("Error generating sales forecast:", error);
@@ -1579,9 +1591,10 @@ Format your response as a structured analysis that's easy to parse for display.`
   // Interaction Note Summarization
   app.post("/api/ai/summarize-note", isAuthenticated, async (req, res) => {
     try {
-      const { note } = req.body;
+      const { notes, note } = req.body;
+      const noteText = notes || note; // Accept both 'notes' and 'note'
       
-      if (!note || note.trim().length < 50) {
+      if (!noteText || noteText.trim().length < 50) {
         return res.status(400).json({ error: "Note is too short to summarize. Minimum 50 characters required." });
       }
 
@@ -1594,7 +1607,7 @@ Format your response as a structured analysis that's easy to parse for display.`
           },
           {
             role: "user",
-            content: `Summarize the following customer interaction note into 2-3 concise sentences that capture the main points, decisions, and any action items:\n\n${note}`
+            content: `Summarize the following customer interaction note into 2-3 concise sentences that capture the main points, decisions, and any action items:\n\n${noteText}`
           }
         ],
         temperature: 0.3,
