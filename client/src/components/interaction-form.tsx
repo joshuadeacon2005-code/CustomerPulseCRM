@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertInteractionSchema, type InsertInteraction, INTERACTION_TYPES } from "@shared/schema";
@@ -19,6 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Sparkles, Loader2 } from "lucide-react";
 
 interface InteractionFormProps {
   customerId: string;
@@ -28,6 +33,8 @@ interface InteractionFormProps {
 }
 
 export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: InteractionFormProps) {
+  const { toast } = useToast();
+
   const form = useForm<InsertInteraction>({
     resolver: zodResolver(insertInteractionSchema),
     defaultValues: {
@@ -37,6 +44,59 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: I
       description: "",
     },
   });
+
+  const summarizeMutation = useMutation({
+    mutationFn: async (payload: { notes: string; originalNotes: string }) => {
+      const res = await apiRequest('POST', '/api/ai/summarize-note', { notes: payload.notes });
+      const data = await res.json();
+      return { ...data, originalNotes: payload.originalNotes } as { summary: string; originalNotes: string };
+    },
+    onSuccess: (data) => {
+      // Capture the original notes in the closure for the undo action
+      const savedOriginalNotes = data.originalNotes;
+      form.setValue('description', data.summary);
+      toast({
+        title: "Summary Generated",
+        description: "Your notes have been summarized. You can edit or undo this change.",
+        action: (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              form.setValue('description', savedOriginalNotes);
+              toast({
+                title: "Undone",
+                description: "Original notes restored",
+              });
+            }}
+          >
+            Undo
+          </Button>
+        ),
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Summarization Failed",
+        description: error instanceof Error ? error.message : "Failed to generate summary",
+      });
+    },
+  });
+
+  const handleSummarize = () => {
+    const currentDescription = form.getValues('description');
+    if (!currentDescription || currentDescription.trim().length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Content",
+        description: "Please enter some notes to summarize",
+      });
+      return;
+    }
+    // Pass both the notes to summarize and the original for undo
+    summarizeMutation.mutate({ notes: currentDescription, originalNotes: currentDescription });
+  };
 
   return (
     <Form {...form}>
@@ -94,7 +154,30 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: I
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <div className="flex items-center justify-between">
+                <FormLabel>Description</FormLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSummarize}
+                  disabled={summarizeMutation.isPending || isLoading}
+                  className="h-auto p-1 text-xs"
+                  data-testid="button-summarize-notes"
+                >
+                  {summarizeMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Summarizing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Summarize
+                    </>
+                  )}
+                </Button>
+              </div>
               <FormControl>
                 <Textarea 
                   placeholder="Describe the interaction details..."
