@@ -40,7 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { AdminDashboardStats, User, UserRole, Sale, UserDetails } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2 } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -51,7 +51,6 @@ export default function AdminPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
-  const [salesPeopleOpen, setSalesPeopleOpen] = useState(true);
   const [allUsersOpen, setAllUsersOpen] = useState(true);
   const [newUser, setNewUser] = useState({
     username: "",
@@ -491,102 +490,75 @@ export default function AdminPage() {
         </Card>
       </div>
 
-      <Collapsible open={salesPeopleOpen} onOpenChange={setSalesPeopleOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover-elevate">
-              <CardTitle className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="h-5 w-5" />
-                  {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All Salespeople Performance" : "Team Performance"}
-                </div>
-                <Button variant="ghost" size="sm" data-testid="button-toggle-salespeople">
-                  {salesPeopleOpen ? "Hide" : "Show"}
-                </Button>
-              </CardTitle>
-              <CardDescription>Individual performance statistics</CardDescription>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Regional Leaderboard
+          </CardTitle>
+          <CardDescription>Top 3 performing salespeople</CardDescription>
+        </CardHeader>
+        <CardContent>
           {stats?.salesmenStats.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "No salespeople registered yet" : "No team members yet"}
+              No salespeople registered yet
             </div>
           ) : (
-            <div className="space-y-6">
-              {stats?.salesmenStats.map((salesman) => {
-                const salesmanUser = allUsers.find(u => u.id === salesman.salesmanId);
-                const managerUser = salesmanUser?.managerId ? getUserById(salesmanUser.managerId) : null;
-                
-                return (
-                  <div key={salesman.salesmanId} className="space-y-3" data-testid={`salesman-${salesman.salesmanId}`}>
-                    <div className="flex justify-between items-start flex-wrap gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold" data-testid={`text-salesman-name-${salesman.salesmanId}`}>
-                            {salesman.salesmanName}
-                          </h3>
-                          {salesmanUser && (
-                            <Badge variant="outline" data-testid={`badge-role-${salesman.salesmanId}`}>
-                              {getRoleDisplayName(salesmanUser.role as UserRole)}
-                            </Badge>
-                          )}
+            <div className="space-y-4">
+              {[...(stats?.salesmenStats || [])]
+                .sort((a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount))
+                .slice(0, 3)
+                .map((salesman, index) => {
+                  const salesmanUser = allUsers.find(u => u.id === salesman.salesmanId);
+                  const rankColors = ["text-yellow-500", "text-gray-400", "text-orange-600"];
+                  const RankIcons = [Trophy, Medal, Award];
+                  const RankIcon = RankIcons[index];
+                  
+                  return (
+                    <div 
+                      key={salesman.salesmanId} 
+                      className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
+                      data-testid={`leaderboard-${index + 1}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={rankColors[index]}>
+                          <RankIcon className="h-8 w-8" />
                         </div>
-                        {managerUser && (
-                          <p className="text-sm text-muted-foreground" data-testid={`text-manager-${salesman.salesmanId}`}>
-                            Manager: {managerUser.name}
-                          </p>
-                        )}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold" data-testid={`text-leaderboard-name-${index + 1}`}>
+                              {salesman.salesmanName}
+                            </h3>
+                            {salesmanUser && (
+                              <>
+                                <Badge variant="outline" data-testid={`badge-leaderboard-role-${index + 1}`}>
+                                  {getRoleDisplayName(salesmanUser.role as UserRole)}
+                                </Badge>
+                                {salesmanUser.regionalOffice && (
+                                  <Badge variant="secondary" data-testid={`badge-leaderboard-office-${index + 1}`}>
+                                    {salesmanUser.regionalOffice}
+                                  </Badge>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold" data-testid={`text-salesman-total-${salesman.salesmanId}`}>
-                          {salesman.totalSales} sales
-                        </p>
-                        <p className="text-sm text-muted-foreground" data-testid={`text-salesman-amount-${salesman.salesmanId}`}>
+                        <p className="text-2xl font-bold" data-testid={`text-leaderboard-revenue-${index + 1}`}>
                           ${salesman.totalAmount}
+                        </p>
+                        <p className="text-sm text-muted-foreground" data-testid={`text-leaderboard-sales-${index + 1}`}>
+                          {salesman.totalSales} sales
                         </p>
                       </div>
                     </div>
-                    
-                    {salesman.recentSales.length > 0 && (
-                      <div className="pl-4 space-y-2">
-                        <p className="text-sm font-medium text-muted-foreground">Recent Sales</p>
-                        {salesman.recentSales.map((sale) => (
-                          <div
-                            key={sale.id}
-                            className="flex justify-between items-center p-2 bg-muted rounded-md text-sm"
-                            data-testid={`sale-${sale.id}`}
-                          >
-                            <div>
-                              <p className="font-medium" data-testid={`text-customer-${sale.id}`}>
-                                {sale.customerName}
-                              </p>
-                              <p className="text-xs text-muted-foreground" data-testid={`text-product-${sale.id}`}>
-                                {sale.product}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold" data-testid={`text-amount-${sale.id}`}>
-                                ${parseFloat(sale.amount).toFixed(2)}
-                              </p>
-                              <p className="text-xs text-muted-foreground" data-testid={`text-date-${sale.id}`}>
-                                {format(new Date(sale.date), "MMM dd, yyyy")}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
-          </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+        </CardContent>
+      </Card>
 
       <Collapsible open={allUsersOpen} onOpenChange={setAllUsersOpen}>
         <Card>
