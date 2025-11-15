@@ -92,6 +92,8 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       contactEmail: customer.contactEmail || "",
       dateOfFirstContact: customer.dateOfFirstContact ?? undefined,
       leadGeneratedBy: customer.leadGeneratedBy || "",
+      netsuiteUrl: customer.netsuiteUrl || "",
+      bloomconnectUrl: customer.bloomconnectUrl || "",
     } : {
       name: "",
       stage: "lead" as "lead" | "prospect" | "customer",
@@ -111,6 +113,8 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       contactEmail: "",
       dateOfFirstContact: undefined,
       leadGeneratedBy: "",
+      netsuiteUrl: "",
+      bloomconnectUrl: "",
     },
   });
 
@@ -722,6 +726,59 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                 </Popover>
                 <FormDescription>
                   Can be automatically updated from visit interactions
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* External Systems */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">External Systems</h3>
+
+          <FormField
+            control={form.control}
+            name="netsuiteUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>NetSuite URL</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="url"
+                    placeholder="https://example.netsuite.com/..."
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-netsuite-url"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Direct link to this customer in NetSuite
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="bloomconnectUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>BloomConnect URL</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="url"
+                    placeholder="https://bloomconnect.com/..."
+                    {...field} 
+                    value={field.value || ""}
+                    data-testid="input-bloomconnect-url"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Direct link to this customer in BloomConnect
                 </FormDescription>
                 <FormMessage />
               </FormItem>

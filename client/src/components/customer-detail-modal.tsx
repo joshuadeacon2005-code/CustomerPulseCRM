@@ -76,6 +76,7 @@ import {
   Trash2,
   Sparkles,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { useState } from "react";
@@ -326,6 +327,37 @@ export function CustomerDetailModal({
                 <DialogTitle className="text-2xl mb-2" data-testid="text-modal-customer-name">
                   {customer.name}
                 </DialogTitle>
+                
+                {/* External System Links */}
+                {(customer.netsuiteUrl || customer.bloomconnectUrl) && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {customer.netsuiteUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(customer.netsuiteUrl!, '_blank', 'noopener,noreferrer')}
+                        data-testid="button-netsuite-link"
+                        className="gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        NetSuite
+                      </Button>
+                    )}
+                    {customer.bloomconnectUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(customer.bloomconnectUrl!, '_blank', 'noopener,noreferrer')}
+                        data-testid="button-bloomconnect-link"
+                        className="gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        BloomConnect
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge 
                     variant="outline" 

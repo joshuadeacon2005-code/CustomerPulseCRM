@@ -58,6 +58,8 @@ export const customers = pgTable("customers", {
   dateOfFirstContact: timestamp("date_of_first_contact"),
   leadGeneratedBy: text("lead_generated_by"),
   country: text("country"),
+  netsuiteUrl: text("netsuite_url"),
+  bloomconnectUrl: text("bloomconnect_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
