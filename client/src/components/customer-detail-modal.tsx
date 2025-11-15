@@ -315,7 +315,7 @@ export function CustomerDetailModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-testid="modal-customer-detail">
-        <DialogHeader>
+        <DialogHeader className="pr-10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4 flex-1">
               <Avatar className="h-16 w-16">
@@ -369,7 +369,7 @@ export function CustomerDetailModal({
               </div>
             </div>
             {!isEditing && (
-              <div className="flex gap-2">
+              <div className="flex gap-3 flex-shrink-0">
                 <Button 
                   variant="outline" 
                   size="sm"

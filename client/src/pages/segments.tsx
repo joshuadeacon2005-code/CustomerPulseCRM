@@ -21,12 +21,12 @@ export default function Segments() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 p-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-48" />
           ))}
@@ -36,16 +36,16 @@ export default function Segments() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6">
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-segments-title">Customer Segments</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-2">
           View and manage customer segments based on journey stage, interactions, and lead scores
         </p>
       </div>
 
       {segments && segments.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {segments.map((segment) => {
             const Icon = segmentIcons[segment.name as keyof typeof segmentIcons] || Target;
             return (
@@ -54,29 +54,29 @@ export default function Segments() {
                 className="hover-elevate transition-all"
                 data-testid={`card-segment-${segment.id}`}
               >
-                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-md bg-primary/10">
-                      <Icon className="h-5 w-5 text-primary" />
+                <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-md bg-primary/10">
+                      <Icon className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg mb-1">{segment.name}</CardTitle>
+                      <CardTitle className="text-lg mb-2">{segment.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {segment.description}
                       </p>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                <CardContent className="pt-0">
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
                       <span className="text-sm font-medium">Total Customers</span>
-                      <Badge variant="secondary" className="text-base font-bold">
+                      <Badge variant="secondary" className="text-base font-bold px-3 py-1">
                         {segment.count}
                       </Badge>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <h4 className="text-xs font-medium text-muted-foreground uppercase">Criteria</h4>
                       <div className="flex flex-wrap gap-2">
                         {segment.criteria.stage && segment.criteria.stage.length > 0 && (

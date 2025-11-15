@@ -118,7 +118,7 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-8">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -141,7 +141,7 @@ export default function Analytics() {
     : teamStructure;
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-analytics-title">Analytics</h1>
         <p className="text-muted-foreground mt-1">
@@ -185,7 +185,7 @@ export default function Analytics() {
 
         <TabsContent value={view} className="space-y-6">
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Total Customers</h3>
@@ -307,7 +307,7 @@ export default function Analytics() {
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Customer Distribution by Stage</CardTitle>
