@@ -19,6 +19,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Components**: Professional design with subtle hover states and smooth transitions, utilizing Shadcn UI, Tailwind CSS, and Radix UI primitives.
 - **Information Flow**: Role-based navigation and data filtering ensure users only see relevant information.
 - **Dashboard Design**: Analytics and Admin dashboards provide comprehensive overviews with team structure visualization, performance metrics, and role-specific data.
+- **Navigation Structure**: Sidebar navigation organized as Home, Admin Dashboard (role-based), Customers, Analytics, Segments, Generate Sales Report, Sales Dashboard (at bottom). To Do List section removed in favor of integrated calendar and action items on dashboard.
 
 **Technical Implementations & Feature Specifications:**
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management.
@@ -32,7 +33,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
   - **At-Risk Customers Widget**: Displays up to 10 customers requiring attention (below target, no recent contact, or overdue follow-ups) with color-coded reason badges
   - **Team Performance Summary**: CEO/Manager-only widget showing team members' sales progress with visual indicators and drill-down links to user details
   - Interactive calendar view, filterable action items list, team member selector for managers/CEOs, and regional office display
-- **Customer Management**: Comprehensive profiles with country tracking, main and additional contacts, notes, BC marketplace integration, store address, structured retailer type selection (14 categories), quarterly soft targets, last contact date, lead management (date of first contact, lead source), and interaction tracking. Advanced filtering by brand and retailer type. Includes downloadable Excel template for bulk customer imports with pre-formatted columns and example data.
+- **Customer Management**: Comprehensive profiles with country tracking, main and additional contacts, notes, BC marketplace integration, store address, structured retailer type selection (14 categories), quarterly soft targets, last contact date, lead management (date of first contact, lead source), and interaction tracking. Advanced filtering by brand and retailer type. Includes downloadable Excel template for bulk customer imports with pre-formatted columns and example data. External system integration with optional NetSuite and BloomConnect URL fields, featuring prominent link buttons in customer detail modal that open URLs in secure new tabs (with noopener/noreferrer protection).
 - **Brand Management**: Many-to-many relationship for multi-brand assignment per customer with inline brand creation.
 - **Target Management**: Supports Personal and General monthly sales targets, with role-based setting capabilities, integrated into the Sales Dashboard.
 - **Customer Monthly Targets**: Per-customer monthly sales targets with full CRUD operations in dedicated Targets tab within customer detail modal. Features optimistic UI updates for instant responsiveness, security-enhanced ownership validation preventing cross-customer data tampering, and chronological sorting (newest first). Uses shared edit dialog pattern to avoid click handler conflicts.
