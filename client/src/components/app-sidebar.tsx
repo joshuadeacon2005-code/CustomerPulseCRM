@@ -215,13 +215,15 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <DollarSign className="h-5 w-5 text-primary-foreground" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img 
+            src="/logo-favicon.png" 
+            alt="Bloom & Grow Logo" 
+            className="h-10 w-10 object-contain"
+          />
           <div>
             <h2 className="text-base font-semibold">Bloom & Grow</h2>
-            <p className="text-xs text-muted-foreground">Sales Management</p>
+            <p className="text-xs text-muted-foreground">Customer Relations Management</p>
           </div>
         </div>
       </SidebarHeader>
