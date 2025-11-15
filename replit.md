@@ -1,4 +1,4 @@
-# Bloom & Grow Group - Sales Management CRM
+# Bloom & Grow Group - Customer Relations Management
 
 ## Overview
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. The application supports role-based access, multi-country customer data management, brand assignments, monthly target setting, to-do list management, and detailed sales reporting with budget vs. actuals. It aims to enhance sales team efficiency and provide actionable insights for business growth.
