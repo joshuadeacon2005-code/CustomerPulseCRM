@@ -359,7 +359,7 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Link href="/customers?action=interaction" className="h-full">
               <Card className="hover-elevate cursor-pointer h-full" data-testid="card-log-interaction">
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex items-center justify-center">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-primary/10">
                       <MessageSquare className="h-6 w-6 text-primary" />
@@ -375,7 +375,7 @@ export default function Dashboard() {
 
             <Link href="/sales" className="h-full">
               <Card className="hover-elevate cursor-pointer h-full" data-testid="card-log-sale">
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex items-center justify-center">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-green-500/10">
                       <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -391,7 +391,7 @@ export default function Dashboard() {
 
             <Link href="/customers?action=new" className="h-full">
               <Card className="hover-elevate cursor-pointer h-full" data-testid="card-add-customer">
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex items-center justify-center">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-blue-500/10">
                       <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -407,7 +407,7 @@ export default function Dashboard() {
 
             <Link href="/customers?action=lead" className="h-full">
               <Card className="hover-elevate cursor-pointer h-full" data-testid="card-add-lead">
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex items-center justify-center">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-amber-500/10">
                       <TargetIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
