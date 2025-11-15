@@ -357,8 +357,8 @@ export default function Dashboard() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Link href="/customers?action=interaction">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-log-interaction">
+            <Link href="/customers?action=interaction" className="h-full">
+              <Card className="hover-elevate cursor-pointer h-full" data-testid="card-log-interaction">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-primary/10">
@@ -373,8 +373,8 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link href="/sales">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-log-sale">
+            <Link href="/sales" className="h-full">
+              <Card className="hover-elevate cursor-pointer h-full" data-testid="card-log-sale">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-green-500/10">
@@ -389,8 +389,8 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link href="/customers?action=new">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-add-customer">
+            <Link href="/customers?action=new" className="h-full">
+              <Card className="hover-elevate cursor-pointer h-full" data-testid="card-add-customer">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-blue-500/10">
@@ -405,8 +405,8 @@ export default function Dashboard() {
               </Card>
             </Link>
 
-            <Link href="/customers?action=lead">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-add-lead">
+            <Link href="/customers?action=lead" className="h-full">
+              <Card className="hover-elevate cursor-pointer h-full" data-testid="card-add-lead">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-amber-500/10">
