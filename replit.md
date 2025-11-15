@@ -19,7 +19,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
 - **Components**: Professional design with subtle hover states and smooth transitions, utilizing Shadcn UI, Tailwind CSS, and Radix UI primitives.
 - **Information Flow**: Role-based navigation and data filtering ensure users only see relevant information.
 - **Dashboard Design**: Analytics and Admin dashboards provide comprehensive overviews with team structure visualization, performance metrics, and role-specific data.
-- **Navigation Structure**: Sidebar navigation organized as Home, Admin Dashboard (role-based), Customers, Analytics, Segments, Generate Sales Report, Sales Dashboard (at bottom). To Do List section removed in favor of integrated calendar and action items on dashboard.
+- **Navigation Structure**: Sidebar navigation organized as Home, Admin Dashboard (role-based), Customers, Analytics, Segments, Sales Dashboard (at bottom). To Do List section removed in favor of integrated calendar and action items on dashboard. Sales reports are generated via a button in the Sales Dashboard header.
 
 **Technical Implementations & Feature Specifications:**
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management.

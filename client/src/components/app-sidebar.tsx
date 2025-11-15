@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, FileText, Home } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -64,11 +64,6 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Generate Sales Report",
-      url: "/reports",
-      icon: FileText,
-    },
-    {
       title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
@@ -100,11 +95,6 @@ export function AppSidebar() {
       title: "Segments",
       url: "/segments",
       icon: Target,
-    },
-    {
-      title: "Generate Sales Report",
-      url: "/reports",
-      icon: FileText,
     },
     {
       title: "Sales Dashboard",
@@ -140,11 +130,6 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Generate Sales Report",
-      url: "/reports",
-      icon: FileText,
-    },
-    {
       title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
@@ -177,11 +162,6 @@ export function AppSidebar() {
       url: "/segments",
       icon: Target,
     },
-    {
-      title: "Generate Sales Report",
-      url: "/reports",
-      icon: FileText,
-    },
   ];
 
   const salesmanNav = [
@@ -194,11 +174,6 @@ export function AppSidebar() {
       title: "Customers",
       url: "/customers",
       icon: Users,
-    },
-    {
-      title: "Generate Sales Report",
-      url: "/reports",
-      icon: FileText,
     },
     {
       title: "Sales Dashboard",

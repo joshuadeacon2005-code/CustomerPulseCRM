@@ -15,7 +15,8 @@ import { insertMonthlyTargetSchema } from "@shared/schema";
 import type { Sale, MonthlyTarget } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
-import { Edit, TrendingUp, Target as TargetIcon } from "lucide-react";
+import { Edit, TrendingUp, Target as TargetIcon, FileText } from "lucide-react";
+import { useLocation } from "wouter";
 
 const months = [
   { value: 1, label: "Jan" },
@@ -38,6 +39,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function SalesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   
@@ -250,6 +252,15 @@ export default function SalesPage() {
           <h1 className="text-3xl font-bold">Sales Dashboard</h1>
           <p className="text-muted-foreground">Welcome, {user?.name}</p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => setLocation("/reports")}
+          data-testid="button-generate-report"
+          className="gap-2"
+        >
+          <FileText className="h-4 w-4" />
+          Generate Sales Report
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
