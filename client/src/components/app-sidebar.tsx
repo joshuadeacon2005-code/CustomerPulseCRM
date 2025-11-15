@@ -215,9 +215,16 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-6">
-        <div className="text-center">
-          <p className="text-sm font-medium">Customer Relations</p>
-          <p className="text-xs text-muted-foreground">Management</p>
+        <div className="flex items-center gap-3">
+          <img 
+            src="/logo-main.png" 
+            alt="Bloom & Grow" 
+            className="h-12 object-contain"
+          />
+          <div>
+            <p className="text-sm font-medium">Customer Relations</p>
+            <p className="text-xs text-muted-foreground">Management</p>
+          </div>
         </div>
       </SidebarHeader>
       
