@@ -43,7 +43,7 @@ function AuthenticatedApp() {
               <img 
                 src="/logo-main.png" 
                 alt="Bloom & Grow" 
-                className="h-[120px] object-contain"
+                className="h-[130px] object-contain"
               />
             </div>
             <div className="flex-1 flex justify-center">
