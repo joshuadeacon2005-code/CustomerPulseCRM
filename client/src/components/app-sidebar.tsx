@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, TrendingUp, CheckSquare, FileText, Home } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, FileText, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -49,11 +49,6 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -69,14 +64,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "To Do List",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Sales Reports",
+      title: "Generate Sales Report",
       url: "/reports",
       icon: FileText,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -92,11 +87,6 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -112,14 +102,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "To Do List",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Sales Reports",
+      title: "Generate Sales Report",
       url: "/reports",
       icon: FileText,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -135,11 +125,6 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -155,14 +140,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "To Do List",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Sales Reports",
+      title: "Generate Sales Report",
       url: "/reports",
       icon: FileText,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -193,12 +178,7 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "To Do List",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Sales Reports",
+      title: "Generate Sales Report",
       url: "/reports",
       icon: FileText,
     },
@@ -211,24 +191,19 @@ export function AppSidebar() {
       icon: Home,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
     },
     {
-      title: "To Do List",
-      url: "/tasks",
-      icon: CheckSquare,
-    },
-    {
-      title: "Sales Reports",
+      title: "Generate Sales Report",
       url: "/reports",
       icon: FileText,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
