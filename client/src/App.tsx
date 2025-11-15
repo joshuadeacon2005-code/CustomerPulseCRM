@@ -38,7 +38,14 @@ function AuthenticatedApp() {
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between gap-4 h-16 px-4 border-b shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-4">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <img 
+                src="/logo-main.png" 
+                alt="Bloom & Grow" 
+                className="h-8 object-contain"
+              />
+            </div>
             <div className="flex-1 flex justify-center">
               <GlobalSearch />
             </div>
