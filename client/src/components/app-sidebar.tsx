@@ -214,15 +214,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-3">
+      <SidebarHeader className="p-6">
+        <div className="flex flex-col items-center gap-4">
           <img 
             src="/logo-favicon.png" 
             alt="Bloom & Grow Logo" 
-            className="h-10 w-10 object-contain"
+            className="w-full max-w-[180px] object-contain"
           />
-          <div>
-            <h2 className="text-base font-semibold">Bloom & Grow</h2>
+          <div className="text-center">
             <p className="text-xs text-muted-foreground">Customer Relations Management</p>
           </div>
         </div>
