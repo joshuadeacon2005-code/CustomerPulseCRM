@@ -217,9 +217,9 @@ export function AppSidebar() {
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
           <img 
-            src="/logo-main.png" 
+            src="/logo-sidebar.png" 
             alt="Bloom & Grow" 
-            className="h-12 object-contain"
+            className="h-16 object-contain"
           />
           <div>
             <p className="text-sm font-medium">Customer Relations</p>
