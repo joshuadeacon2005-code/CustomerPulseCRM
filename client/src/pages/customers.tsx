@@ -50,6 +50,7 @@ export default function Customers() {
   const [stageFilterLocal, setStageFilterLocal] = useState<string>(stageFilter || "all");
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [retailerTypeFilter, setRetailerTypeFilter] = useState<string>("all");
+  const [countryFilter, setCountryFilter] = useState<string>("all");
   const [isBrandSelectOpen, setIsBrandSelectOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
@@ -162,8 +163,16 @@ export default function Customers() {
     const matchesRetailerType = retailerTypeFilter === "all" || 
       customer.retailerType === retailerTypeFilter;
     
-    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType;
+    const matchesCountry = countryFilter === "all" || 
+      (customer.country || "").toLowerCase() === countryFilter.toLowerCase();
+    
+    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry;
   });
+  
+  // Get unique countries from customers
+  const uniqueCountries = Array.from(
+    new Set(customers?.map(c => c.country || "Unknown").filter(Boolean))
+  ).sort();
 
   const handleCustomerClick = (customer: CustomerWithBrands) => {
     setSelectedCustomer(customer as CustomerWithDetails);
@@ -192,13 +201,15 @@ export default function Customers() {
     setStageFilterLocal("all");
     setBrandFilter([]);
     setRetailerTypeFilter("all");
+    setCountryFilter("all");
   };
 
   const activeFilterCount = 
     (searchTerm ? 1 : 0) +
     (stageFilterLocal !== "all" ? 1 : 0) +
     (brandFilter.length > 0 ? 1 : 0) +
-    (retailerTypeFilter !== "all" ? 1 : 0);
+    (retailerTypeFilter !== "all" ? 1 : 0) +
+    (countryFilter !== "all" ? 1 : 0);
 
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
@@ -230,6 +241,29 @@ export default function Customers() {
             Add Customer
           </Button>
         </div>
+      </div>
+
+      {/* Country Filter Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <Button
+          variant={countryFilter === "all" ? "default" : "outline"}
+          onClick={() => setCountryFilter("all")}
+          className={countryFilter === "all" ? "bg-primary hover:bg-primary/90" : ""}
+          data-testid="button-country-all"
+        >
+          All Countries
+        </Button>
+        {uniqueCountries.map((country) => (
+          <Button
+            key={country}
+            variant={countryFilter === country ? "default" : "outline"}
+            onClick={() => setCountryFilter(country)}
+            className={countryFilter === country ? "bg-primary hover:bg-primary/90" : ""}
+            data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            {country}
+          </Button>
+        ))}
       </div>
 
       <Card>
