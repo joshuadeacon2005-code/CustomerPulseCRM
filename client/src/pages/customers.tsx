@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { CustomerCard } from "@/components/customer-card";
 import { CustomerDetailModal } from "@/components/customer-detail-modal";
@@ -24,6 +24,7 @@ import { Plus, Search, Users as UsersIcon, Filter, X, Download } from "lucide-re
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import {
@@ -45,6 +46,7 @@ export default function Customers() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1]);
   const stageFilter = searchParams.get('stage');
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilterLocal, setStageFilterLocal] = useState<string>(stageFilter || "all");
@@ -63,6 +65,26 @@ export default function Customers() {
   const { data: brands, isLoading: isLoadingBrands } = useQuery<Brand[]>({
     queryKey: ["/api/brands"],
   });
+
+  // Set default country filter based on user's regional office
+  useEffect(() => {
+    if (user && user.regionalOffice) {
+      const regionalOfficeToCountry: Record<string, string> = {
+        "Australia/NZ": "Australia",
+        "Hong Kong": "Hong Kong",
+        "Singapore": "Singapore",
+        "Shanghai": "China",
+        "Indonesia": "Indonesia",
+        "Malaysia": "Malaysia",
+        "Guangzhou": "China",
+      };
+      
+      const defaultCountry = regionalOfficeToCountry[user.regionalOffice];
+      if (defaultCountry) {
+        setCountryFilter(defaultCountry);
+      }
+    }
+  }, [user]);
 
   const { data: selectedCustomerDetail } = useQuery<CustomerWithDetails>({
     queryKey: ["/api/customers", selectedCustomer?.id],
