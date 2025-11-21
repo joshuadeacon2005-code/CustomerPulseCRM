@@ -213,7 +213,12 @@ export function CustomerDetailModal({
 
   const createActionItemMutation = useMutation({
     mutationFn: async (data: InsertActionItem) => {
-      return await apiRequest('POST', '/api/action-items', data);
+      const payload = {
+        ...data,
+        dueDate: data.dueDate ? (data.dueDate as any).toISOString?.() || data.dueDate : undefined,
+        visitDate: data.visitDate ? (data.visitDate as any).toISOString?.() || data.visitDate : undefined,
+      };
+      return await apiRequest('POST', '/api/action-items', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
