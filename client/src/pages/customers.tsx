@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -62,12 +62,87 @@ export default function Customers() {
     const stored = localStorage.getItem("customerViewMode");
     return (stored === "grid" || stored === "table") ? stored : "grid";
   });
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<any | null>(null);
   const { toast } = useToast();
 
   // Persist view mode to localStorage
   useEffect(() => {
     localStorage.setItem("customerViewMode", viewMode);
   }, [viewMode]);
+
+  // Import mutation
+  const importCustomersMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/customers/import', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok && response.status !== 207 && response.status !== 400) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to import customers');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setImportResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      if (data.status === 'success') {
+        toast({
+          title: "Import successful",
+          description: `Successfully imported ${data.summary.successful} customers.`,
+        });
+      } else if (data.status === 'partial') {
+        toast({
+          title: "Import partially completed",
+          description: `Imported ${data.summary.successful} customers with ${data.summary.failed} failures and ${data.summary.skipped} skipped.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Import failed",
+          description: "No customers were imported. Please check the error details.",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Import failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+      setImportResult(null);
+    }
+  };
+
+  const handleImport = () => {
+    if (importFile) {
+      importCustomersMutation.mutate(importFile);
+    }
+  };
+
+  const handleCloseImportDialog = () => {
+    setIsImportDialogOpen(false);
+    setImportFile(null);
+    setImportResult(null);
+  };
 
   const { data: customers, isLoading } = useQuery<CustomerWithBrands[]>({
     queryKey: ["/api/customers"],
@@ -287,6 +362,14 @@ export default function Customers() {
               <Download className="h-4 w-4 mr-2" />
               Download Template
             </a>
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+            data-testid="button-import-customers"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import
           </Button>
           <Button 
             onClick={() => setIsAddDialogOpen(true)}
@@ -576,6 +659,123 @@ export default function Customers() {
             onCancel={() => setIsAddDialogOpen(false)}
             isLoading={addCustomerMutation.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Customers Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={handleCloseImportDialog}>
+        <DialogContent className="max-w-2xl" data-testid="modal-import-customers">
+          <DialogHeader className="pr-10">
+            <DialogTitle>Import Customers from Excel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {!importResult ? (
+              <>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Upload an Excel file (.xlsx or .xls) to bulk import customers. 
+                    Make sure your file follows the template format.
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileSelect}
+                      disabled={importCustomersMutation.isPending}
+                      data-testid="input-import-file"
+                    />
+                  </div>
+                  {importFile && (
+                    <p className="text-sm">
+                      Selected: <span className="font-medium">{importFile.name}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCloseImportDialog}
+                    disabled={importCustomersMutation.isPending}
+                    data-testid="button-cancel-import"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleImport}
+                    disabled={!importFile || importCustomersMutation.isPending}
+                    data-testid="button-upload-import"
+                  >
+                    {importCustomersMutation.isPending ? "Uploading..." : "Upload & Import"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Import Summary Report */}
+                <div className="space-y-4">
+                  <div className="rounded-lg border p-4 space-y-4">
+                    <h3 className="font-semibold">Import Summary</h3>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p className="text-2xl font-bold">{importResult.summary.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-green-600 dark:text-green-400">Successful</p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {importResult.summary.successful}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-red-600 dark:text-red-400">Failed</p>
+                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                          {importResult.summary.failed}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Skipped</p>
+                        <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                          {importResult.summary.skipped}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Error Details */}
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm">Error Details</h4>
+                      <div className="max-h-60 overflow-y-auto space-y-2">
+                        {importResult.errors.map((error: any, index: number) => (
+                          <div 
+                            key={index} 
+                            className="rounded border p-3 text-sm bg-destructive/5"
+                            data-testid={`import-error-${index}`}
+                          >
+                            <p className="font-medium">Row {error.row}: {error.companyName || 'Unknown'}</p>
+                            <p className="text-muted-foreground">{error.error}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success Message */}
+                  {importResult.status === 'success' && (
+                    <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-green-800 dark:text-green-200">
+                      <p className="font-medium">All customers imported successfully!</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleCloseImportDialog} data-testid="button-close-import-result">
+                    Close
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
