@@ -375,9 +375,18 @@ export class DatabaseStorage implements IStorage {
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
         const customerBrandsList = await this.getCustomerBrands(customer.id);
+        
+        // Get assigned user's name if available
+        let assignedToName: string | null = null;
+        if (customer.assignedTo) {
+          const [assignedUser] = await db.select({ username: users.username }).from(users).where(eq(users.id, customer.assignedTo));
+          assignedToName = assignedUser?.username || null;
+        }
+        
         return {
           ...customer,
           brands: customerBrandsList,
+          assignedToName,
         };
       })
     );

@@ -64,7 +64,7 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
         {customer.assignedTo && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2 pt-2 border-t">
             <User className="h-3 w-3" />
-            <span>Assigned to: {customer.assignedTo}</span>
+            <span>Assigned to: {(customer as any).assignedToName || customer.assignedTo}</span>
           </div>
         )}
         <div className="text-xs text-muted-foreground mt-2">
