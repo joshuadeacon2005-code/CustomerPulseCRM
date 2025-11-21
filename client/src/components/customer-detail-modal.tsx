@@ -51,6 +51,9 @@ import {
   InsertMonthlySalesTracking,
   insertMonthlySalesTrackingSchema,
   updateMonthlySalesTrackingSchema,
+  CustomerAddress,
+  InsertCustomerAddress,
+  insertCustomerAddressSchema,
 } from "@shared/schema";
 import { 
   Mail, 
@@ -144,6 +147,8 @@ export function CustomerDetailModal({
   const [editingSalesId, setEditingSalesId] = useState<string | null>(null);
   const [isAddingAdditionalContact, setIsAddingAdditionalContact] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(null);
   const { toast } = useToast();
 
   const { data: allBrands } = useQuery<Brand[]>({
@@ -288,6 +293,26 @@ export function CustomerDetailModal({
     },
   });
 
+  const deleteAddressMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/customer-addresses/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      toast({ 
+        title: "Address deleted",
+        description: "The address has been removed." 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete address", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
+    },
+  });
+
   if (!customer) return null;
 
   const handleUpdate = (data: UpdateCustomer) => {
@@ -417,7 +442,7 @@ export function CustomerDetailModal({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="ai-insights" data-testid="tab-ai-insights">
               <Sparkles className="h-3 w-3 mr-1" />
@@ -428,6 +453,9 @@ export function CustomerDetailModal({
             </TabsTrigger>
             <TabsTrigger value="targets" data-testid="tab-targets">
               Targets
+            </TabsTrigger>
+            <TabsTrigger value="addresses" data-testid="tab-addresses">
+              Addresses ({customer.addresses?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="actions" data-testid="tab-actions">
               Action Items ({customer.actionItems?.filter(a => !a.completedAt).length || 0})
@@ -1128,6 +1156,135 @@ export function CustomerDetailModal({
               </Card>
             )}
           </TabsContent>
+
+          {/* Addresses Tab */}
+          <TabsContent value="addresses" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Customer Addresses</CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingAddress(null);
+                      setIsAddingAddress(true);
+                    }}
+                    data-testid="button-add-address"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Address
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customer.addresses && customer.addresses.length > 0 ? (
+                  customer.addresses.map((address) => (
+                    <Card key={address.id} className="relative">
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="capitalize">
+                                  {address.addressType}
+                                </Badge>
+                              </div>
+                              
+                              <div className="space-y-1">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">English Address</p>
+                                  <p className="text-sm">{address.address}</p>
+                                </div>
+                                
+                                {address.chineseAddress && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-muted-foreground">Chinese Address</p>
+                                    <p className="text-sm">{address.chineseAddress}</p>
+                                  </div>
+                                )}
+                                
+                                {address.translation && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-muted-foreground">Translation Notes</p>
+                                    <p className="text-sm text-muted-foreground italic">{address.translation}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingAddress(address);
+                                  setIsAddingAddress(true);
+                                }}
+                                data-testid={`button-edit-address-${address.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => deleteAddressMutation.mutate(address.id)}
+                                disabled={deleteAddressMutation.isPending}
+                                data-testid={`button-delete-address-${address.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center p-8 text-muted-foreground">
+                    <MapPin className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p>No addresses added yet</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => {
+                        setEditingAddress(null);
+                        setIsAddingAddress(true);
+                      }}
+                      data-testid="button-add-first-address"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Address
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Add/Edit Address Dialog */}
+            <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
+              <DialogContent data-testid="modal-add-address">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingAddress ? 'Edit Address' : 'Add New Address'}
+                  </DialogTitle>
+                </DialogHeader>
+                <AddressForm
+                  customerId={customer.id}
+                  address={editingAddress || undefined}
+                  isEditing={!!editingAddress}
+                  onSuccess={() => {
+                    setIsAddingAddress(false);
+                    setEditingAddress(null);
+                  }}
+                  onCancel={() => {
+                    setIsAddingAddress(false);
+                    setEditingAddress(null);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
@@ -1590,6 +1747,146 @@ function AdditionalContactForm({
         </Button>
         <Button type="submit" disabled={isPending} data-testid="button-submit-additional-contact">
           {isPending ? (isEditing ? 'Updating...' : 'Adding...') : (isEditing ? 'Update Contact' : 'Add Contact')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function AddressForm({
+  customerId,
+  address,
+  isEditing,
+  onSuccess,
+  onCancel,
+}: {
+  customerId: string;
+  address?: CustomerAddress;
+  isEditing: boolean;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const { toast } = useToast();
+  const form = useForm<InsertCustomerAddress>({
+    resolver: zodResolver(insertCustomerAddressSchema),
+    defaultValues: {
+      customerId,
+      addressType: address?.addressType || 'store',
+      address: address?.address || '',
+      chineseAddress: address?.chineseAddress || '',
+      translation: address?.translation || '',
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: InsertCustomerAddress) => {
+      await apiRequest('POST', '/api/customer-addresses', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+      toast({ title: "Address added successfully" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to add address", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<InsertCustomerAddress>) => {
+      if (!address?.id) return;
+      await apiRequest('PATCH', `/api/customer-addresses/${address.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+      toast({ title: "Address updated successfully" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to update address", variant: "destructive" });
+    },
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const onSubmit = (data: InsertCustomerAddress) => {
+    if (isEditing) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <Label htmlFor="addressType">Address Type</Label>
+        <Select
+          value={form.watch('addressType')}
+          onValueChange={(value) => form.setValue('addressType', value as any)}
+        >
+          <SelectTrigger data-testid="select-address-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="store">Store</SelectItem>
+            <SelectItem value="office">Office</SelectItem>
+            <SelectItem value="warehouse">Warehouse</SelectItem>
+            <SelectItem value="billing">Billing</SelectItem>
+            <SelectItem value="shipping">Shipping</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="address">English Address *</Label>
+        <Textarea
+          id="address"
+          placeholder="Enter address in English"
+          {...form.register('address')}
+          rows={3}
+          data-testid="input-address"
+        />
+        {form.formState.errors.address && (
+          <p className="text-sm text-destructive mt-1">{form.formState.errors.address.message}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="chineseAddress">Chinese Address</Label>
+        <Textarea
+          id="chineseAddress"
+          placeholder="輸入中文地址（可選）"
+          {...form.register('chineseAddress')}
+          rows={3}
+          data-testid="input-chinese-address"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="translation">Translation Notes</Label>
+        <Textarea
+          id="translation"
+          placeholder="Add any translation notes or special instructions"
+          {...form.register('translation')}
+          rows={2}
+          data-testid="input-translation"
+        />
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isPending}
+          data-testid="button-cancel-address"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isPending} data-testid="button-submit-address">
+          {isPending ? (isEditing ? 'Updating...' : 'Adding...') : (isEditing ? 'Update Address' : 'Add Address')}
         </Button>
       </div>
     </form>

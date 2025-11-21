@@ -172,7 +172,8 @@ export const customerAddresses = pgTable("customer_addresses", {
   customerId: varchar("customer_id").notNull(),
   addressType: text("address_type").notNull().default("store"),
   address: text("address").notNull(),
-  addressTranslation: text("address_translation"),
+  chineseAddress: text("chinese_address"),
+  translation: text("translation"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -470,7 +471,8 @@ export const insertCustomerAddressSchema = createInsertSchema(customerAddresses)
   customerId: z.string().min(1),
   addressType: z.string().optional().default("store"),
   address: z.string().min(1),
-  addressTranslation: z.string().optional().nullable(),
+  chineseAddress: z.string().optional().nullable(),
+  translation: z.string().optional().nullable(),
 });
 
 export const insertBasecampConnectionSchema = createInsertSchema(basecampConnections).omit({
