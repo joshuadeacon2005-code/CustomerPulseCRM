@@ -1659,9 +1659,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
+        // Extract company name early so it's available in catch block
+        let companyName = '';
+        
         try {
           // Extract company name (required field)
-          const companyName = columnMap.companyName !== -1 ? row[columnMap.companyName]?.toString().trim() : '';
+          companyName = columnMap.companyName !== -1 ? row[columnMap.companyName]?.toString().trim() : '';
           
           if (!companyName) {
             results.errors.push({
