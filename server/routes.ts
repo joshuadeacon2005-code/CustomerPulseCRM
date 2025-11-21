@@ -225,6 +225,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer addresses routes
+  app.get("/api/customers/:customerId/addresses", isAuthenticated, async (req, res) => {
+    try {
+      const addresses = await storage.getCustomerAddresses(req.params.customerId);
+      res.json(addresses);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch customer addresses" });
+    }
+  });
+
+  app.post("/api/customers/:customerId/addresses", isAuthenticated, async (req, res) => {
+    try {
+      const { insertCustomerAddressSchema } = await import("@shared/schema");
+      const validatedData = insertCustomerAddressSchema.parse({
+        ...req.body,
+        customerId: req.params.customerId,
+      });
+      const address = await storage.createCustomerAddress(validatedData);
+      res.status(201).json(address);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid address data", details: error });
+      }
+      res.status(500).json({ error: "Failed to create address" });
+    }
+  });
+
+  app.patch("/api/customer-addresses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { insertCustomerAddressSchema } = await import("@shared/schema");
+      const validatedData = insertCustomerAddressSchema.omit({ customerId: true }).parse(req.body);
+      const address = await storage.updateCustomerAddress(req.params.id, validatedData);
+      if (!address) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+      res.json(address);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid address data", details: error });
+      }
+      res.status(500).json({ error: "Failed to update address" });
+    }
+  });
+
+  app.delete("/api/customer-addresses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCustomerAddress(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete address" });
+    }
+  });
+
   app.get("/api/interactions", isAuthenticated, async (_req, res) => {
     try {
       const interactions = await storage.getInteractions();

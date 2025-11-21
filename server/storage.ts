@@ -32,6 +32,8 @@ import {
   type UserDetails,
   type CustomerContact,
   type InsertCustomerContact,
+  type CustomerAddress,
+  type InsertCustomerAddress,
   type BasecampConnection,
   type InsertBasecampConnection,
   type OauthState,
@@ -48,6 +50,7 @@ import {
   actionItems,
   monthlySalesTracking,
   customerContacts,
+  customerAddresses,
   basecampConnections,
   oauthStates,
   customerMonthlyTargets,
@@ -133,6 +136,12 @@ export interface IStorage {
   createCustomerContact(contact: InsertCustomerContact): Promise<CustomerContact>;
   updateCustomerContact(id: string, contact: Partial<InsertCustomerContact>): Promise<CustomerContact | undefined>;
   deleteCustomerContact(id: string): Promise<boolean>;
+
+  // Customer addresses management
+  getCustomerAddresses(customerId: string): Promise<CustomerAddress[]>;
+  createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress>;
+  updateCustomerAddress(id: string, address: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined>;
+  deleteCustomerAddress(id: string): Promise<boolean>;
 
   // Basecamp OAuth management
   getBasecampConnection(userId: string): Promise<BasecampConnection | undefined>;
@@ -446,6 +455,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(monthlySalesTracking.customerId, id))
       .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
     const additionalContacts = await this.getCustomerContacts(id);
+    const addresses = await this.getCustomerAddresses(id);
 
     // Get assigned user name if assignedTo exists
     let assignedToName = null;
@@ -465,6 +475,7 @@ export class DatabaseStorage implements IStorage {
       actionItems: customerActionItems,
       monthlySales: customerMonthlySales,
       additionalContacts,
+      addresses,
     };
   }
 
@@ -1014,6 +1025,33 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomerContact(id: string): Promise<boolean> {
     const result = await db.delete(customerContacts).where(eq(customerContacts.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Customer addresses management
+  async getCustomerAddresses(customerId: string): Promise<CustomerAddress[]> {
+    return await db
+      .select()
+      .from(customerAddresses)
+      .where(eq(customerAddresses.customerId, customerId))
+      .orderBy(customerAddresses.createdAt);
+  }
+
+  async createCustomerAddress(addressData: InsertCustomerAddress): Promise<CustomerAddress> {
+    const [address] = await db.insert(customerAddresses).values(addressData).returning();
+    return address;
+  }
+
+  async updateCustomerAddress(id: string, addressData: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined> {
+    const [address] = await db.update(customerAddresses)
+      .set(addressData)
+      .where(eq(customerAddresses.id, id))
+      .returning();
+    return address;
+  }
+
+  async deleteCustomerAddress(id: string): Promise<boolean> {
+    const result = await db.delete(customerAddresses).where(eq(customerAddresses.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
