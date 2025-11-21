@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CurrencySelector } from "@/components/currency-selector";
 import { QuickActionMenu } from "@/components/quick-action-menu";
 import { GlobalSearch } from "@/components/global-search";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,7 +50,10 @@ function AuthenticatedApp() {
             <div className="flex-1 flex justify-center">
               <GlobalSearch />
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-3">
+              <CurrencySelector />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-y-auto">
             <Switch>

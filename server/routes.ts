@@ -14,6 +14,46 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+// Currency validation helper
+async function validateAndConvertToBase(
+  amount: number,
+  currency: string
+): Promise<number> {
+  // If already in base currency (USD), return as-is
+  if (currency === "USD") {
+    return amount;
+  }
+
+  // Fetch exchange rate from currency to USD
+  const exchangeRate = await storage.getExchangeRate(currency, "USD");
+  
+  if (!exchangeRate) {
+    throw new Error(`Exchange rate not found for ${currency} to USD`);
+  }
+
+  // Convert to base currency (USD) and round to 2 decimal places
+  return Math.round(amount * exchangeRate.rate * 100) / 100;
+}
+
+// Validate that provided baseCurrencyAmount matches calculated conversion
+function validateBaseCurrencyAmount(
+  amount: number,
+  currency: string,
+  providedBaseAmount: number,
+  calculatedBaseAmount: number
+): void {
+  // Allow small rounding differences (within 0.01)
+  const tolerance = 0.01;
+  const difference = Math.abs(providedBaseAmount - calculatedBaseAmount);
+  
+  if (difference > tolerance) {
+    throw new Error(
+      `Base currency amount mismatch: provided ${providedBaseAmount}, ` +
+      `calculated ${calculatedBaseAmount} for ${amount} ${currency}`
+    );
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   
@@ -306,15 +346,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/targets", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertMonthlyTargetSchema.parse({
+      let validatedData = insertMonthlyTargetSchema.parse({
         ...req.body,
         salesmanId: req.user!.role === "salesman" ? req.user!.id : req.body.salesmanId,
       });
+      
+      // Validate and auto-calculate base amount if currency is provided
+      if (validatedData.currency) {
+        const calculatedBaseAmount = await validateAndConvertToBase(
+          Number(validatedData.targetAmount),
+          validatedData.currency
+        );
+        
+        if (validatedData.baseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.targetAmount),
+            validatedData.currency,
+            Number(validatedData.baseCurrencyAmount),
+            calculatedBaseAmount
+          );
+        } else {
+          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
+        }
+      }
+      
       const target = await storage.createMonthlyTarget(validatedData);
       res.status(201).json(target);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid target data", details: error });
+      }
+      if (error instanceof Error && (error.message.includes("Exchange rate") || error.message.includes("mismatch"))) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create monthly target" });
     }
@@ -322,7 +385,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/targets/:id", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = updateMonthlyTargetSchema.parse(req.body);
+      let validatedData = updateMonthlyTargetSchema.parse(req.body);
+      
+      // Validate and auto-calculate base amount if currency and amount are being updated
+      if (validatedData.currency && validatedData.targetAmount) {
+        const calculatedBaseAmount = await validateAndConvertToBase(
+          Number(validatedData.targetAmount),
+          validatedData.currency
+        );
+        
+        if (validatedData.baseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.targetAmount),
+            validatedData.currency,
+            Number(validatedData.baseCurrencyAmount),
+            calculatedBaseAmount
+          );
+        } else {
+          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
+        }
+      }
+      
       const target = await storage.updateMonthlyTarget(req.params.id, validatedData);
       if (!target) {
         return res.status(404).json({ error: "Target not found" });
@@ -387,16 +470,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers/:customerId/targets", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertCustomerMonthlyTargetSchema.parse({
+      let validatedData = insertCustomerMonthlyTargetSchema.parse({
         ...req.body,
         customerId: req.params.customerId,
         createdBy: req.user!.id,
       });
+      
+      // Validate and auto-calculate base amount if currency is provided
+      if (validatedData.currency) {
+        const calculatedBaseAmount = await validateAndConvertToBase(
+          Number(validatedData.targetAmount),
+          validatedData.currency
+        );
+        
+        if (validatedData.baseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.targetAmount),
+            validatedData.currency,
+            Number(validatedData.baseCurrencyAmount),
+            calculatedBaseAmount
+          );
+        } else {
+          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
+        }
+      }
+      
       const target = await storage.createCustomerMonthlyTarget(validatedData);
       res.status(201).json(target);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid target data", details: error });
+      }
+      if (error instanceof Error && (error.message.includes("Exchange rate") || error.message.includes("mismatch"))) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create customer target" });
     }
@@ -411,7 +517,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingTarget.customerId !== req.params.customerId) {
         return res.status(404).json({ error: "Target not found" });
       }
-      const validatedData = insertCustomerMonthlyTargetSchema.partial().parse(req.body);
+      let validatedData = insertCustomerMonthlyTargetSchema.partial().parse(req.body);
+      
+      // Validate and auto-calculate base amount if currency and amount are being updated
+      if (validatedData.currency && validatedData.targetAmount) {
+        const calculatedBaseAmount = await validateAndConvertToBase(
+          Number(validatedData.targetAmount),
+          validatedData.currency
+        );
+        
+        if (validatedData.baseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.targetAmount),
+            validatedData.currency,
+            Number(validatedData.baseCurrencyAmount),
+            calculatedBaseAmount
+          );
+        } else {
+          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
+        }
+      }
+      
       const target = await storage.updateCustomerMonthlyTarget(req.params.id, req.params.customerId, validatedData);
       if (!target) {
         return res.status(404).json({ error: "Target not found" });
@@ -420,6 +546,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid target data", details: error });
+      }
+      if (error instanceof Error && (error.message.includes("Exchange rate") || error.message.includes("mismatch"))) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to update customer target" });
     }
@@ -457,7 +586,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/monthly-sales", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertMonthlySalesTrackingSchema.parse(req.body);
+      let validatedData = insertMonthlySalesTrackingSchema.parse(req.body);
+      
+      // Validate and auto-calculate base amounts if currency is provided
+      if (validatedData.currency) {
+        if (validatedData.actual) {
+          const calculatedBaseActual = await validateAndConvertToBase(
+            Number(validatedData.actual),
+            validatedData.currency
+          );
+          
+          if (validatedData.baseCurrencyActual !== undefined) {
+            validateBaseCurrencyAmount(
+              Number(validatedData.actual),
+              validatedData.currency,
+              Number(validatedData.baseCurrencyActual),
+              calculatedBaseActual
+            );
+          } else {
+            validatedData = { ...validatedData, baseCurrencyActual: calculatedBaseActual.toString() };
+          }
+        }
+        
+        if (validatedData.budget) {
+          const calculatedBaseBudget = await validateAndConvertToBase(
+            Number(validatedData.budget),
+            validatedData.currency
+          );
+          
+          if (validatedData.baseCurrencyBudget !== undefined) {
+            validateBaseCurrencyAmount(
+              Number(validatedData.budget),
+              validatedData.currency,
+              Number(validatedData.baseCurrencyBudget),
+              calculatedBaseBudget
+            );
+          } else {
+            validatedData = { ...validatedData, baseCurrencyBudget: calculatedBaseBudget.toString() };
+          }
+        }
+      }
+      
       const monthlySales = await storage.createMonthlySales(validatedData);
       res.status(201).json(monthlySales);
     } catch (error) {
@@ -470,7 +639,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/monthly-sales/:id", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = updateMonthlySalesTrackingSchema.parse(req.body);
+      let validatedData = updateMonthlySalesTrackingSchema.parse(req.body);
+      
+      // Validate and auto-calculate base amounts if currency is provided
+      if (validatedData.currency) {
+        if (validatedData.actual) {
+          const calculatedBaseActual = await validateAndConvertToBase(
+            Number(validatedData.actual),
+            validatedData.currency
+          );
+          
+          if (validatedData.baseCurrencyActual !== undefined) {
+            validateBaseCurrencyAmount(
+              Number(validatedData.actual),
+              validatedData.currency,
+              Number(validatedData.baseCurrencyActual),
+              calculatedBaseActual
+            );
+          } else {
+            validatedData = { ...validatedData, baseCurrencyActual: calculatedBaseActual.toString() };
+          }
+        }
+        
+        if (validatedData.budget) {
+          const calculatedBaseBudget = await validateAndConvertToBase(
+            Number(validatedData.budget),
+            validatedData.currency
+          );
+          
+          if (validatedData.baseCurrencyBudget !== undefined) {
+            validateBaseCurrencyAmount(
+              Number(validatedData.budget),
+              validatedData.currency,
+              Number(validatedData.baseCurrencyBudget),
+              calculatedBaseBudget
+            );
+          } else {
+            validatedData = { ...validatedData, baseCurrencyBudget: calculatedBaseBudget.toString() };
+          }
+        }
+      }
+      
       const monthlySales = await storage.updateMonthlySales(req.params.id, validatedData);
       if (!monthlySales) {
         return res.status(404).json({ error: "Monthly sales record not found" });
@@ -480,21 +689,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid monthly sales data", details: error });
       }
+      if (error instanceof Error && (error.message.includes("Exchange rate") || error.message.includes("mismatch"))) {
+        return res.status(400).json({ error: error.message });
+      }
       res.status(500).json({ error: "Failed to update monthly sales record" });
     }
   });
 
   app.post("/api/sales", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertSaleSchema.parse({
+      let validatedData = insertSaleSchema.parse({
         ...req.body,
         salesmanId: req.user!.id,
       });
+      
+      // If currency fields are provided, validate and auto-calculate base amount if missing
+      if (validatedData.currency) {
+        const calculatedBaseAmount = await validateAndConvertToBase(
+          Number(validatedData.amount),
+          validatedData.currency
+        );
+        
+        // If baseCurrencyAmount was provided, validate it matches
+        if (validatedData.baseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.amount),
+            validatedData.currency,
+            Number(validatedData.baseCurrencyAmount),
+            calculatedBaseAmount
+          );
+        } else {
+          // Auto-calculate if not provided
+          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
+        }
+      }
+      
       const sale = await storage.createSale(validatedData);
       res.status(201).json(sale);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid sale data", details: error });
+      }
+      if (error instanceof Error && error.message.includes("Exchange rate")) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error instanceof Error && error.message.includes("mismatch")) {
+        return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: "Failed to create sale" });
     }
@@ -533,6 +773,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(usersWithoutPasswords);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/user/currency", isAuthenticated, async (req, res) => {
+    try {
+      const { currency } = req.body;
+      
+      if (!currency) {
+        return res.status(400).json({ error: "Currency is required" });
+      }
+      
+      const updatedUser = await storage.updateUser(req.user!.id, { preferredCurrency: currency });
+      
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json(userWithoutPassword);
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error updating user currency:", error);
+      res.status(500).json({ error: "Failed to update currency preference" });
     }
   });
 
@@ -1310,7 +1572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // For managers/regional managers, check if customer is assigned to their team
       let isTeamCustomer = false;
-      if (['manager', 'regional_manager'].includes(userRole)) {
+      if (['manager', 'regional_manager'].includes(userRole) && customer.assignedTo) {
         const teamMembers = await storage.getUsers(userId, userRole);
         const teamMemberIds = teamMembers.map(u => u.id);
         isTeamCustomer = teamMemberIds.includes(customer.assignedTo);
@@ -1422,7 +1684,7 @@ Be specific, data-driven, and focus on actionable insights.`;
 
       // Get user's customers and sales data
       const customers = await storage.getCustomers(userId, targetUser.role as UserRole);
-      const targets = await storage.getMonthlyTargets(userId);
+      const targets = await storage.getMonthlyTargets(userId, targetUser.role as UserRole);
       const sales = await storage.getMonthlySales(userId, targetUser.role as UserRole);
       const allInteractions = await storage.getInteractions();
       
@@ -1442,9 +1704,9 @@ Be specific, data-driven, and focus on actionable insights.`;
 
       const prompt = `Analyze this salesperson's performance and provide a comprehensive summary:
 
-Salesperson: ${user.name}
-Role: ${user.role}
-Regional Office: ${user.regionalOffice || 'Not assigned'}
+Salesperson: ${targetUser.name}
+Role: ${targetUser.role}
+Regional Office: ${targetUser.regionalOffice || 'Not assigned'}
 
 Performance Metrics:
 - Total customers managed: ${customers.length}
@@ -1509,6 +1771,56 @@ Be professional, constructive, and data-driven.`;
     }
   });
 
+  // Exchange Rates API
+  app.get("/api/exchange-rates", async (req, res) => {
+    try {
+      const { from, to } = req.query;
+      
+      if (!from || !to) {
+        return res.status(400).json({ error: "Missing from or to currency" });
+      }
+      
+      // Validate currency codes against supported currencies
+      const validCurrencies = ["USD", "HKD", "SGD", "CNY", "AUD", "IDR", "MYR"];
+      const fromCurrency = (from as string).toUpperCase();
+      const toCurrency = (to as string).toUpperCase();
+      
+      if (!validCurrencies.includes(fromCurrency)) {
+        return res.status(400).json({ error: `Unsupported source currency: ${fromCurrency}` });
+      }
+      
+      if (!validCurrencies.includes(toCurrency)) {
+        return res.status(400).json({ error: `Unsupported target currency: ${toCurrency}` });
+      }
+      
+      // Short-circuit for identical currencies
+      if (fromCurrency === toCurrency) {
+        return res.json({ rate: 1.0, updatedAt: new Date().toISOString() });
+      }
+      
+      const rate = await storage.getExchangeRate(fromCurrency, toCurrency);
+      
+      if (!rate) {
+        return res.status(404).json({ error: `Exchange rate not found for ${fromCurrency} to ${toCurrency}` });
+      }
+      
+      res.json({ rate: rate.rate, updatedAt: rate.updatedAt });
+    } catch (error) {
+      console.error("Error fetching exchange rate:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rate" });
+    }
+  });
+  
+  app.get("/api/exchange-rates/all", async (_req, res) => {
+    try {
+      const rates = await storage.getAllExchangeRates();
+      res.json(rates);
+    } catch (error) {
+      console.error("Error fetching all exchange rates:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rates" });
+    }
+  });
+
   // Sales Forecasting
   app.get("/api/ai/sales-forecast", isAuthenticated, async (req, res) => {
     try {
@@ -1516,7 +1828,7 @@ Be professional, constructive, and data-driven.`;
       const role = req.user!.role as UserRole;
       
       const sales = await storage.getMonthlySales(userId, role);
-      const targets = await storage.getMonthlyTargets(userId);
+      const targets = await storage.getMonthlyTargets(userId, role);
       
       // Get historical sales data (last 12 months)
       const historicalSales = sales.slice(-12).map((s: any) => ({

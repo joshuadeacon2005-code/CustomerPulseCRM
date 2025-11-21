@@ -51,6 +51,9 @@ import {
   basecampConnections,
   oauthStates,
   customerMonthlyTargets,
+  exchangeRates,
+  type ExchangeRate,
+  type InsertExchangeRate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
@@ -145,6 +148,11 @@ export interface IStorage {
   
   // Basecamp todo lookup
   getActionItemByBasecampId(basecampTodoId: string): Promise<ActionItem | undefined>;
+  
+  // Exchange rates
+  getExchangeRate(fromCurrency: string, toCurrency: string): Promise<{ rate: string; updatedAt: Date } | undefined>;
+  getAllExchangeRates(): Promise<Array<{ fromCurrency: string; toCurrency: string; rate: string; updatedAt: Date }>>;
+  createExchangeRate(fromCurrency: string, toCurrency: string, rate: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1083,6 +1091,54 @@ export class DatabaseStorage implements IStorage {
       .from(actionItems)
       .where(eq(actionItems.basecampTodoId, basecampTodoId));
     return item;
+  }
+
+  // Exchange rates
+  async getExchangeRate(fromCurrency: string, toCurrency: string): Promise<{ rate: string; updatedAt: Date } | undefined> {
+    const [rate] = await db
+      .select()
+      .from(exchangeRates)
+      .where(
+        and(
+          eq(exchangeRates.fromCurrency, fromCurrency),
+          eq(exchangeRates.toCurrency, toCurrency)
+        )
+      );
+    
+    if (rate) {
+      return {
+        rate: rate.rate,
+        updatedAt: rate.updatedAt
+      };
+    }
+    return undefined;
+  }
+
+  async getAllExchangeRates(): Promise<Array<{ fromCurrency: string; toCurrency: string; rate: string; updatedAt: Date }>> {
+    const rates = await db
+      .select()
+      .from(exchangeRates);
+    
+    return rates.map(rate => ({
+      fromCurrency: rate.fromCurrency,
+      toCurrency: rate.toCurrency,
+      rate: rate.rate,
+      updatedAt: rate.updatedAt
+    }));
+  }
+
+  async createExchangeRate(fromCurrency: string, toCurrency: string, rate: string): Promise<void> {
+    await db.insert(exchangeRates).values({
+      fromCurrency,
+      toCurrency,
+      rate,
+    }).onConflictDoUpdate({
+      target: [exchangeRates.fromCurrency, exchangeRates.toCurrency],
+      set: {
+        rate,
+        updatedAt: new Date()
+      }
+    });
   }
 }
 

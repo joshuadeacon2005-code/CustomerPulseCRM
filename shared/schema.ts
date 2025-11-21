@@ -13,6 +13,16 @@ export const REGIONAL_OFFICES = [
   "Guangzhou",
 ] as const;
 
+export const CURRENCIES = [
+  "USD",
+  "HKD",
+  "SGD",
+  "CNY",
+  "AUD",
+  "IDR",
+  "MYR",
+] as const;
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -22,6 +32,7 @@ export const users = pgTable("users", {
   managerId: varchar("manager_id"),
   country: text("country"),
   regionalOffice: text("regional_office"),
+  preferredCurrency: text("preferred_currency").notNull().default("USD"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -31,6 +42,8 @@ export const sales = pgTable("sales", {
   customerName: text("customer_name").notNull(),
   product: text("product").notNull().default("General Sale"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  baseCurrencyAmount: decimal("base_currency_amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   country: text("country"),
   date: timestamp("date").notNull().defaultNow(),
@@ -96,6 +109,8 @@ export const monthlyTargets = pgTable("monthly_targets", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  baseCurrencyAmount: decimal("base_currency_amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -117,6 +132,8 @@ export const customerMonthlyTargets = pgTable("customer_monthly_targets", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("USD"),
+  baseCurrencyAmount: decimal("base_currency_amount", { precision: 10, scale: 2 }).notNull(),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -128,7 +145,11 @@ export const monthlySalesTracking = pgTable("monthly_sales_tracking", {
   month: integer("month").notNull(),
   year: integer("year").notNull(),
   budget: decimal("budget", { precision: 10, scale: 2 }).notNull(),
+  budgetCurrency: text("budget_currency").notNull().default("USD"),
+  budgetBaseCurrencyAmount: decimal("budget_base_currency_amount", { precision: 10, scale: 2 }).notNull(),
   actual: decimal("actual", { precision: 10, scale: 2 }),
+  actualCurrency: text("actual_currency").default("USD"),
+  actualBaseCurrencyAmount: decimal("actual_base_currency_amount", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -164,6 +185,15 @@ export const oauthStates = pgTable("oauth_states", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Exchange rates for currency conversion
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromCurrency: text("from_currency").notNull(),
+  toCurrency: text("to_currency").notNull(),
+  rate: decimal("rate", { precision: 12, scale: 6 }).notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 
 // Retailer Type Enum - All possible options from requirements
 export const RETAILER_TYPES = [
@@ -197,6 +227,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   name: z.string().min(1),
   managerId: z.string().optional().nullable(),
   regionalOffice: z.enum(REGIONAL_OFFICES).optional().nullable(),
+  preferredCurrency: z.enum(CURRENCIES).optional().default("USD"),
 });
 
 export const insertSaleSchema = createInsertSchema(sales).omit({
@@ -207,6 +238,17 @@ export const insertSaleSchema = createInsertSchema(sales).omit({
   customerName: z.string().min(1),
   product: z.string().optional().default("General Sale"),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  currency: z.enum(CURRENCIES).optional().default("USD"),
+  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+}).refine((data) => {
+  // If baseCurrencyAmount is provided, currency must also be provided
+  if (data.baseCurrencyAmount && !data.currency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when baseCurrencyAmount is provided",
+  path: ["currency"],
 });
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
@@ -275,14 +317,32 @@ export const insertMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
   targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  currency: z.enum(CURRENCIES).optional().default("USD"),
+  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   salesmanId: z.string().optional().nullable(),
+}).refine((data) => {
+  if (data.baseCurrencyAmount && !data.currency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when baseCurrencyAmount is provided",
+  path: ["currency"],
 });
 
 export const updateMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit({
   id: true,
   createdAt: true,
   salesmanId: true,
-}).partial();
+}).partial().refine((data) => {
+  if (data.baseCurrencyAmount && !data.currency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when baseCurrencyAmount is provided",
+  path: ["currency"],
+});
 
 export const insertCustomerMonthlyTargetSchema = createInsertSchema(customerMonthlyTargets).omit({
   id: true,
@@ -291,8 +351,18 @@ export const insertCustomerMonthlyTargetSchema = createInsertSchema(customerMont
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
   targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  currency: z.enum(CURRENCIES).optional().default("USD"),
+  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   customerId: z.string().min(1),
   createdBy: z.string().min(1),
+}).refine((data) => {
+  if (data.baseCurrencyAmount && !data.currency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when baseCurrencyAmount is provided",
+  path: ["currency"],
 });
 
 export const insertActionItemSchema = createInsertSchema(actionItems).omit({
@@ -310,14 +380,42 @@ export const insertMonthlySalesTrackingSchema = createInsertSchema(monthlySalesT
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
   budget: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  budgetCurrency: z.enum(CURRENCIES).optional().default("USD"),
+  budgetBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   actual: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  actualCurrency: z.enum(CURRENCIES).optional(),
+  actualBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+}).refine((data) => {
+  // If budgetBaseCurrencyAmount is provided, budgetCurrency must also be provided
+  if (data.budgetBaseCurrencyAmount && !data.budgetCurrency) {
+    return false;
+  }
+  // If actualBaseCurrencyAmount is provided, actualCurrency must also be provided
+  if (data.actualBaseCurrencyAmount && !data.actualCurrency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when base currency amount is provided",
+  path: ["budgetCurrency"],
 });
 
 export const updateMonthlySalesTrackingSchema = createInsertSchema(monthlySalesTracking).omit({
   id: true,
   createdAt: true,
   customerId: true,
-}).partial();
+}).partial().refine((data) => {
+  if (data.baseCurrencyBudget && !data.budgetCurrency) {
+    return false;
+  }
+  if (data.baseCurrencyActual && !data.actualCurrency) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Currency is required when base currency amount is provided",
+  path: ["budgetCurrency"],
+});
 
 export const insertCustomerContactSchema = createInsertSchema(customerContacts).omit({
   id: true,
@@ -335,6 +433,15 @@ export const insertBasecampConnectionSchema = createInsertSchema(basecampConnect
 export const insertOauthStateSchema = createInsertSchema(oauthStates).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertExchangeRateSchema = createInsertSchema(exchangeRates).omit({
+  id: true,
+  updatedAt: true,
+}).extend({
+  fromCurrency: z.enum(CURRENCIES),
+  toCurrency: z.enum(CURRENCIES),
+  rate: z.string().regex(/^\d+(\.\d{1,6})?$/, "Invalid rate format"),
 });
 
 
@@ -367,8 +474,11 @@ export type BasecampConnection = typeof basecampConnections.$inferSelect;
 export type InsertBasecampConnection = z.infer<typeof insertBasecampConnectionSchema>;
 export type OauthState = typeof oauthStates.$inferSelect;
 export type InsertOauthState = z.infer<typeof insertOauthStateSchema>;
+export type ExchangeRate = typeof exchangeRates.$inferSelect;
+export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
 
 export type UserRole = "ceo" | "sales_director" | "regional_manager" | "manager" | "salesman";
+export type Currency = typeof CURRENCIES[number];
 export type RetailerType = typeof RETAILER_TYPES[number];
 export type MeetingType = typeof MEETING_TYPES[number];
 export type CustomerStage = "lead" | "prospect" | "customer";
