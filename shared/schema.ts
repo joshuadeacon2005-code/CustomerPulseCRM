@@ -383,6 +383,7 @@ export type CustomerWithBrands = Customer & {
 };
 
 export type CustomerWithDetails = Customer & {
+  assignedToName?: string | null;
   interactions: Interaction[];
   brands: Brand[];
   actionItems: ActionItem[];

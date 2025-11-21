@@ -438,8 +438,19 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
     const additionalContacts = await this.getCustomerContacts(id);
 
+    // Get assigned user name if assignedTo exists
+    let assignedToName = null;
+    if (customer.assignedTo) {
+      const [assignedUser] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, customer.assignedTo));
+      assignedToName = assignedUser?.name;
+    }
+
     return {
       ...customer,
+      assignedToName,
       interactions: customerInteractions,
       brands: customerBrandsList,
       actionItems: customerActionItems,

@@ -503,7 +503,9 @@ export function CustomerDetailModal({
                     {customer.assignedTo && (
                       <div className="flex items-center gap-2 pt-2 border-t">
                         <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-customer-assigned">Assigned to: {customer.assignedTo}</span>
+                        <span className="text-sm" data-testid="text-customer-assigned">
+                          Assigned to: {(customer as any).assignedToName || customer.assignedTo}
+                        </span>
                       </div>
                     )}
                     <div className="text-sm text-muted-foreground pt-2 border-t">
