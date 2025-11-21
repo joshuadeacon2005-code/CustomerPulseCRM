@@ -51,7 +51,8 @@ async function validateAndConvertToBase(
   }
 
   // Convert to base currency (USD) and round to 2 decimal places
-  return Math.round(amount * exchangeRate.rate * 100) / 100;
+  const rateValue = typeof exchangeRate.rate === 'string' ? parseFloat(exchangeRate.rate) : exchangeRate.rate;
+  return Math.round(amount * rateValue * 100) / 100;
 }
 
 // Validate that provided baseCurrencyAmount matches calculated conversion
@@ -81,6 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customersWithBrands = await storage.getCustomers(req.user!.id, req.user!.role as UserRole);
       res.json(customersWithBrands);
     } catch (error) {
+      console.error("Error fetching customers:", error);
       res.status(500).json({ error: "Failed to fetch customers" });
     }
   });
@@ -1640,8 +1642,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allBrands = await storage.getBrands();
       const brandNameToId = new Map(allBrands.map(b => [b.name.toLowerCase(), b.id]));
 
-      // Get existing customers to detect duplicates
-      const existingCustomers = await storage.getCustomers();
+      // Get existing customers to detect duplicates (use CEO role to get all)
+      const existingCustomers = await storage.getCustomers(req.user!.id, 'ceo');
       const existingCustomerNames = new Set(existingCustomers.map(c => c.name.toLowerCase().trim()));
       const existingCustomerEmails = new Set(
         existingCustomers.map(c => c.email?.toLowerCase().trim()).filter(Boolean)
@@ -1775,8 +1777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               name: contactName,
               title: columnMap.contactTitle !== -1 ? row[columnMap.contactTitle]?.toString().trim() || null : null,
               phone: columnMap.contactPhone !== -1 ? row[columnMap.contactPhone]?.toString().trim() || null : null,
-              email: columnMap.contactEmail !== -1 ? row[columnMap.contactEmail]?.toString().trim() || null : null,
-              isPrimary: true
+              email: columnMap.contactEmail !== -1 ? row[columnMap.contactEmail]?.toString().trim() || null : null
             });
           }
 
@@ -1788,14 +1789,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const brandId = brandNameToId.get(brandName.toLowerCase());
               if (brandId) {
                 try {
-                  await storage.addCustomerBrand({
-                    customerId: newCustomer.id,
-                    brandId: brandId
-                  });
+                  await storage.assignBrandToCustomer(newCustomer.id, brandId);
                 } catch (error) {
                   // Ignore duplicate brand assignments
                 }
-              } else {
+              } else{
                 results.errors.push({
                   row: rowNumber,
                   companyName,
