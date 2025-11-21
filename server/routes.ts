@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, type UserRole } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -346,7 +346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/targets", isAuthenticated, async (req, res) => {
     try {
-      let validatedData = insertMonthlyTargetSchema.parse({
+      let validatedData = insertMonthlyTargetSchemaRefined.parse({
         ...req.body,
         salesmanId: req.user!.role === "salesman" ? req.user!.id : req.body.salesmanId,
       });
@@ -470,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers/:customerId/targets", isAuthenticated, async (req, res) => {
     try {
-      let validatedData = insertCustomerMonthlyTargetSchema.parse({
+      let validatedData = insertCustomerMonthlyTargetSchemaRefined.parse({
         ...req.body,
         customerId: req.params.customerId,
         createdBy: req.user!.id,
@@ -586,7 +586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/monthly-sales", isAuthenticated, async (req, res) => {
     try {
-      let validatedData = insertMonthlySalesTrackingSchema.parse(req.body);
+      let validatedData = insertMonthlySalesTrackingSchemaRefined.parse(req.body);
       
       // Validate and auto-calculate base amounts if currency is provided
       if (validatedData.currency) {
@@ -698,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/sales", isAuthenticated, async (req, res) => {
     try {
-      let validatedData = insertSaleSchema.parse({
+      let validatedData = insertSaleSchemaRefined.parse({
         ...req.body,
         salesmanId: req.user!.id,
       });

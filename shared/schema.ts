@@ -230,7 +230,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   preferredCurrency: z.enum(CURRENCIES).optional().default("USD"),
 });
 
-export const insertSaleSchema = createInsertSchema(sales).omit({
+// Base schema without refinements for client-side use
+const insertSaleBaseSchema = createInsertSchema(sales).omit({
   id: true,
   date: true,
 }).extend({
@@ -240,8 +241,13 @@ export const insertSaleSchema = createInsertSchema(sales).omit({
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
   currency: z.enum(CURRENCIES).optional().default("USD"),
   baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
-}).refine((data) => {
-  // If baseCurrencyAmount is provided, currency must also be provided
+});
+
+// Export base schema for client-side composition
+export const insertSaleSchema = insertSaleBaseSchema;
+
+// Refined schema for server-side validation  
+export const insertSaleSchemaRefined = insertSaleBaseSchema.refine((data) => {
   if (data.baseCurrencyAmount && !data.currency) {
     return false;
   }
@@ -309,7 +315,8 @@ export const insertCustomerBrandSchema = createInsertSchema(customerBrands).omit
   createdAt: true,
 });
 
-export const insertMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit({
+// Base schema without refinements for client-side use
+const insertMonthlyTargetBaseSchema = createInsertSchema(monthlyTargets).omit({
   id: true,
   createdAt: true,
 }).extend({
@@ -320,7 +327,13 @@ export const insertMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit
   currency: z.enum(CURRENCIES).optional().default("USD"),
   baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   salesmanId: z.string().optional().nullable(),
-}).refine((data) => {
+});
+
+// Export base schema for client-side composition (allows .omit(), .extend(), etc.)
+export const insertMonthlyTargetSchema = insertMonthlyTargetBaseSchema;
+
+// Refined schema for server-side validation
+export const insertMonthlyTargetSchemaRefined = insertMonthlyTargetBaseSchema.refine((data) => {
   if (data.baseCurrencyAmount && !data.currency) {
     return false;
   }
@@ -344,7 +357,8 @@ export const updateMonthlyTargetSchema = createInsertSchema(monthlyTargets).omit
   path: ["currency"],
 });
 
-export const insertCustomerMonthlyTargetSchema = createInsertSchema(customerMonthlyTargets).omit({
+// Base schema without refinements for client-side use
+const insertCustomerMonthlyTargetBaseSchema = createInsertSchema(customerMonthlyTargets).omit({
   id: true,
   createdAt: true,
 }).extend({
@@ -355,7 +369,13 @@ export const insertCustomerMonthlyTargetSchema = createInsertSchema(customerMont
   baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   customerId: z.string().min(1),
   createdBy: z.string().min(1),
-}).refine((data) => {
+});
+
+// Export base schema for client-side composition
+export const insertCustomerMonthlyTargetSchema = insertCustomerMonthlyTargetBaseSchema;
+
+// Refined schema for server-side validation
+export const insertCustomerMonthlyTargetSchemaRefined = insertCustomerMonthlyTargetBaseSchema.refine((data) => {
   if (data.baseCurrencyAmount && !data.currency) {
     return false;
   }
@@ -373,7 +393,8 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   description: z.string().min(1),
 });
 
-export const insertMonthlySalesTrackingSchema = createInsertSchema(monthlySalesTracking).omit({
+// Base schema without refinements for client-side use
+const insertMonthlySalesTrackingBaseSchema = createInsertSchema(monthlySalesTracking).omit({
   id: true,
   createdAt: true,
 }).extend({
@@ -385,12 +406,16 @@ export const insertMonthlySalesTrackingSchema = createInsertSchema(monthlySalesT
   actual: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
   actualCurrency: z.enum(CURRENCIES).optional(),
   actualBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
-}).refine((data) => {
-  // If budgetBaseCurrencyAmount is provided, budgetCurrency must also be provided
+});
+
+// Export base schema for client-side composition
+export const insertMonthlySalesTrackingSchema = insertMonthlySalesTrackingBaseSchema;
+
+// Refined schema for server-side validation
+export const insertMonthlySalesTrackingSchemaRefined = insertMonthlySalesTrackingBaseSchema.refine((data) => {
   if (data.budgetBaseCurrencyAmount && !data.budgetCurrency) {
     return false;
   }
-  // If actualBaseCurrencyAmount is provided, actualCurrency must also be provided
   if (data.actualBaseCurrencyAmount && !data.actualCurrency) {
     return false;
   }

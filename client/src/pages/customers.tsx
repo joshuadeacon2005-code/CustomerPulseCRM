@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X, Download } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatDistanceToNow } from "date-fns";
 
 export default function Customers() {
   const [location] = useLocation();
@@ -56,7 +57,17 @@ export default function Customers() {
   const [isBrandSelectOpen, setIsBrandSelectOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "table">(() => {
+    // Initialize from localStorage
+    const stored = localStorage.getItem("customerViewMode");
+    return (stored === "grid" || stored === "table") ? stored : "grid";
+  });
   const { toast } = useToast();
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("customerViewMode", viewMode);
+  }, [viewMode]);
 
   const { data: customers, isLoading } = useQuery<CustomerWithBrands[]>({
     queryKey: ["/api/customers"],
@@ -245,6 +256,28 @@ export default function Customers() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* View Toggle */}
+          <div className="flex gap-0.5 border rounded-md p-1">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className={viewMode === "grid" ? "bg-accent" : ""}
+              onClick={() => setViewMode("grid")}
+              data-testid="button-view-grid"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className={viewMode === "table" ? "bg-accent" : ""}
+              onClick={() => setViewMode("table")}
+              data-testid="button-view-table"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <Button 
             variant="outline"
             asChild
@@ -410,21 +443,104 @@ export default function Customers() {
       </Card>
 
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
+        viewMode === "grid" ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-48" />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <Skeleton className="h-96 w-full" />
+            </CardContent>
+          </Card>
+        )
       ) : filteredCustomers && filteredCustomers.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="grid-customers">
-          {filteredCustomers.map((customer) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onClick={() => handleCustomerClick(customer)}
-            />
-          ))}
-        </div>
+        viewMode === "grid" ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="grid-customers">
+            {filteredCustomers.map((customer) => (
+              <CustomerCard
+                key={customer.id}
+                customer={customer}
+                onClick={() => handleCustomerClick(customer)}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]" data-testid="table-customers">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Company</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Country</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Retailer Type</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Stage</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Brands</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Quarterly Target</th>
+                      <th className="text-left p-4 font-medium whitespace-nowrap">Last Contact</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCustomers.map((customer) => (
+                      <tr 
+                        key={customer.id} 
+                        className="border-b hover-elevate cursor-pointer"
+                        onClick={() => handleCustomerClick(customer)}
+                        data-testid={`table-row-customer-${customer.id}`}
+                      >
+                        <td className="p-4 font-medium">{customer.name}</td>
+                        <td className="p-4 text-muted-foreground">{customer.country || <span className="text-muted-foreground/50 italic">Not set</span>}</td>
+                        <td className="p-4 text-muted-foreground">{customer.retailerType || <span className="text-muted-foreground/50 italic">Not set</span>}</td>
+                        <td className="p-4">
+                          <Badge variant={
+                            customer.stage === "customer" ? "default" :
+                            customer.stage === "prospect" ? "secondary" :
+                            "outline"
+                          }>
+                            {customer.stage}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          {customer.brands && customer.brands.length > 0 ? (
+                            <div className="flex gap-1 flex-wrap">
+                              {customer.brands.slice(0, 2).map((brand) => (
+                                <Badge key={brand.id} variant="outline" className="text-xs no-default-hover-elevate">
+                                  {brand.name}
+                                </Badge>
+                              ))}
+                              {customer.brands.length > 2 && (
+                                <Badge variant="outline" className="text-xs no-default-hover-elevate">
+                                  +{customer.brands.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/50 italic">No brands</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-muted-foreground">
+                          {customer.quarterlySoftTarget 
+                            ? `$${Number(customer.quarterlySoftTarget).toLocaleString()}`
+                            : <span className="text-muted-foreground/50 italic">Not set</span>
+                          }
+                        </td>
+                        <td className="p-4 text-muted-foreground">
+                          {customer.lastContactDate 
+                            ? formatDistanceToNow(new Date(customer.lastContactDate), { addSuffix: true })
+                            : <span className="text-muted-foreground/50 italic">Never</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )
       ) : (
         <Card>
           <CardContent className="p-12 text-center">
