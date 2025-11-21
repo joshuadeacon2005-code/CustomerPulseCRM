@@ -533,9 +533,9 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <FormLabel className="text-base">Registered with BC</FormLabel>
+                  <FormLabel className="text-base">Registered with Bloom Connect</FormLabel>
                   <FormDescription>
-                    Is this customer registered with BC?
+                    Is this customer registered with Bloom Connect?
                   </FormDescription>
                 </div>
                 <FormControl>
@@ -555,9 +555,9 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
-                  <FormLabel className="text-base">Orders via BC</FormLabel>
+                  <FormLabel className="text-base">Orders via Bloom Connect</FormLabel>
                   <FormDescription>
-                    Does this customer order via BC?
+                    Does this customer order via Bloom Connect?
                   </FormDescription>
                 </div>
                 <FormControl>

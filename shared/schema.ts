@@ -7,7 +7,7 @@ export const REGIONAL_OFFICES = [
   "Hong Kong",
   "Singapore", 
   "Shanghai",
-  "Australia/NZ",
+  "Australia/New Zealand",
   "Indonesia",
   "Malaysia",
   "Guangzhou",

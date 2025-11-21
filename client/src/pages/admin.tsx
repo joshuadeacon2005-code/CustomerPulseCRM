@@ -986,7 +986,7 @@ export default function AdminPage() {
                       <SelectItem value="Hong Kong">Hong Kong</SelectItem>
                       <SelectItem value="Singapore">Singapore</SelectItem>
                       <SelectItem value="Shanghai">Shanghai</SelectItem>
-                      <SelectItem value="Australia/NZ">Australia/NZ</SelectItem>
+                      <SelectItem value="Australia/New Zealand">Australia/New Zealand</SelectItem>
                       <SelectItem value="Indonesia">Indonesia</SelectItem>
                       <SelectItem value="Malaysia">Malaysia</SelectItem>
                       <SelectItem value="Guangzhou">Guangzhou</SelectItem>

@@ -620,7 +620,7 @@ export function CustomerDetailModal({
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">BC Registered:</span>
+                        <span className="text-sm font-medium">Bloom Connect Registered:</span>
                         <span data-testid="text-bc-registered">
                           {customer.registeredWithBC ? (
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -630,7 +630,7 @@ export function CustomerDetailModal({
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Orders via BC:</span>
+                        <span className="text-sm font-medium">Orders via Bloom Connect:</span>
                         <span data-testid="text-orders-bc">
                           {customer.ordersViaBC ? (
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
