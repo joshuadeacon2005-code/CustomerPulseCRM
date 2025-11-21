@@ -149,6 +149,7 @@ export function CustomerDetailModal({
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(null);
+  const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: allBrands } = useQuery<Brand[]>({
@@ -399,6 +400,15 @@ export function CustomerDetailModal({
                 <Button 
                   variant="outline" 
                   size="sm"
+                  onClick={() => setIsAIInsightsOpen(true)}
+                  data-testid="button-ai-insights"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Insights
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
                   onClick={() => setIsEditing(true)}
                   data-testid="button-edit-customer"
                 >
@@ -442,29 +452,19 @@ export function CustomerDetailModal({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="ai-insights" data-testid="tab-ai-insights">
-              <Sparkles className="h-3 w-3 mr-1" />
-              AI Insights
-            </TabsTrigger>
             <TabsTrigger value="brands" data-testid="tab-brands">
               Brands ({customer.brands?.length || 0})
             </TabsTrigger>
-            <TabsTrigger value="targets" data-testid="tab-targets">
-              Targets
-            </TabsTrigger>
-            <TabsTrigger value="addresses" data-testid="tab-addresses">
-              Addresses ({customer.addresses?.length || 0})
-            </TabsTrigger>
             <TabsTrigger value="actions" data-testid="tab-actions">
-              Action Items ({customer.actionItems?.filter(a => !a.completedAt).length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="sales" data-testid="tab-sales">
-              Sales Tracking
+              Actions ({customer.actionItems?.filter(a => !a.completedAt).length || 0})
             </TabsTrigger>
             <TabsTrigger value="interactions" data-testid="tab-interactions">
               Interactions ({customer.interactions?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="sales" data-testid="tab-sales">
+              Sales Tracking
             </TabsTrigger>
           </TabsList>
 
@@ -642,10 +642,21 @@ export function CustomerDetailModal({
                 </Card>
 
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-lg">Business Information</CardTitle>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setEditingAddress(null);
+                        setIsAddingAddress(true);
+                      }}
+                      data-testid="button-add-address"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Address
+                    </Button>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Bloom Connect Registered:</span>
@@ -696,6 +707,67 @@ export function CustomerDetailModal({
                         </span>
                       </div>
                     )}
+                    
+                    {customer.addresses && customer.addresses.length > 0 && (
+                      <div className="border-t pt-4 space-y-3">
+                        <p className="text-sm font-medium mb-2">Addresses ({customer.addresses.length})</p>
+                        {customer.addresses.map((address) => (
+                          <div key={address.id} className="p-3 border rounded-md space-y-2 hover-elevate">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="outline" className="capitalize text-xs">
+                                    {address.addressType}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">English Address</p>
+                                    <p className="text-sm">{address.address}</p>
+                                  </div>
+                                  {address.chineseAddress && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Chinese Address</p>
+                                      <p className="text-sm">{address.chineseAddress}</p>
+                                    </div>
+                                  )}
+                                  {address.translation && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Translation Notes</p>
+                                      <p className="text-sm text-muted-foreground italic">{address.translation}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-2">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setEditingAddress(address);
+                                    setIsAddingAddress(true);
+                                  }}
+                                  data-testid={`button-edit-address-${address.id}`}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  onClick={() => deleteAddressMutation.mutate(address.id)}
+                                  disabled={deleteAddressMutation.isPending}
+                                  data-testid={`button-delete-address-${address.id}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -723,13 +795,10 @@ export function CustomerDetailModal({
                     </CardContent>
                   </Card>
                 )}
+
+                <CustomerTargets customerId={customer.id} />
               </>
             )}
-          </TabsContent>
-
-          {/* AI Insights Tab */}
-          <TabsContent value="ai-insights" className="space-y-4">
-            <AIInsightsPanel customerId={customer.id} />
           </TabsContent>
 
           {/* Brands Tab */}
@@ -858,11 +927,6 @@ export function CustomerDetailModal({
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-
-          {/* Monthly Targets Tab */}
-          <TabsContent value="targets" className="space-y-4">
-            <CustomerTargets customerId={customer.id} />
           </TabsContent>
 
           {/* Action Items Tab */}
@@ -1156,136 +1220,44 @@ export function CustomerDetailModal({
               </Card>
             )}
           </TabsContent>
-
-          {/* Addresses Tab */}
-          <TabsContent value="addresses" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Customer Addresses</CardTitle>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setEditingAddress(null);
-                      setIsAddingAddress(true);
-                    }}
-                    data-testid="button-add-address"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Address
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {customer.addresses && customer.addresses.length > 0 ? (
-                  customer.addresses.map((address) => (
-                    <Card key={address.id} className="relative">
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="capitalize">
-                                  {address.addressType}
-                                </Badge>
-                              </div>
-                              
-                              <div className="space-y-1">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">English Address</p>
-                                  <p className="text-sm">{address.address}</p>
-                                </div>
-                                
-                                {address.chineseAddress && (
-                                  <div className="mt-2">
-                                    <p className="text-xs text-muted-foreground">Chinese Address</p>
-                                    <p className="text-sm">{address.chineseAddress}</p>
-                                  </div>
-                                )}
-                                
-                                {address.translation && (
-                                  <div className="mt-2">
-                                    <p className="text-xs text-muted-foreground">Translation Notes</p>
-                                    <p className="text-sm text-muted-foreground italic">{address.translation}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex gap-2 ml-4">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingAddress(address);
-                                  setIsAddingAddress(true);
-                                }}
-                                data-testid={`button-edit-address-${address.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => deleteAddressMutation.mutate(address.id)}
-                                disabled={deleteAddressMutation.isPending}
-                                data-testid={`button-delete-address-${address.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="text-center p-8 text-muted-foreground">
-                    <MapPin className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                    <p>No addresses added yet</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-4"
-                      onClick={() => {
-                        setEditingAddress(null);
-                        setIsAddingAddress(true);
-                      }}
-                      data-testid="button-add-first-address"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Address
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Add/Edit Address Dialog */}
-            <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
-              <DialogContent data-testid="modal-add-address">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingAddress ? 'Edit Address' : 'Add New Address'}
-                  </DialogTitle>
-                </DialogHeader>
-                <AddressForm
-                  customerId={customer.id}
-                  address={editingAddress || undefined}
-                  isEditing={!!editingAddress}
-                  onSuccess={() => {
-                    setIsAddingAddress(false);
-                    setEditingAddress(null);
-                  }}
-                  onCancel={() => {
-                    setIsAddingAddress(false);
-                    setEditingAddress(null);
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </TabsContent>
         </Tabs>
+
+        {/* Add/Edit Address Dialog */}
+        <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
+          <DialogContent data-testid="modal-add-address">
+            <DialogHeader>
+              <DialogTitle>
+                {editingAddress ? 'Edit Address' : 'Add New Address'}
+              </DialogTitle>
+            </DialogHeader>
+            <AddressForm
+              customerId={customer.id}
+              address={editingAddress || undefined}
+              isEditing={!!editingAddress}
+              onSuccess={() => {
+                setIsAddingAddress(false);
+                setEditingAddress(null);
+              }}
+              onCancel={() => {
+                setIsAddingAddress(false);
+                setEditingAddress(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Insights Dialog */}
+        <Dialog open={isAIInsightsOpen} onOpenChange={setIsAIInsightsOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="modal-ai-insights">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Insights - {customer.name}
+              </DialogTitle>
+            </DialogHeader>
+            <AIInsightsPanel customerId={customer.id} />
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
