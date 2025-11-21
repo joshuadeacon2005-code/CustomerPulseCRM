@@ -452,11 +452,8 @@ export function CustomerDetailModal({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="brands" data-testid="tab-brands">
-              Brands ({customer.brands?.length || 0})
-            </TabsTrigger>
             <TabsTrigger value="actions" data-testid="tab-actions">
               Actions ({customer.actionItems?.filter(a => !a.completedAt).length || 0})
             </TabsTrigger>
@@ -771,6 +768,67 @@ export function CustomerDetailModal({
                   </CardContent>
                 </Card>
 
+                {/* Brands Section */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Assigned Brands</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsCreatingBrand(true)}
+                          data-testid="button-create-brand"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create New Brand
+                        </Button>
+                        {availableBrands.length > 0 && (
+                          <Button
+                            size="sm"
+                            onClick={() => setIsAddingBrand(true)}
+                            data-testid="button-add-brand"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Assign Brand
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {customer.brands && customer.brands.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {customer.brands.map((brand) => (
+                          <Badge
+                            key={brand.id}
+                            variant="outline"
+                            className="pl-3 pr-1 py-1.5 text-sm flex items-center gap-2"
+                            data-testid={`badge-brand-${brand.id}`}
+                          >
+                            <Tag className="h-3 w-3" />
+                            <span>{brand.name}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4 p-0 hover:bg-transparent"
+                              onClick={() => removeBrandMutation.mutate({ customerId: customer.id, brandId: brand.id })}
+                              data-testid={`button-remove-brand-${brand.id}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center p-8 text-muted-foreground">
+                        <Tag className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                        <p>No brands assigned yet</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {customer.quarterlySoftTarget && (
                   <Card>
                     <CardHeader>
@@ -798,134 +856,6 @@ export function CustomerDetailModal({
 
                 <CustomerTargets customerId={customer.id} />
               </>
-            )}
-          </TabsContent>
-
-          {/* Brands Tab */}
-          <TabsContent value="brands" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Assigned Brands</h3>
-              <div className="flex gap-2">
-                {!isCreatingBrand && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsCreatingBrand(true)}
-                    data-testid="button-create-brand"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create New Brand
-                  </Button>
-                )}
-                {!isAddingBrand && availableBrands.length > 0 && (
-                  <Button
-                    size="sm"
-                    onClick={() => setIsAddingBrand(true)}
-                    data-testid="button-add-brand"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Assign Brand
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {isCreatingBrand && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Create New Brand</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <NewBrandForm
-                    onSubmit={(data) => createBrandMutation.mutate(data)}
-                    onCancel={() => setIsCreatingBrand(false)}
-                    isLoading={createBrandMutation.isPending}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {isAddingBrand && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Assign Brands</CardTitle>
-                  <CardDescription>Select one or more brands that this retailer carries</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="max-h-80 overflow-y-auto space-y-3 border rounded-md p-4">
-                      {availableBrands.map((brand) => (
-                        <div
-                          key={brand.id}
-                          className="flex items-center space-x-3 hover-elevate p-2 rounded-md"
-                        >
-                          <Checkbox
-                            id={`brand-${brand.id}`}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                addBrandMutation.mutate({ customerId: customer.id, brandId: brand.id });
-                              }
-                            }}
-                            data-testid={`checkbox-brand-${brand.id}`}
-                          />
-                          <Label
-                            htmlFor={`brand-${brand.id}`}
-                            className="flex-1 cursor-pointer text-sm font-normal"
-                          >
-                            {brand.name}
-                          </Label>
-                        </div>
-                      ))}
-                      {availableBrands.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          All brands have been assigned
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsAddingBrand(false)}
-                        data-testid="button-cancel-brand"
-                      >
-                        Done
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {customer.brands && customer.brands.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {customer.brands.map((brand) => (
-                  <Badge
-                    key={brand.id}
-                    variant="outline"
-                    className="pl-3 pr-1 py-1.5 text-sm flex items-center gap-2"
-                    data-testid={`badge-brand-${brand.id}`}
-                  >
-                    <Tag className="h-3 w-3" />
-                    <span>{brand.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 p-0 hover:bg-transparent"
-                      onClick={() => removeBrandMutation.mutate({ customerId: customer.id, brandId: brand.id })}
-                      data-testid={`button-remove-brand-${brand.id}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Tag className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">No brands assigned yet</p>
-                </CardContent>
-              </Card>
             )}
           </TabsContent>
 
@@ -1256,6 +1186,70 @@ export function CustomerDetailModal({
               </DialogTitle>
             </DialogHeader>
             <AIInsightsPanel customerId={customer.id} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Brand Dialog */}
+        <Dialog open={isCreatingBrand} onOpenChange={setIsCreatingBrand}>
+          <DialogContent data-testid="modal-create-brand">
+            <DialogHeader>
+              <DialogTitle>Create New Brand</DialogTitle>
+            </DialogHeader>
+            <NewBrandForm
+              onSubmit={(data) => createBrandMutation.mutate(data)}
+              onCancel={() => setIsCreatingBrand(false)}
+              isLoading={createBrandMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Assign Brands Dialog */}
+        <Dialog open={isAddingBrand} onOpenChange={setIsAddingBrand}>
+          <DialogContent data-testid="modal-assign-brands">
+            <DialogHeader>
+              <DialogTitle>Assign Brands</DialogTitle>
+              <CardDescription>Select one or more brands that this retailer carries</CardDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="max-h-80 overflow-y-auto space-y-3 border rounded-md p-4">
+                {availableBrands.map((brand) => (
+                  <div
+                    key={brand.id}
+                    className="flex items-center space-x-3 hover-elevate p-2 rounded-md"
+                  >
+                    <Checkbox
+                      id={`brand-${brand.id}`}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          addBrandMutation.mutate({ customerId: customer.id, brandId: brand.id });
+                        }
+                      }}
+                      data-testid={`checkbox-brand-${brand.id}`}
+                    />
+                    <Label
+                      htmlFor={`brand-${brand.id}`}
+                      className="flex-1 cursor-pointer text-sm font-normal"
+                    >
+                      {brand.name}
+                    </Label>
+                  </div>
+                ))}
+                {availableBrands.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    All brands have been assigned
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddingBrand(false)}
+                  data-testid="button-cancel-brand"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </DialogContent>
