@@ -1,67 +1,234 @@
 import fs from 'fs';
-import path from 'path';
+import Papa from 'papaparse';
+import pg from 'pg';
 
-const API_URL = 'http://localhost:5000';
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 async function importCustomers() {
-  try {
-    // Login first - using admin/admin credentials
-    const loginRes = await fetch(`${API_URL}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin' })
-    });
+  const csvData = fs.readFileSync('attached_assets/customer_master_HK_cleaned_1763719089727.csv', 'utf8');
+  
+  const { data: rows } = Papa.parse(csvData, {
+    header: true,
+    skipEmptyLines: true,
+  });
 
-    const cookies = loginRes.headers.get('set-cookie');
-    
-    if (!cookies) {
-      console.error('Login failed - no session cookie');
-      return;
-    }
+  console.log(`Found ${rows.length} rows to import`);
 
-    // Read the Excel file
-    const filePath = './attached_assets/customer master fo Hong Kong_1763711163542.xlsx';
-    const fileBuffer = fs.readFileSync(filePath);
-    const blob = new Blob([fileBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    // Prepare form data with Excel file
-    const form = new FormData();
-    form.append('file', blob, path.basename(filePath));
-
-    // Import customers
-    const importRes = await fetch(`${API_URL}/api/customers/import`, {
-      method: 'POST',
-      headers: {
-        'Cookie': cookies
-      },
-      body: form
-    });
-
-    const result = await importRes.json();
-    
-    console.log('\n=== IMPORT RESULTS ===');
-    console.log('Status:', importRes.status);
-    console.log('Success:', result.success);
-    console.log('Summary:');
-    console.log('  Total:', result.summary?.total);
-    console.log('  Successful:', result.summary?.successful);
-    console.log('  Failed:', result.summary?.failed);
-    console.log('  Skipped:', result.summary?.skipped);
-    
-    if (result.errors && result.errors.length > 0) {
-      console.log('\nErrors (first 10):');
-      result.errors.slice(0, 10).forEach(err => {
-        console.log(`  Row ${err.row} (${err.companyName}): ${err.error}`);
-      });
-      if (result.errors.length > 10) {
-        console.log(`  ... and ${result.errors.length - 10} more errors`);
-      }
-    }
-    
-    console.log('\n=== END ===\n');
-  } catch (error) {
-    console.error('Import failed:', error.message);
+  // Get current user (CEO role to assign customers to)
+  const currentUserResult = await pool.query(`
+    SELECT id FROM users WHERE role IN ('ceo', 'admin') ORDER BY created_at LIMIT 1
+  `);
+  
+  const currentUserId = currentUserResult.rows[0]?.id;
+  if (!currentUserId) {
+    console.error('No CEO/admin user found. Please create a user first.');
+    return;
   }
+
+  console.log(`Assigning all customers to user: ${currentUserId}`);
+
+  // Get all brands for mapping
+  const brandsResult = await pool.query('SELECT id, name FROM brands');
+  const brandMap = {};
+  brandsResult.rows.forEach(brand => {
+    brandMap[brand.name.toLowerCase().trim()] = brand.id;
+  });
+
+  let successCount = 0;
+  let errorCount = 0;
+  const errors = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2; // CSV row number (header is row 1)
+
+    try {
+      if (!row['Company Name']) {
+        console.log(`Skipping row ${rowNum}: No company name`);
+        continue;
+      }
+
+      const companyName = row['Company Name'].trim();
+      console.log(`Processing ${rowNum}/${rows.length + 1}: ${companyName}`);
+
+      // Check for duplicates
+      const existingCustomer = await pool.query(
+        'SELECT id FROM customers WHERE LOWER(name) = LOWER($1)',
+        [companyName]
+      );
+
+      if (existingCustomer.rows.length > 0) {
+        console.log(`  Skipping duplicate: ${companyName}`);
+        continue;
+      }
+
+      // Parse date fields
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        try {
+          const date = new Date(dateStr);
+          return isNaN(date.getTime()) ? null : date.toISOString();
+        } catch (e) {
+          return null;
+        }
+      };
+
+      // Create customer
+      const customerResult = await pool.query(`
+        INSERT INTO customers (
+          name, email, phone, country, retailer_type,
+          registered_with_bc, orders_via_bc,
+          first_order_date, lead_generated_by,
+          date_of_first_contact, last_contact_date,
+          stage, personal_notes, assigned_to,
+          contact_name, contact_title, contact_phone, contact_email,
+          quarterly_soft_target_currency, quarterly_soft_target_base_currency
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7,
+          $8, $9,
+          $10, $11,
+          $12, $13, $14,
+          $15, $16, $17, $18,
+          $19, $20
+        ) RETURNING id
+      `, [
+        companyName,
+        row['Email'] || null,
+        row['Phone'] || null,
+        row['Country'] || 'Hong Kong',
+        row['Retailer Type'] || null,
+        row['Registered with BC']?.toLowerCase() === 'yes',
+        row['Orders via BC']?.toLowerCase() === 'yes',
+        parseDate(row['First Order Date']),
+        row['Lead Generated By'] || null,
+        parseDate(row['Date of First Contact']),
+        parseDate(row['Last Contact Date']),
+        row['Stage'] || 'lead',
+        row['Personal Notes'] || null,
+        currentUserId,
+        row['Contact Name'] || null,
+        row['Contact Title'] || null,
+        row['Phone.1'] || row['Phone'] || null,
+        row['Contact Email'] || null,
+        'HKD',
+        null
+      ]);
+
+      const customerId = customerResult.rows[0].id;
+
+      // Add addresses
+      const addresses = [];
+      
+      // Office Address
+      if (row['Office Address']) {
+        addresses.push({
+          type: 'office',
+          address: row['Office Address'].trim()
+        });
+      }
+
+      // Store Address (main)
+      if (row['Store Address']) {
+        addresses.push({
+          type: 'store',
+          address: row['Store Address'].trim()
+        });
+      }
+
+      // Additional store addresses (Store Address 1-6)
+      for (let j = 1; j <= 6; j++) {
+        const addrField = `Store Address ${j}`;
+        if (row[addrField]) {
+          addresses.push({
+            type: 'store',
+            address: row[addrField].trim()
+          });
+        }
+      }
+
+      // Insert addresses
+      for (const addr of addresses) {
+        await pool.query(`
+          INSERT INTO customer_addresses (customer_id, address_type, address)
+          VALUES ($1, $2, $3)
+        `, [customerId, addr.type, addr.address]);
+      }
+
+      // Add additional contacts
+      const contacts = [];
+      
+      // Contact Name 1
+      if (row['Contact Name 1']) {
+        contacts.push({
+          name: row['Contact Name 1'],
+          title: row['Contact Title 1'] || null,
+          phone: row['Contact Phone 1'] || null,
+          email: row['Contact Email 1'] || null
+        });
+      }
+
+      // Contact Name 2
+      if (row['Contact Name 2']) {
+        contacts.push({
+          name: row['Contact Name 2'],
+          title: row['Contact Title 2'] || null,
+          phone: row['Contact Phone 2'] || null,
+          email: row['Contact Email 2'] || null
+        });
+      }
+
+      // Insert additional contacts
+      for (const contact of contacts) {
+        await pool.query(`
+          INSERT INTO customer_contacts (customer_id, name, title, phone, email)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [customerId, contact.name, contact.title, contact.phone, contact.email]);
+      }
+
+      // Add brands
+      if (row['Brands']) {
+        const brandNames = row['Brands'].split(',').map(b => b.trim()).filter(b => b);
+        for (const brandName of brandNames) {
+          const brandId = brandMap[brandName.toLowerCase()];
+          if (brandId) {
+            await pool.query(`
+              INSERT INTO customer_brands (customer_id, brand_id)
+              VALUES ($1, $2)
+              ON CONFLICT DO NOTHING
+            `, [customerId, brandId]);
+          } else {
+            console.log(`  Warning: Brand not found: ${brandName}`);
+          }
+        }
+      }
+
+      successCount++;
+      console.log(`  ✓ Imported ${companyName} with ${addresses.length} addresses and ${contacts.length} contacts`);
+
+    } catch (error) {
+      errorCount++;
+      const errorMsg = `Row ${rowNum} (${row['Company Name'] || 'Unknown'}): ${error.message}`;
+      errors.push(errorMsg);
+      console.error(`  ✗ ${errorMsg}`);
+    }
+  }
+
+  console.log('\n=== Import Summary ===');
+  console.log(`Total rows: ${rows.length}`);
+  console.log(`Successful: ${successCount}`);
+  console.log(`Errors: ${errorCount}`);
+  
+  if (errors.length > 0) {
+    console.log('\nErrors:');
+    errors.forEach(err => console.log(`  - ${err}`));
+  }
+
+  await pool.end();
 }
 
-importCustomers();
+importCustomers().catch(console.error);

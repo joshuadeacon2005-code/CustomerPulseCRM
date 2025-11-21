@@ -166,6 +166,16 @@ export const customerContacts = pgTable("customer_contacts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Multiple addresses for customers (supports Chinese addresses with translation)
+export const customerAddresses = pgTable("customer_addresses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  addressType: text("address_type").notNull().default("store"),
+  address: text("address").notNull(),
+  addressTranslation: text("address_translation"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Basecamp OAuth connections
 export const basecampConnections = pgTable("basecamp_connections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -453,6 +463,16 @@ export const insertCustomerContactSchema = createInsertSchema(customerContacts).
   name: z.string().min(1),
 });
 
+export const insertCustomerAddressSchema = createInsertSchema(customerAddresses).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  customerId: z.string().min(1),
+  addressType: z.string().optional().default("store"),
+  address: z.string().min(1),
+  addressTranslation: z.string().optional().nullable(),
+});
+
 export const insertBasecampConnectionSchema = createInsertSchema(basecampConnections).omit({
   id: true,
   createdAt: true,
@@ -499,6 +519,8 @@ export type InsertMonthlySalesTracking = z.infer<typeof insertMonthlySalesTracki
 export type UpdateMonthlySalesTracking = z.infer<typeof updateMonthlySalesTrackingSchema>;
 export type CustomerContact = typeof customerContacts.$inferSelect;
 export type InsertCustomerContact = z.infer<typeof insertCustomerContactSchema>;
+export type CustomerAddress = typeof customerAddresses.$inferSelect;
+export type InsertCustomerAddress = z.infer<typeof insertCustomerAddressSchema>;
 export type BasecampConnection = typeof basecampConnections.$inferSelect;
 export type InsertBasecampConnection = z.infer<typeof insertBasecampConnectionSchema>;
 export type OauthState = typeof oauthStates.$inferSelect;
@@ -528,6 +550,7 @@ export type CustomerWithDetails = Customer & {
   actionItems: ActionItem[];
   monthlySales: MonthlySalesTracking[];
   additionalContacts: CustomerContact[];
+  addresses: CustomerAddress[];
 };
 
 export type ActionItemWithCustomer = ActionItem & {
