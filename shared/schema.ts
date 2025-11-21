@@ -404,6 +404,7 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   id: true,
   createdAt: true,
   completedAt: true,
+  createdBy: true,
 }).extend({
   description: z.string().min(1),
 });

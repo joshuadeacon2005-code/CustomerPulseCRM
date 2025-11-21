@@ -1349,7 +1349,6 @@ function ActionItemForm({
       description: '',
       dueDate: undefined,
       visitDate: undefined,
-      createdBy: '',
     },
   });
 
