@@ -135,6 +135,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/customer-contacts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { insertCustomerContactSchema } = await import("@shared/schema");
+      const validatedData = insertCustomerContactSchema.omit({ customerId: true }).parse(req.body);
+      const contact = await storage.updateCustomerContact(req.params.id, validatedData);
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      res.json(contact);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid contact data", details: error });
+      }
+      res.status(500).json({ error: "Failed to update contact" });
+    }
+  });
+
   app.delete("/api/customer-contacts/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteCustomerContact(req.params.id);

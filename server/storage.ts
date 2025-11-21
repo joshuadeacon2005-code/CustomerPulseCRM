@@ -128,6 +128,7 @@ export interface IStorage {
   // Customer contacts management
   getCustomerContacts(customerId: string): Promise<CustomerContact[]>;
   createCustomerContact(contact: InsertCustomerContact): Promise<CustomerContact>;
+  updateCustomerContact(id: string, contact: Partial<InsertCustomerContact>): Promise<CustomerContact | undefined>;
   deleteCustomerContact(id: string): Promise<boolean>;
 
   // Basecamp OAuth management
@@ -992,6 +993,14 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomerContact(contactData: InsertCustomerContact): Promise<CustomerContact> {
     const [contact] = await db.insert(customerContacts).values(contactData).returning();
+    return contact;
+  }
+
+  async updateCustomerContact(id: string, contactData: Partial<InsertCustomerContact>): Promise<CustomerContact | undefined> {
+    const [contact] = await db.update(customerContacts)
+      .set(contactData)
+      .where(eq(customerContacts.id, id))
+      .returning();
     return contact;
   }
 

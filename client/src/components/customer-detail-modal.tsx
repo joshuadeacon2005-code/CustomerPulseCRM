@@ -143,6 +143,7 @@ export function CustomerDetailModal({
   const [isAddingSales, setIsAddingSales] = useState(false);
   const [editingSalesId, setEditingSalesId] = useState<string | null>(null);
   const [isAddingAdditionalContact, setIsAddingAdditionalContact] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: allBrands } = useQuery<Brand[]>({
@@ -542,36 +543,63 @@ export function CustomerDetailModal({
                     {customer.additionalContacts && customer.additionalContacts.length > 0 ? (
                       <div className="space-y-3">
                         {customer.additionalContacts.map((contact: any) => (
-                          <div key={contact.id} className="flex items-start justify-between p-3 border rounded-md hover-elevate">
-                            <div className="space-y-1 flex-1">
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">
-                                  {contact.name}
-                                  {contact.title && <span className="text-muted-foreground font-normal"> - {contact.title}</span>}
-                                </span>
+                          <div key={contact.id}>
+                            {editingContactId === contact.id ? (
+                              <div className="p-4 border rounded-md">
+                                <AdditionalContactForm
+                                  customerId={customer.id}
+                                  contactId={contact.id}
+                                  initialData={contact}
+                                  onSuccess={() => {
+                                    setEditingContactId(null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/customers', customer.id] });
+                                  }}
+                                  onCancel={() => setEditingContactId(null)}
+                                />
                               </div>
-                              {contact.email && (
-                                <div className="flex items-center gap-2 ml-6">
-                                  <Mail className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">{contact.email}</span>
+                            ) : (
+                              <div className="flex items-start justify-between p-3 border rounded-md hover-elevate">
+                                <div className="space-y-1 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium text-sm">
+                                      {contact.name}
+                                      {contact.title && <span className="text-muted-foreground font-normal"> - {contact.title}</span>}
+                                    </span>
+                                  </div>
+                                  {contact.email && (
+                                    <div className="flex items-center gap-2 ml-6">
+                                      <Mail className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-xs text-muted-foreground">{contact.email}</span>
+                                    </div>
+                                  )}
+                                  {contact.phone && (
+                                    <div className="flex items-center gap-2 ml-6">
+                                      <Phone className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                              {contact.phone && (
-                                <div className="flex items-center gap-2 ml-6">
-                                  <Phone className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setEditingContactId(contact.id)}
+                                    data-testid={`button-edit-contact-${contact.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteAdditionalContactMutation.mutate(contact.id)}
+                                    data-testid={`button-delete-contact-${contact.id}`}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteAdditionalContactMutation.mutate(contact.id)}
-                              data-testid={`button-delete-contact-${contact.id}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1447,20 +1475,26 @@ function MonthlySalesForm({
 
 function AdditionalContactForm({
   customerId,
+  contactId,
+  initialData,
   onSuccess,
   onCancel,
 }: {
   customerId: string;
+  contactId?: string;
+  initialData?: any;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
   const { toast } = useToast();
+  const isEditing = !!contactId;
+  
   const form = useForm({
     defaultValues: {
-      name: '',
-      title: '',
-      phone: '',
-      email: '',
+      name: initialData?.name || '',
+      title: initialData?.title || '',
+      phone: initialData?.phone || '',
+      email: initialData?.email || '',
     },
   });
 
@@ -1477,8 +1511,31 @@ function AdditionalContactForm({
     },
   });
 
+  const updateContactMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest('PATCH', `/api/customer-contacts/${contactId}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Contact updated successfully" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to update contact", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (data: any) => {
+    if (isEditing) {
+      updateContactMutation.mutate(data);
+    } else {
+      createContactMutation.mutate(data);
+    }
+  };
+
+  const isPending = createContactMutation.isPending || updateContactMutation.isPending;
+
   return (
-    <form onSubmit={form.handleSubmit((data) => createContactMutation.mutate(data))} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="name">Name *</Label>
@@ -1526,13 +1583,13 @@ function AdditionalContactForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={createContactMutation.isPending}
+          disabled={isPending}
           data-testid="button-cancel-additional-contact"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={createContactMutation.isPending} data-testid="button-submit-additional-contact">
-          {createContactMutation.isPending ? 'Adding...' : 'Add Contact'}
+        <Button type="submit" disabled={isPending} data-testid="button-submit-additional-contact">
+          {isPending ? (isEditing ? 'Updating...' : 'Adding...') : (isEditing ? 'Update Contact' : 'Add Contact')}
         </Button>
       </div>
     </form>
