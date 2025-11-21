@@ -235,6 +235,8 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   dateOfFirstContact: z.date().optional().nullable(),
   leadGeneratedBy: z.string().optional(),
   country: z.string().optional(),
+  netsuiteUrl: z.string().optional(),
+  bloomconnectUrl: z.string().optional(),
 });
 
 export const updateCustomerSchema = createInsertSchema(customers).omit({
