@@ -1796,7 +1796,7 @@ function AddressForm({
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertCustomerAddress) => {
-      await apiRequest('POST', '/api/customer-addresses', data);
+      await apiRequest('POST', `/api/customers/${customerId}/addresses`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
