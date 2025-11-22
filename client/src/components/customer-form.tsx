@@ -83,7 +83,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       firstOrderDate: customer.firstOrderDate ?? undefined,
       storeAddress: customer.storeAddress || "",
       retailerType: customer.retailerType ?? undefined,
-      quarterlySoftTarget: customer.quarterlySoftTarget || "",
+      quarterlySoftTarget: customer.quarterlySoftTarget || undefined,
       quarterlySoftTargetCurrency: customer.quarterlySoftTargetCurrency || "USD",
       lastContactDate: customer.lastContactDate ?? undefined,
       country: customer.country || "",
@@ -105,7 +105,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       firstOrderDate: undefined,
       storeAddress: "",
       retailerType: undefined,
-      quarterlySoftTarget: "",
+      quarterlySoftTarget: undefined,
       quarterlySoftTargetCurrency: "USD",
       lastContactDate: undefined,
       country: "",
@@ -691,8 +691,8 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                       step="0.01"
                       placeholder="0.00"
                       {...field} 
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       data-testid="input-quarterly-target"
                     />
                   </FormControl>

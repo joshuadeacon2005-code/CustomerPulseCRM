@@ -189,7 +189,16 @@ export const customerAddresses = pgTable("customer_addresses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id").notNull(),
   addressType: text("address_type").notNull().default("store"),
-  address: text("address").notNull(),
+  streetNumber: text("street_number"),
+  streetName: text("street_name"),
+  unit: text("unit"),
+  building: text("building"),
+  district: text("district"),
+  city: text("city"),
+  stateProvince: text("state_province"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+  address: text("address"),
   chineseAddress: text("chinese_address"),
   translation: text("translation"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -464,10 +473,10 @@ export const updateMonthlySalesTrackingSchema = createInsertSchema(monthlySalesT
   createdAt: true,
   customerId: true,
 }).partial().refine((data) => {
-  if (data.baseCurrencyBudget && !data.budgetCurrency) {
+  if (data.budgetBaseCurrencyAmount && !data.budgetCurrency) {
     return false;
   }
-  if (data.baseCurrencyActual && !data.actualCurrency) {
+  if (data.actualBaseCurrencyAmount && !data.actualCurrency) {
     return false;
   }
   return true;
@@ -489,7 +498,16 @@ export const insertCustomerAddressSchema = createInsertSchema(customerAddresses)
 }).extend({
   customerId: z.string().min(1),
   addressType: z.string().optional().default("store"),
-  address: z.string().min(1),
+  streetNumber: z.string().optional().nullable(),
+  streetName: z.string().optional().nullable(),
+  unit: z.string().optional().nullable(),
+  building: z.string().optional().nullable(),
+  district: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  stateProvince: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
   chineseAddress: z.string().optional().nullable(),
   translation: z.string().optional().nullable(),
 });

@@ -54,6 +54,7 @@ import {
   CustomerAddress,
   InsertCustomerAddress,
   insertCustomerAddressSchema,
+  COUNTRIES,
 } from "@shared/schema";
 import { 
   Mail, 
@@ -93,6 +94,40 @@ import { CustomerForm } from "./customer-form";
 import { InteractionForm } from "./interaction-form";
 import { CustomerTargets } from "./customer-targets";
 import { AIInsightsPanel } from "./ai-insights-panel";
+
+// Helper function to format structured address
+function formatStructuredAddress(address: CustomerAddress): string {
+  const parts: string[] = [];
+  
+  // Street address
+  if (address.streetNumber || address.streetName) {
+    const street = [address.streetNumber, address.streetName].filter(Boolean).join(' ');
+    if (street) parts.push(street);
+  }
+  
+  // Unit/Building
+  if (address.unit || address.building) {
+    const unitBuilding = [address.unit, address.building].filter(Boolean).join(', ');
+    if (unitBuilding) parts.push(unitBuilding);
+  }
+  
+  // District
+  if (address.district) parts.push(address.district);
+  
+  // City, State/Province
+  if (address.city || address.stateProvince) {
+    const cityState = [address.city, address.stateProvince].filter(Boolean).join(', ');
+    if (cityState) parts.push(cityState);
+  }
+  
+  // Postal Code
+  if (address.postalCode) parts.push(address.postalCode);
+  
+  // Country
+  if (address.country) parts.push(address.country);
+  
+  return parts.length > 0 ? parts.join('\n') : '';
+}
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -724,8 +759,10 @@ export function CustomerDetailModal({
                                 </div>
                                 <div className="space-y-1">
                                   <div>
-                                    <p className="text-xs text-muted-foreground">English Address</p>
-                                    <p className="text-sm">{address.address}</p>
+                                    <p className="text-xs text-muted-foreground">Address</p>
+                                    <p className="text-sm whitespace-pre-line">
+                                      {formatStructuredAddress(address) || address.address || 'No address details'}
+                                    </p>
                                   </div>
                                   {address.chineseAddress && (
                                     <div>
@@ -1742,6 +1779,15 @@ function AddressForm({
     defaultValues: {
       customerId,
       addressType: address?.addressType || 'store',
+      streetNumber: address?.streetNumber || '',
+      streetName: address?.streetName || '',
+      unit: address?.unit || '',
+      building: address?.building || '',
+      district: address?.district || '',
+      city: address?.city || '',
+      stateProvince: address?.stateProvince || '',
+      postalCode: address?.postalCode || '',
+      country: address?.country || '',
       address: address?.address || '',
       chineseAddress: address?.chineseAddress || '',
       translation: address?.translation || '',
@@ -1809,18 +1855,122 @@ function AddressForm({
         </Select>
       </div>
 
+      <div className="space-y-4">
+        <h4 className="text-sm font-medium">Structured Address</h4>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="streetNumber">Street Number</Label>
+            <Input
+              id="streetNumber"
+              placeholder="123"
+              {...form.register('streetNumber')}
+              data-testid="input-street-number"
+            />
+          </div>
+          <div>
+            <Label htmlFor="streetName">Street Name</Label>
+            <Input
+              id="streetName"
+              placeholder="Main Street"
+              {...form.register('streetName')}
+              data-testid="input-street-name"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="unit">Unit/Suite</Label>
+            <Input
+              id="unit"
+              placeholder="Unit 5B"
+              {...form.register('unit')}
+              data-testid="input-unit"
+            />
+          </div>
+          <div>
+            <Label htmlFor="building">Building</Label>
+            <Input
+              id="building"
+              placeholder="Building name"
+              {...form.register('building')}
+              data-testid="input-building"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="district">District</Label>
+          <Input
+            id="district"
+            placeholder="District/Area"
+            {...form.register('district')}
+            data-testid="input-district"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="city">City</Label>
+            <Input
+              id="city"
+              placeholder="City"
+              {...form.register('city')}
+              data-testid="input-city"
+            />
+          </div>
+          <div>
+            <Label htmlFor="stateProvince">State/Province</Label>
+            <Input
+              id="stateProvince"
+              placeholder="State/Province"
+              {...form.register('stateProvince')}
+              data-testid="input-state-province"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="postalCode">Postal Code</Label>
+            <Input
+              id="postalCode"
+              placeholder="12345"
+              {...form.register('postalCode')}
+              data-testid="input-postal-code"
+            />
+          </div>
+          <div>
+            <Label htmlFor="country">Country</Label>
+            <Select
+              value={form.watch('country') || ''}
+              onValueChange={(value) => form.setValue('country', value)}
+            >
+              <SelectTrigger data-testid="select-country">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((country) => (
+                  <SelectItem key={country} value={country}>
+                    {country}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
       <div>
-        <Label htmlFor="address">English Address *</Label>
+        <Label htmlFor="address">Full Address (Optional Legacy Field)</Label>
         <Textarea
           id="address"
-          placeholder="Enter address in English"
+          placeholder="Complete address if not using structured fields"
           {...form.register('address')}
-          rows={3}
+          rows={2}
           data-testid="input-address"
         />
-        {form.formState.errors.address && (
-          <p className="text-sm text-destructive mt-1">{form.formState.errors.address.message}</p>
-        )}
       </div>
 
       <div>
