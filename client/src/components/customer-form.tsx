@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, COUNTRIES, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
 import { format } from "date-fns";
 import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import {
@@ -84,6 +84,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       storeAddress: customer.storeAddress || "",
       retailerType: customer.retailerType ?? undefined,
       quarterlySoftTarget: customer.quarterlySoftTarget || "",
+      quarterlySoftTargetCurrency: customer.quarterlySoftTargetCurrency || "USD",
       lastContactDate: customer.lastContactDate ?? undefined,
       country: customer.country || "",
       contactName: customer.contactName || "",
@@ -105,6 +106,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       storeAddress: "",
       retailerType: undefined,
       quarterlySoftTarget: "",
+      quarterlySoftTargetCurrency: "USD",
       lastContactDate: undefined,
       country: "",
       contactName: "",
@@ -158,14 +160,24 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Country</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="e.g., USA, Canada, UK" 
-                    {...field} 
-                    value={field.value || ""}
-                    data-testid="input-customer-country"
-                  />
-                </FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value || ""}
+                  data-testid="select-customer-country"
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {COUNTRIES.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -666,25 +678,57 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
         <div className="space-y-4">
           <h3 className="text-sm font-medium text-muted-foreground">Sales & Tracking</h3>
 
-          <FormField
-            control={form.control}
-            name="quarterlySoftTarget"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quarterly Soft Target</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Enter quarterly soft target details"
-                    className="resize-none"
-                    {...field} 
-                    value={field.value || ""}
-                    data-testid="input-quarterly-target"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="quarterlySoftTarget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quarterly Soft Target</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field} 
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
+                      data-testid="input-quarterly-target"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="quarterlySoftTargetCurrency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || "USD"}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-quarterly-target-currency">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {["USD", "HKD", "SGD", "CNY", "AUD", "IDR", "MYR"].map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

@@ -23,6 +23,24 @@ export const CURRENCIES = [
   "MYR",
 ] as const;
 
+export const COUNTRIES = [
+  "Australia",
+  "China",
+  "Hong Kong",
+  "Indonesia",
+  "Japan",
+  "Macau",
+  "Malaysia",
+  "New Zealand",
+  "Philippines",
+  "Singapore",
+  "South Korea",
+  "Taiwan",
+  "Thailand",
+  "Vietnam",
+  "Other",
+] as const;
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),

@@ -34,6 +34,7 @@ The application is built with a React and TypeScript frontend, an Express.js and
 **Technical Implementations & Feature Specifications:**
 - **Authentication**: Passport-local strategy with scrypt password hashing and session management.
 - **Role-Based Access Control**: Multi-level roles (CEO, Sales Director, Regional Manager, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to 'salesman'. Authorization middleware provides backward compatibility for legacy "admin" role. CEO and admin roles have identical permissions across all features for viewing team member data.
+- **Permission Model**: Salespeople can only view and manage customers assigned to them (`assignedTo` = their user ID). Heads of Sales (Regional Manager, Sales Director roles) can view all customers within their regional office. Jamie (CEO) has special access to view all customers in Australia/New Zealand regional office in addition to standard CEO permissions.
 - **Regional Office Management**: Users can be assigned to regional offices (Hong Kong, Singapore, Shanghai, Australia/New Zealand, Indonesia, Malaysia, Guangzhou).
 - **Homepage Dashboard**: Role-based dashboard (`/dashboard`) with comprehensive productivity features:
   - **Today's Priorities**: Alert-style banner displaying overdue tasks, today's tasks, and customers needing follow-up (>14 days no contact) with quick action links
