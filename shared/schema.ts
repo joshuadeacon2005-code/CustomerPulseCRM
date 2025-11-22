@@ -228,7 +228,7 @@ export const RETAILER_TYPES = [
 
 export const MEETING_TYPES = ["In Person", "Phone", "Online Meeting"] as const;
 
-export const INTERACTION_TYPES = ["Call", "Email", "Meeting", "Follow-up"] as const;
+export const INTERACTION_TYPES = ["Call", "Email", "In Person Meeting", "Virtual Meeting", "Store Visit"] as const;
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
