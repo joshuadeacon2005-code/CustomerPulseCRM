@@ -277,10 +277,23 @@ export default function Customers() {
     return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry;
   });
   
-  // Get unique countries from customers (excluding Unknown)
+  // Get unique countries from customers (excluding Unknown) with custom order
+  const countryOrder = ["Hong Kong", "Australia", "New Zealand", "Macau"];
   const uniqueCountries = Array.from(
     new Set(customers?.map(c => c.country).filter((c): c is string => !!c && c !== "Unknown"))
-  ).sort();
+  ).sort((a, b) => {
+    const indexA = countryOrder.indexOf(a);
+    const indexB = countryOrder.indexOf(b);
+    
+    // If both are in the custom order, sort by their position
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    // If only a is in custom order, it comes first
+    if (indexA !== -1) return -1;
+    // If only b is in custom order, it comes first
+    if (indexB !== -1) return 1;
+    // Otherwise, sort alphabetically
+    return a.localeCompare(b);
+  });
 
   const handleCustomerClick = (customer: CustomerWithBrands) => {
     setSelectedCustomer(customer as CustomerWithDetails);
