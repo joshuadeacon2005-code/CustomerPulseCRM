@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DashboardStats, Customer, User, UserRole } from "@shared/schema";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Users as UsersIcon, Target, Activity, UserCheck, Building2 } from "lucide-react";
+import { DashboardStats, Customer, User } from "@shared/schema";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
+import { Users as UsersIcon, Target, Activity, UserCheck, Building2, TrendingUp, TrendingDown, DollarSign, Award, MapPin } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,14 @@ const STAGE_COLORS = {
   prospect: "hsl(var(--chart-3))",
   customer: "hsl(var(--chart-2))",
 };
+
+const REGIONAL_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
 
 // Helper to generate month options for the last 12 months
 function getMonthOptions() {
@@ -35,7 +43,7 @@ function getMonthOptions() {
 
 export default function Analytics() {
   const { user: currentUser } = useAuth();
-  const [view, setView] = useState<"monthly" | "overall">("monthly");
+  const [view, setView] = useState<"monthly" | "overall">("overall");
   
   // Current month by default
   const now = new Date();
@@ -101,6 +109,29 @@ export default function Analytics() {
     { name: "Customers", value: stats?.customerCount || 0, fill: STAGE_COLORS.customer },
   ];
 
+  // Regional office breakdown
+  const regionalData = customers?.reduce((acc, customer) => {
+    const office = customer.country || "Unknown";
+    if (!acc[office]) {
+      acc[office] = { leads: 0, prospects: 0, customers: 0, total: 0 };
+    }
+    acc[office].total++;
+    if (customer.stage === "lead") acc[office].leads++;
+    if (customer.stage === "prospect") acc[office].prospects++;
+    if (customer.stage === "customer") acc[office].customers++;
+    return acc;
+  }, {} as Record<string, { leads: number; prospects: number; customers: number; total: number }>);
+
+  const regionalChartData = regionalData
+    ? Object.entries(regionalData)
+        .map(([name, data]) => ({
+          name,
+          ...data,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 8)
+    : [];
+
   // Fix: Use user names instead of IDs
   const assignmentData = customers?.reduce((acc, customer) => {
     if (customer.assignedTo && userMap) {
@@ -111,21 +142,36 @@ export default function Analytics() {
   }, {} as Record<string, number>);
 
   const assignmentChartData = assignmentData 
-    ? Object.entries(assignmentData).map(([name, count]) => ({ name, count }))
+    ? Object.entries(assignmentData)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
     : [];
+
+  // Calculate additional metrics
+  const activeCustomers = customers?.filter(c => c.stage === "customer").length || 0;
+  const totalLeads = customers?.filter(c => c.stage === "lead").length || 0;
+  const conversionRate = stats?.totalCustomers 
+    ? ((stats.customerCount / stats.totalCustomers) * 100)
+    : 0;
 
   const isLoading = statsLoading || customersLoading || usersLoading;
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-8">
+      <div className="container mx-auto p-6 space-y-8">
         <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-96" />
+          <Skeleton className="h-10 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-80" />
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-96" />
           ))}
         </div>
       </div>
@@ -141,91 +187,210 @@ export default function Analytics() {
     : teamStructure;
 
   return (
-    <div className="p-6 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-analytics-title">Analytics</h1>
-        <p className="text-muted-foreground mt-1">
-          Analyze customer data, lead scores, and sales performance
-          {isCEO && " across all teams"}
-          {isManager && " for your team"}
-        </p>
+    <div className="container mx-auto p-6 space-y-8">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-analytics-title">Analytics Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Comprehensive insights into customer data, team performance, and sales metrics
+            {isCEO && " across all teams"}
+            {isManager && " for your team"}
+          </p>
+        </div>
+        
+        <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")}>
+          <TabsList data-testid="tabs-analytics-view">
+            <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
+            <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")} className="space-y-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList data-testid="tabs-analytics-view">
-            <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
-          </TabsList>
-          
-          {view === "monthly" && (
-            <Select
-              value={`${selectedYear}-${selectedMonth}`}
-              onValueChange={(value) => {
-                const option = monthOptions.find(opt => opt.value === value);
-                if (option) {
-                  setSelectedMonth(option.month);
-                  setSelectedYear(option.year);
-                }
-              }}
-            >
-              <SelectTrigger className="w-[200px]" data-testid="select-month">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value} data-testid={`option-month-${option.value}`}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+      {view === "monthly" && (
+        <div className="flex justify-end">
+          <Select
+            value={`${selectedYear}-${selectedMonth}`}
+            onValueChange={(value) => {
+              const option = monthOptions.find(opt => opt.value === value);
+              if (option) {
+                setSelectedMonth(option.month);
+                setSelectedYear(option.year);
+              }
+            }}
+          >
+            <SelectTrigger className="w-[220px]" data-testid="select-month">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value} data-testid={`option-month-${option.value}`}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+      )}
 
-        <TabsContent value={view} className="space-y-6">
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+      {/* KPI Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Total Customers</h3>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
+            <UsersIcon className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-customers">{stats?.totalCustomers || 0}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across all stages</p>
+            <div className="text-3xl font-bold" data-testid="text-total-customers">{stats?.totalCustomers || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <span className="text-primary font-medium">{activeCustomers} active</span>
+              <span>•</span>
+              <span>Across all stages</span>
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Conversion Rate</h3>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <Target className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-conversion-rate">
-              {stats?.totalCustomers 
-                ? ((stats.customerCount / stats.totalCustomers) * 100).toFixed(1)
-                : 0}%
+            <div className="text-3xl font-bold" data-testid="text-conversion-rate">
+              {conversionRate.toFixed(1)}%
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Lead to customer</p>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              {conversionRate >= 30 ? (
+                <>
+                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <span className="text-green-500 font-medium">Excellent</span>
+                </>
+              ) : conversionRate >= 15 ? (
+                <>
+                  <TrendingUp className="h-3 w-3 text-yellow-500" />
+                  <span className="text-yellow-500 font-medium">Good</span>
+                </>
+              ) : (
+                <>
+                  <TrendingDown className="h-3 w-3 text-red-500" />
+                  <span className="text-red-500 font-medium">Needs improvement</span>
+                </>
+              )}
+              <span>•</span>
+              <span>Lead to customer</span>
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">
               {view === "monthly" ? "Monthly Activity" : "Recent Activity"}
             </h3>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <Activity className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-recent-activity">{stats?.recentInteractions || 0}</div>
+            <div className="text-3xl font-bold" data-testid="text-recent-activity">{stats?.recentInteractions || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {view === "monthly" ? "This month" : "Last 7 days"}
+              {view === "monthly" ? "Interactions this month" : "Interactions in last 7 days"}
             </p>
           </CardContent>
         </Card>
+
+        <Card className="hover-elevate">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <h3 className="text-sm font-medium text-muted-foreground">New Leads</h3>
+            <Award className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold" data-testid="text-total-leads">{totalLeads}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {view === "monthly" ? "This month" : "Total pipeline"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 1 */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Customer Distribution by Stage
+            </CardTitle>
+            <CardDescription>Overview of your sales funnel</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie
+                  data={stageData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {stageData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {regionalChartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                Regional Distribution
+              </CardTitle>
+              <CardDescription>Customer breakdown by location</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={regionalChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: 'hsl(var(--foreground))' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="customers" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Customers" />
+                  <Bar dataKey="prospects" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} name="Prospects" />
+                  <Bar dataKey="leads" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} name="Leads" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Team Structure - Only for CEO and Regional Managers */}
@@ -233,46 +398,49 @@ export default function Analytics() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
+              <Building2 className="h-5 w-5 text-primary" />
               Team Structure & Performance
             </CardTitle>
             <CardDescription>
               {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {visibleTeams.map((team) => (
-              <div key={team.manager.id} className="space-y-3 pb-4 border-b last:border-0 last:pb-0" data-testid={`team-${team.manager.id}`}>
+              <div key={team.manager.id} className="space-y-4 pb-6 border-b last:border-0 last:pb-0" data-testid={`team-${team.manager.id}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <UserCheck className="h-5 w-5 text-muted-foreground" />
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <UserCheck className="h-6 w-6 text-primary" />
+                    </div>
                     <div>
-                      <h3 className="font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
-                      <p className="text-sm text-muted-foreground">Manager</p>
+                      <h3 className="text-lg font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
+                      <p className="text-sm text-muted-foreground">{team.manager.role} • {team.manager.regionalOffice || "No office"}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold" data-testid={`text-team-customers-${team.manager.id}`}>{team.customerCount}</div>
+                    <div className="text-3xl font-bold text-primary" data-testid={`text-team-customers-${team.manager.id}`}>{team.customerCount}</div>
                     <p className="text-xs text-muted-foreground">Team Customers</p>
                   </div>
                 </div>
                 
                 {team.members.length > 0 && (
-                  <div className="ml-8 space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Team Members:</p>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="ml-15 space-y-3 bg-muted/50 p-4 rounded-lg">
+                    <p className="text-sm font-medium">Team Members ({team.members.length})</p>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {team.members.map((member) => {
                         const memberCustomers = customers?.filter(c => c.assignedTo === member.id).length || 0;
                         return (
-                          <Badge 
-                            key={member.id} 
-                            variant="secondary" 
-                            className="gap-2"
+                          <div 
+                            key={member.id}
+                            className="flex items-center justify-between bg-background p-3 rounded-md border"
                             data-testid={`badge-member-${member.id}`}
                           >
-                            <span>{member.name}</span>
-                            <span className="text-muted-foreground">({memberCustomers})</span>
-                          </Badge>
+                            <span className="font-medium text-sm">{member.name}</span>
+                            <Badge variant="secondary" className="ml-2">
+                              {memberCustomers}
+                            </Badge>
+                          </div>
                         );
                       })}
                     </div>
@@ -283,21 +451,22 @@ export default function Analytics() {
             
             {/* Individual salespeople without teams */}
             {isCEO && individualSalespeople.length > 0 && (
-              <div className="space-y-3 pt-4 border-t">
-                <h3 className="font-semibold text-muted-foreground">Independent Salespeople</h3>
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="text-lg font-semibold">Independent Salespeople ({individualSalespeople.length})</h3>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {individualSalespeople.map((person) => {
                     const personCustomers = customers?.filter(c => c.assignedTo === person.id).length || 0;
                     return (
-                      <Badge 
-                        key={person.id} 
-                        variant="outline" 
-                        className="gap-2"
+                      <div 
+                        key={person.id}
+                        className="flex items-center justify-between bg-muted/50 p-3 rounded-md border"
                         data-testid={`badge-independent-${person.id}`}
                       >
-                        <span>{person.name}</span>
-                        <span className="text-muted-foreground">({personCustomers})</span>
-                      </Badge>
+                        <span className="font-medium text-sm">{person.name}</span>
+                        <Badge variant="outline" className="ml-2">
+                          {personCustomers}
+                        </Badge>
+                      </div>
                     );
                   })}
                 </div>
@@ -307,72 +476,45 @@ export default function Analytics() {
         </Card>
       )}
 
-      <div className="grid gap-8 md:grid-cols-2">
+      {/* Sales Rep Performance Chart */}
+      {assignmentChartData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Customer Distribution by Stage</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-primary" />
+              Top Performers
+            </CardTitle>
+            <CardDescription>Customer distribution across sales team (top 10)</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={stageData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {stageData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={assignmentChartData} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  type="number"
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--foreground))' }}
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category"
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fill: 'hsl(var(--foreground))' }}
+                  width={180}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 8, 8, 0]} name="Customers" />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {assignmentChartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Customers by Sales Rep</CardTitle>
-              <CardDescription>Customer distribution across team members</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={assignmentChartData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    type="number"
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: 'hsl(var(--foreground))' }}
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category"
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: 'hsl(var(--foreground))' }}
-                    width={150}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                    }}
-                  />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      </TabsContent>
-      </Tabs>
+      )}
     </div>
   );
 }
