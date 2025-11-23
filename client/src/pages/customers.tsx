@@ -277,9 +277,9 @@ export default function Customers() {
     return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry;
   });
   
-  // Get unique countries from customers
+  // Get unique countries from customers (excluding Unknown)
   const uniqueCountries = Array.from(
-    new Set(customers?.map(c => c.country || "Unknown").filter(Boolean))
+    new Set(customers?.map(c => c.country).filter((c): c is string => !!c && c !== "Unknown"))
   ).sort();
 
   const handleCustomerClick = (customer: CustomerWithBrands) => {
@@ -382,21 +382,14 @@ export default function Customers() {
       </div>
 
       {/* Country Filter Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <Button
-          variant={countryFilter === "all" ? "default" : "outline"}
-          onClick={() => setCountryFilter("all")}
-          className={countryFilter === "all" ? "bg-primary hover:bg-primary/90" : ""}
-          data-testid="button-country-all"
-        >
-          All Countries
-        </Button>
+      <div className="flex items-center gap-3 overflow-x-auto pb-2">
         {uniqueCountries.map((country) => (
           <Button
             key={country}
-            variant={countryFilter === country ? "default" : "outline"}
+            size="lg"
+            variant="default"
             onClick={() => setCountryFilter(country)}
-            className={countryFilter === country ? "bg-primary hover:bg-primary/90" : ""}
+            className={countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}
             data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
           >
             {country}
