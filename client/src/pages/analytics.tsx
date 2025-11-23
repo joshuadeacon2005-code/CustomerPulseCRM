@@ -399,37 +399,13 @@ export default function Analytics() {
       {(isCEO || isManager) && visibleTeams && visibleTeams.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  Team Structure & Performance
-                </CardTitle>
-                <CardDescription>
-                  {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
-                </CardDescription>
-              </div>
-              {visibleTeams.length > 2 && (
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowAllTeams(!showAllTeams)}
-                  className="text-primary hover:text-primary/80"
-                  data-testid="button-toggle-teams"
-                >
-                  {showAllTeams ? (
-                    <>
-                      <ChevronUp className="h-4 w-4 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-4 w-4 mr-1" />
-                      Show More
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Team Structure & Performance
+            </CardTitle>
+            <CardDescription>
+              {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {visibleTeams.slice(0, showAllTeams ? visibleTeams.length : 3).map((team, teamIndex) => {
@@ -482,6 +458,30 @@ export default function Analytics() {
                 </div>
               );
             })}
+            
+            {/* Show More/Less Button */}
+            {visibleTeams.length > 2 && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAllTeams(!showAllTeams)}
+                  className="text-primary hover:text-primary/80"
+                  data-testid="button-toggle-teams"
+                >
+                  {showAllTeams ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Show More
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
             
             {/* Individual salespeople without teams */}
             {isCEO && individualSalespeople.length > 0 && (
