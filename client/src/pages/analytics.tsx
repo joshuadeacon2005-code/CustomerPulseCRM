@@ -45,7 +45,7 @@ function getMonthOptions() {
 export default function Analytics() {
   const { user: currentUser } = useAuth();
   const [view, setView] = useState<"monthly" | "overall">("overall");
-  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
+  const [showAllTeams, setShowAllTeams] = useState(false);
   
   // Current month by default
   const now = new Date();
@@ -399,69 +399,74 @@ export default function Analytics() {
       {(isCEO || isManager) && visibleTeams && visibleTeams.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              Team Structure & Performance
-            </CardTitle>
-            <CardDescription>
-              {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
-            </CardDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Team Structure & Performance
+                </CardTitle>
+                <CardDescription>
+                  {isCEO ? "All teams and their performance metrics" : "Your team members and their performance"}
+                </CardDescription>
+              </div>
+              {visibleTeams.length > 2 && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAllTeams(!showAllTeams)}
+                  className="text-primary hover:text-primary/80"
+                  data-testid="button-toggle-teams"
+                >
+                  {showAllTeams ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Show More
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {visibleTeams.map((team) => (
-              <div key={team.manager.id} className="space-y-4 pb-6 border-b last:border-0 last:pb-0" data-testid={`team-${team.manager.id}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <UserCheck className="h-6 w-6 text-primary" />
+            {visibleTeams.slice(0, showAllTeams ? visibleTeams.length : 3).map((team, teamIndex) => {
+              const isThirdTeam = !showAllTeams && teamIndex === 2 && visibleTeams.length > 2;
+              return (
+                <div 
+                  key={team.manager.id} 
+                  className={`space-y-4 pb-6 border-b last:border-0 last:pb-0 ${isThirdTeam ? 'opacity-50 relative overflow-hidden' : ''}`}
+                  style={isThirdTeam ? { maxHeight: '50%', clipPath: 'inset(0 0 50% 0)' } : {}}
+                  data-testid={`team-${team.manager.id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <UserCheck className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
+                        <p className="text-sm text-muted-foreground">{team.manager.role} • {team.manager.regionalOffice || "No office"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold" data-testid={`text-manager-name-${team.manager.id}`}>{team.manager.name}</h3>
-                      <p className="text-sm text-muted-foreground">{team.manager.role} • {team.manager.regionalOffice || "No office"}</p>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-primary" data-testid={`text-team-customers-${team.manager.id}`}>{team.customerCount}</div>
+                      <p className="text-xs text-muted-foreground">Team Customers</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-primary" data-testid={`text-team-customers-${team.manager.id}`}>{team.customerCount}</div>
-                    <p className="text-xs text-muted-foreground">Team Customers</p>
-                  </div>
-                </div>
-                
-                {team.members.length > 0 && (
-                  <div className="ml-15 space-y-3 bg-muted/50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
+                  
+                  {team.members.length > 0 && (
+                    <div className="ml-15 space-y-3 bg-muted/50 p-4 rounded-lg">
                       <p className="text-sm font-medium">Team Members ({team.members.length})</p>
-                      {team.members.length > 2 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setExpandedTeams(prev => ({ ...prev, [team.manager.id]: !prev[team.manager.id] }))}
-                          className="text-primary hover:text-primary/80"
-                          data-testid={`button-toggle-team-${team.manager.id}`}
-                        >
-                          {expandedTeams[team.manager.id] ? (
-                            <>
-                              <ChevronUp className="h-4 w-4 mr-1" />
-                              Show Less
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4 mr-1" />
-                              Show More
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                    <div className="relative">
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {team.members.slice(0, expandedTeams[team.manager.id] ? team.members.length : 3).map((member, index) => {
+                        {team.members.map((member) => {
                           const memberCustomers = customers?.filter(c => c.assignedTo === member.id).length || 0;
-                          const isThirdItem = !expandedTeams[team.manager.id] && index === 2 && team.members.length > 2;
                           return (
                             <div 
                               key={member.id}
-                              className={`flex items-center justify-between bg-background p-3 rounded-md border ${isThirdItem ? 'opacity-50 relative overflow-hidden' : ''}`}
-                              style={isThirdItem ? { maxHeight: '50%', clipPath: 'inset(0 0 50% 0)' } : {}}
+                              className="flex items-center justify-between bg-background p-3 rounded-md border"
                               data-testid={`badge-member-${member.id}`}
                             >
                               <span className="font-medium text-sm">{member.name}</span>
@@ -473,10 +478,10 @@ export default function Analytics() {
                         })}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
             
             {/* Individual salespeople without teams */}
             {isCEO && individualSalespeople.length > 0 && (
