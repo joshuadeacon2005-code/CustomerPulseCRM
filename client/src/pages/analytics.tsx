@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DashboardStats, Customer, User } from "@shared/schema";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
-import { Users as UsersIcon, Target, Activity, UserCheck, Building2, TrendingUp, TrendingDown, DollarSign, Award, MapPin } from "lucide-react";
+import { Users as UsersIcon, Target, Activity, UserCheck, Building2, TrendingUp, TrendingDown, DollarSign, Award, MapPin, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
@@ -44,6 +45,7 @@ function getMonthOptions() {
 export default function Analytics() {
   const { user: currentUser } = useAuth();
   const [view, setView] = useState<"monthly" | "overall">("overall");
+  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
   
   // Current month by default
   const now = new Date();
@@ -426,23 +428,50 @@ export default function Analytics() {
                 
                 {team.members.length > 0 && (
                   <div className="ml-15 space-y-3 bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm font-medium">Team Members ({team.members.length})</p>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {team.members.map((member) => {
-                        const memberCustomers = customers?.filter(c => c.assignedTo === member.id).length || 0;
-                        return (
-                          <div 
-                            key={member.id}
-                            className="flex items-center justify-between bg-background p-3 rounded-md border"
-                            data-testid={`badge-member-${member.id}`}
-                          >
-                            <span className="font-medium text-sm">{member.name}</span>
-                            <Badge variant="secondary" className="ml-2">
-                              {memberCustomers}
-                            </Badge>
-                          </div>
-                        );
-                      })}
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Team Members ({team.members.length})</p>
+                      {team.members.length > 2 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedTeams(prev => ({ ...prev, [team.manager.id]: !prev[team.manager.id] }))}
+                          className="text-primary hover:text-primary/80"
+                          data-testid={`button-toggle-team-${team.manager.id}`}
+                        >
+                          {expandedTeams[team.manager.id] ? (
+                            <>
+                              <ChevronUp className="h-4 w-4 mr-1" />
+                              Show Less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4 mr-1" />
+                              Show More
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {team.members.slice(0, expandedTeams[team.manager.id] ? team.members.length : 3).map((member, index) => {
+                          const memberCustomers = customers?.filter(c => c.assignedTo === member.id).length || 0;
+                          const isThirdItem = !expandedTeams[team.manager.id] && index === 2 && team.members.length > 2;
+                          return (
+                            <div 
+                              key={member.id}
+                              className={`flex items-center justify-between bg-background p-3 rounded-md border ${isThirdItem ? 'opacity-50 relative overflow-hidden' : ''}`}
+                              style={isThirdItem ? { maxHeight: '50%', clipPath: 'inset(0 0 50% 0)' } : {}}
+                              data-testid={`badge-member-${member.id}`}
+                            >
+                              <span className="font-medium text-sm">{member.name}</span>
+                              <Badge variant="secondary" className="ml-2">
+                                {memberCustomers}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
