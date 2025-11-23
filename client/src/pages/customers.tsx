@@ -382,14 +382,14 @@ export default function Customers() {
       </div>
 
       {/* Country Filter Bar */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+      <div className="flex items-stretch gap-4 w-full">
         {uniqueCountries.map((country) => (
           <Button
             key={country}
             size="lg"
             variant="default"
             onClick={() => setCountryFilter(country)}
-            className={countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}
+            className={`flex-1 h-16 text-lg font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
             data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
           >
             {country}
