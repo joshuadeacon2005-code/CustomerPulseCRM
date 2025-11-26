@@ -356,8 +356,8 @@ export function CustomerDetailModal({
 
   if (!customer) return null;
 
-  const handleUpdate = (data: UpdateCustomer) => {
-    onUpdate(data);
+  const handleUpdate = (data: any, _additionalContacts?: any, _initialAddress?: any) => {
+    onUpdate(data as UpdateCustomer);
     setIsEditing(false);
   };
 
@@ -1196,8 +1196,8 @@ export function CustomerDetailModal({
 
         {/* Add/Edit Address Dialog */}
         <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
-          <DialogContent data-testid="modal-add-address">
-            <DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="modal-add-address">
+            <DialogHeader className="pr-10">
               <DialogTitle>
                 {editingAddress ? 'Edit Address' : 'Add New Address'}
               </DialogTitle>

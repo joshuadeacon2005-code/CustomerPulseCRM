@@ -178,7 +178,25 @@ export default function Customers() {
   });
 
   const addCustomerMutation = useMutation({
-    mutationFn: async ({ customer, contacts }: { customer: InsertCustomer; contacts?: Omit<InsertCustomerContact, 'customerId'>[] }) => {
+    mutationFn: async ({ customer, contacts, initialAddress }: { 
+      customer: InsertCustomer; 
+      contacts?: Omit<InsertCustomerContact, 'customerId'>[];
+      initialAddress?: {
+        addressType: string;
+        streetNumber: string;
+        streetName: string;
+        unit: string;
+        building: string;
+        district: string;
+        city: string;
+        stateProvince: string;
+        postalCode: string;
+        country: string;
+        address: string;
+        chineseAddress: string;
+        translation: string;
+      };
+    }) => {
       // First create the customer
       const newCustomer = await apiRequest("POST", "/api/customers", customer) as unknown as Customer;
       
@@ -192,6 +210,14 @@ export default function Customers() {
             })
           )
         );
+      }
+      
+      // Create initial address if provided
+      if (initialAddress) {
+        await apiRequest("POST", "/api/customer-addresses", {
+          ...initialAddress,
+          customerId: newCustomer.id,
+        });
       }
       
       return newCustomer;
@@ -656,10 +682,11 @@ export default function Customers() {
             <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
           <CustomerForm
-            onSubmit={(data, additionalContacts) => 
+            onSubmit={(data, additionalContacts, initialAddress) => 
               addCustomerMutation.mutate({ 
                 customer: data as InsertCustomer, 
-                contacts: additionalContacts 
+                contacts: additionalContacts,
+                initialAddress 
               })
             }
             onCancel={() => setIsAddDialogOpen(false)}

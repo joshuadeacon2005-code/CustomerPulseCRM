@@ -37,9 +37,25 @@ interface AdditionalContact {
   email: string;
 }
 
+interface InitialAddress {
+  addressType: string;
+  streetNumber: string;
+  streetName: string;
+  unit: string;
+  building: string;
+  district: string;
+  city: string;
+  stateProvince: string;
+  postalCode: string;
+  country: string;
+  address: string;
+  chineseAddress: string;
+  translation: string;
+}
+
 interface CustomerFormProps {
   customer?: Customer;
-  onSubmit: (data: InsertCustomer | UpdateCustomer, additionalContacts?: Omit<InsertCustomerContact, 'customerId'>[]) => void;
+  onSubmit: (data: InsertCustomer | UpdateCustomer, additionalContacts?: Omit<InsertCustomerContact, 'customerId'>[], initialAddress?: InitialAddress) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -69,6 +85,23 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
     title: "",
     phone: "",
     email: "",
+  });
+  
+  // Initial address state (only for creating new customers)
+  const [initialAddress, setInitialAddress] = useState<InitialAddress>({
+    addressType: "store",
+    streetNumber: "",
+    streetName: "",
+    unit: "",
+    building: "",
+    district: "",
+    city: "",
+    stateProvince: "",
+    postalCode: "",
+    country: "",
+    address: "",
+    chineseAddress: "",
+    translation: "",
   });
   
   const form = useForm<InsertCustomer | UpdateCustomer>({
@@ -121,9 +154,16 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
   });
 
   const handleFormSubmit = (data: InsertCustomer | UpdateCustomer) => {
-    // For new customers, pass additional contacts. For editing, just pass the customer data
-    if (!isEditing && additionalContacts.length > 0) {
-      onSubmit(data, additionalContacts);
+    // Check if any address field has data
+    const hasAddressData = initialAddress.streetNumber || initialAddress.streetName || 
+      initialAddress.city || initialAddress.address || initialAddress.building ||
+      initialAddress.district || initialAddress.unit;
+    
+    // For new customers, pass additional contacts and initial address
+    if (!isEditing) {
+      const contactsToPass = additionalContacts.length > 0 ? additionalContacts : undefined;
+      const addressToPass = hasAddressData ? initialAddress : undefined;
+      onSubmit(data, contactsToPass, addressToPass);
     } else {
       onSubmit(data);
     }
@@ -651,25 +691,178 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="storeAddress"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Store Address</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Enter store address"
-                    className="resize-none"
-                    {...field} 
-                    value={field.value || ""}
-                    data-testid="input-store-address"
+          {/* Structured Address Fields - Only for new customers */}
+          {!isEditing && (
+            <div className="space-y-4 pt-4 border-t">
+              <h4 className="text-sm font-medium text-muted-foreground">Store Address</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel htmlFor="address-type">Address Type</FormLabel>
+                  <Select
+                    value={initialAddress.addressType}
+                    onValueChange={(value) => setInitialAddress(prev => ({ ...prev, addressType: value }))}
+                  >
+                    <SelectTrigger data-testid="select-address-type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="store">Store</SelectItem>
+                      <SelectItem value="office">Office</SelectItem>
+                      <SelectItem value="warehouse">Warehouse</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="shipping">Shipping</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <FormLabel htmlFor="address-country">Country</FormLabel>
+                  <Select
+                    value={initialAddress.country}
+                    onValueChange={(value) => setInitialAddress(prev => ({ ...prev, country: value }))}
+                  >
+                    <SelectTrigger data-testid="select-address-country">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel htmlFor="street-number">Street Number</FormLabel>
+                  <Input
+                    id="street-number"
+                    placeholder="123"
+                    value={initialAddress.streetNumber}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, streetNumber: e.target.value }))}
+                    data-testid="input-street-number"
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </div>
+                <div className="space-y-2">
+                  <FormLabel htmlFor="street-name">Street Name</FormLabel>
+                  <Input
+                    id="street-name"
+                    placeholder="Main Street"
+                    value={initialAddress.streetName}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, streetName: e.target.value }))}
+                    data-testid="input-street-name"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel htmlFor="unit">Unit/Suite</FormLabel>
+                  <Input
+                    id="unit"
+                    placeholder="Unit 5B"
+                    value={initialAddress.unit}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, unit: e.target.value }))}
+                    data-testid="input-unit"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FormLabel htmlFor="building">Building</FormLabel>
+                  <Input
+                    id="building"
+                    placeholder="Building name"
+                    value={initialAddress.building}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, building: e.target.value }))}
+                    data-testid="input-building"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel htmlFor="district">District</FormLabel>
+                <Input
+                  id="district"
+                  placeholder="District/Area"
+                  value={initialAddress.district}
+                  onChange={(e) => setInitialAddress(prev => ({ ...prev, district: e.target.value }))}
+                  data-testid="input-district"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel htmlFor="city">City</FormLabel>
+                  <Input
+                    id="city"
+                    placeholder="City"
+                    value={initialAddress.city}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, city: e.target.value }))}
+                    data-testid="input-city"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FormLabel htmlFor="state-province">State/Province</FormLabel>
+                  <Input
+                    id="state-province"
+                    placeholder="State or Province"
+                    value={initialAddress.stateProvince}
+                    onChange={(e) => setInitialAddress(prev => ({ ...prev, stateProvince: e.target.value }))}
+                    data-testid="input-state-province"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel htmlFor="postal-code">Postal Code</FormLabel>
+                <Input
+                  id="postal-code"
+                  placeholder="Postal/ZIP code"
+                  value={initialAddress.postalCode}
+                  onChange={(e) => setInitialAddress(prev => ({ ...prev, postalCode: e.target.value }))}
+                  data-testid="input-postal-code"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel htmlFor="full-address">Full Address (Legacy)</FormLabel>
+                <Textarea 
+                  id="full-address"
+                  placeholder="Enter full address if not using structured fields above"
+                  className="resize-none"
+                  value={initialAddress.address}
+                  onChange={(e) => setInitialAddress(prev => ({ ...prev, address: e.target.value }))}
+                  data-testid="input-full-address"
+                />
+                <FormDescription>Optional: Use this for complex addresses that don't fit the structured fields above</FormDescription>
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel htmlFor="chinese-address">Chinese Address</FormLabel>
+                <Textarea 
+                  id="chinese-address"
+                  placeholder="中文地址"
+                  className="resize-none"
+                  value={initialAddress.chineseAddress}
+                  onChange={(e) => setInitialAddress(prev => ({ ...prev, chineseAddress: e.target.value }))}
+                  data-testid="input-chinese-address"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FormLabel htmlFor="translation">Translation Notes</FormLabel>
+                <Input
+                  id="translation"
+                  placeholder="Translation or additional notes"
+                  value={initialAddress.translation}
+                  onChange={(e) => setInitialAddress(prev => ({ ...prev, translation: e.target.value }))}
+                  data-testid="input-translation"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <Separator />
