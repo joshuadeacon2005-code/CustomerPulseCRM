@@ -903,6 +903,12 @@ export class DatabaseStorage implements IStorage {
     const prospectCount = filteredCustomers.filter(c => c.stage === "prospect").length;
     const customerCount = filteredCustomers.filter(c => c.stage === "customer").length;
 
+    // Conversion tracking: only count customers who were tracked as leads first (have dateOfFirstContact)
+    // This excludes imported existing customers who were never leads in the system
+    const trackedLeads = filteredCustomers.filter(c => c.dateOfFirstContact !== null);
+    const convertedCustomers = trackedLeads.filter(c => c.stage === "customer").length;
+    const totalTrackedLeads = trackedLeads.length;
+
     // For monthly view, show interactions this month; for overall, last 7 days
     const recentInteractions = isMonthlyView
       ? filteredInteractions.length
@@ -917,6 +923,8 @@ export class DatabaseStorage implements IStorage {
       prospectCount,
       customerCount,
       recentInteractions,
+      convertedCustomers,
+      totalTrackedLeads,
     };
   }
 

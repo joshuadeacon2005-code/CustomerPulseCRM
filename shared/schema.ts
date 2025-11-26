@@ -615,6 +615,8 @@ export type DashboardStats = {
   prospectCount: number;
   customerCount: number;
   recentInteractions: number;
+  convertedCustomers: number;
+  totalTrackedLeads: number;
 };
 
 export type SalesmanStats = {

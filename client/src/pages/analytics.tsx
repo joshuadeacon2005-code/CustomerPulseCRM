@@ -153,8 +153,10 @@ export default function Analytics() {
   // Calculate additional metrics
   const activeCustomers = customers?.filter(c => c.stage === "customer").length || 0;
   const totalLeads = customers?.filter(c => c.stage === "lead").length || 0;
-  const conversionRate = stats?.totalCustomers 
-    ? ((stats.customerCount / stats.totalCustomers) * 100)
+  // Conversion rate: only count leads that were tracked (have dateOfFirstContact) and converted to customers
+  // This excludes imported existing customers who were never leads in the system
+  const conversionRate = stats?.totalTrackedLeads 
+    ? ((stats.convertedCustomers / stats.totalTrackedLeads) * 100)
     : 0;
 
   const isLoading = statsLoading || customersLoading || usersLoading;
