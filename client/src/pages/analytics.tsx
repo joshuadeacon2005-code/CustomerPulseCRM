@@ -158,6 +158,48 @@ export default function Analytics() {
   const conversionRate = stats?.totalTrackedLeads 
     ? ((stats.convertedCustomers / stats.totalTrackedLeads) * 100)
     : 0;
+  
+  // Calculate weighted pipeline value based on quarterly soft targets
+  // Weights: Leads 20%, Prospects 50%, Customers 100%
+  const PIPELINE_WEIGHTS = { lead: 0.2, prospect: 0.5, customer: 1.0 };
+  
+  const pipelineMetrics = customers?.reduce((acc, customer) => {
+    const weight = PIPELINE_WEIGHTS[customer.stage as keyof typeof PIPELINE_WEIGHTS] || 0;
+    const targetValue = Number(customer.quarterlySoftTargetBaseCurrency) || 0;
+    const weightedValue = targetValue * weight;
+    
+    acc.totalValue += targetValue;
+    acc.weightedValue += weightedValue;
+    
+    if (customer.stage === 'lead') {
+      acc.leadValue += targetValue;
+      acc.leadWeighted += weightedValue;
+    } else if (customer.stage === 'prospect') {
+      acc.prospectValue += targetValue;
+      acc.prospectWeighted += weightedValue;
+    } else if (customer.stage === 'customer') {
+      acc.customerValue += targetValue;
+      acc.customerWeighted += weightedValue;
+    }
+    
+    return acc;
+  }, { 
+    totalValue: 0, 
+    weightedValue: 0, 
+    leadValue: 0, 
+    leadWeighted: 0, 
+    prospectValue: 0, 
+    prospectWeighted: 0, 
+    customerValue: 0, 
+    customerWeighted: 0 
+  }) || { totalValue: 0, weightedValue: 0, leadValue: 0, leadWeighted: 0, prospectValue: 0, prospectWeighted: 0, customerValue: 0, customerWeighted: 0 };
+  
+  // Format currency
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+    return `$${value.toFixed(0)}`;
+  };
 
   const isLoading = statsLoading || customersLoading || usersLoading;
 
@@ -313,6 +355,79 @@ export default function Analytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sales Pipeline Value Card - Full Width */}
+      <Card className="hover-elevate">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+          <div>
+            <h3 className="text-lg font-semibold">Sales Pipeline Value</h3>
+            <p className="text-sm text-muted-foreground">Weighted pipeline based on quarterly soft targets</p>
+          </div>
+          <DollarSign className="h-6 w-6 text-primary" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-4">
+            {/* Weighted Total */}
+            <div className="space-y-2">
+              <div className="text-3xl font-bold text-primary" data-testid="text-pipeline-weighted">
+                {formatCurrency(pipelineMetrics.weightedValue)}
+              </div>
+              <p className="text-sm text-muted-foreground">Weighted Pipeline Value</p>
+              <p className="text-xs text-muted-foreground">
+                Raw total: {formatCurrency(pipelineMetrics.totalValue)}
+              </p>
+            </div>
+            
+            {/* Lead Pipeline */}
+            <div className="space-y-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Leads (20%)</span>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20">
+                  {stats?.leadCount || 0}
+                </Badge>
+              </div>
+              <div className="text-2xl font-bold" data-testid="text-pipeline-leads">
+                {formatCurrency(pipelineMetrics.leadWeighted)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Raw: {formatCurrency(pipelineMetrics.leadValue)}
+              </p>
+            </div>
+            
+            {/* Prospect Pipeline */}
+            <div className="space-y-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Prospects (50%)</span>
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
+                  {stats?.prospectCount || 0}
+                </Badge>
+              </div>
+              <div className="text-2xl font-bold" data-testid="text-pipeline-prospects">
+                {formatCurrency(pipelineMetrics.prospectWeighted)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Raw: {formatCurrency(pipelineMetrics.prospectValue)}
+              </p>
+            </div>
+            
+            {/* Customer Pipeline */}
+            <div className="space-y-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">Customers (100%)</span>
+                <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                  {stats?.customerCount || 0}
+                </Badge>
+              </div>
+              <div className="text-2xl font-bold" data-testid="text-pipeline-customers">
+                {formatCurrency(pipelineMetrics.customerWeighted)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Full value
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Row 1 */}
       <div className="grid gap-8 lg:grid-cols-2">

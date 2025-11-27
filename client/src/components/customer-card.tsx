@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Customer, CustomerWithBrands } from "@shared/schema";
-import { Mail, Phone, User } from "lucide-react";
-import { format } from "date-fns";
+import { Mail, Phone, User, AlertTriangle, Clock } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
 
 interface CustomerCardProps {
   customer: Customer | CustomerWithBrands;
@@ -23,6 +23,18 @@ const getInitials = (name: string) => {
   }
   return name.slice(0, 2).toUpperCase();
 };
+
+// Helper to check if customer needs attention based on last contact
+function getContactStatus(lastContactDate: Date | null | undefined): {
+  status: 'ok' | 'warning' | 'critical' | 'never';
+  days: number | null;
+} {
+  if (!lastContactDate) return { status: 'never', days: null };
+  const days = differenceInDays(new Date(), new Date(lastContactDate));
+  if (days >= 30) return { status: 'critical', days };
+  if (days >= 14) return { status: 'warning', days };
+  return { status: 'ok', days };
+}
 
 export function CustomerCard({ customer, onClick }: CustomerCardProps) {
   return (
@@ -70,6 +82,27 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
         <div className="text-xs text-muted-foreground mt-2">
           Added {format(new Date(customer.createdAt), "MMM d, yyyy")}
         </div>
+        
+        {/* Last Contact Status */}
+        {(() => {
+          const contactStatus = getContactStatus(customer.lastContactDate);
+          if (contactStatus.status === 'critical') {
+            return (
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t text-red-500">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span className="text-xs font-medium">Needs attention ({contactStatus.days} days)</span>
+              </div>
+            );
+          } else if (contactStatus.status === 'warning') {
+            return (
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t text-amber-500">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="text-xs">Last contact: {contactStatus.days} days ago</span>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </CardContent>
     </Card>
   );

@@ -169,6 +169,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check for duplicate customers by name or email
+  app.get("/api/customers/check-duplicate", isAuthenticated, async (req, res) => {
+    try {
+      const { name, email, excludeId } = req.query;
+      
+      if (!name && !email) {
+        return res.status(400).json({ error: "Name or email is required" });
+      }
+      
+      // Get all customers (use CEO role to check against all)
+      const allCustomers = await storage.getCustomers(req.user!.id, 'ceo');
+      
+      const duplicates: Array<{ id: string; name: string; email: string | null; country: string | null; stage: string }> = [];
+      
+      const searchName = (name as string)?.toLowerCase().trim();
+      const searchEmail = (email as string)?.toLowerCase().trim();
+      
+      for (const customer of allCustomers) {
+        // Skip the customer being edited
+        if (excludeId && customer.id === excludeId) {
+          continue;
+        }
+        
+        const customerName = customer.name.toLowerCase().trim();
+        const customerEmail = customer.email?.toLowerCase().trim();
+        
+        // Check for name similarity (exact or starts with)
+        const nameMatch = searchName && (
+          customerName === searchName || 
+          customerName.startsWith(searchName) ||
+          searchName.startsWith(customerName)
+        );
+        
+        // Check for email match
+        const emailMatch = searchEmail && customerEmail && customerEmail === searchEmail;
+        
+        if (nameMatch || emailMatch) {
+          duplicates.push({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            country: customer.country,
+            stage: customer.stage,
+          });
+        }
+      }
+      
+      res.json({
+        hasDuplicates: duplicates.length > 0,
+        duplicates: duplicates.slice(0, 5), // Return max 5 potential duplicates
+      });
+    } catch (error) {
+      console.error("Error checking duplicates:", error);
+      res.status(500).json({ error: "Failed to check for duplicates" });
+    }
+  });
+
   // Customer contacts routes
   app.get("/api/customers/:customerId/contacts", isAuthenticated, async (req, res) => {
     try {

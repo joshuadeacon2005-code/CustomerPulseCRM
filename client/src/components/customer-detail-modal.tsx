@@ -81,7 +81,15 @@ import {
   Sparkles,
   Loader2,
   ExternalLink,
+  Building,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -175,10 +183,12 @@ export function CustomerDetailModal({
 }: CustomerDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingNewInteraction, setIsAddingNewInteraction] = useState(false);
+  const [quickInteractionType, setQuickInteractionType] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
   const [isAddingActionItem, setIsAddingActionItem] = useState(false);
   const [isAddingSales, setIsAddingSales] = useState(false);
+  const setIsAddingSale = setIsAddingSales; // Alias for quick actions
   const [editingSalesId, setEditingSalesId] = useState<string | null>(null);
   const [isAddingAdditionalContact, setIsAddingAdditionalContact] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -437,6 +447,67 @@ export function CustomerDetailModal({
             </div>
             {!isEditing && (
               <div className="flex gap-3 flex-shrink-0">
+                {/* Quick Actions Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      data-testid="button-quick-actions"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Quick Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setIsAddingNewInteraction(true);
+                        setQuickInteractionType("Call");
+                      }}
+                      data-testid="quick-action-log-call"
+                    >
+                      <Phone className="h-4 w-4 mr-2" />
+                      Log Call
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setIsAddingNewInteraction(true);
+                        setQuickInteractionType("Store Visit");
+                      }}
+                      data-testid="quick-action-log-visit"
+                    >
+                      <Building className="h-4 w-4 mr-2" />
+                      Log Visit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setIsAddingNewInteraction(true);
+                        setQuickInteractionType("Email");
+                      }}
+                      data-testid="quick-action-log-email"
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Log Email
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setIsAddingSale(true)}
+                      data-testid="quick-action-log-sale"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Log Sale
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setIsAddingActionItem(true)}
+                      data-testid="quick-action-add-task"
+                    >
+                      <Target className="h-4 w-4 mr-2" />
+                      Add Task
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -1132,9 +1203,16 @@ export function CustomerDetailModal({
                 <CardContent>
                   <InteractionForm
                     customerId={customer.id}
-                    onSubmit={handleAddInteraction}
-                    onCancel={() => setIsAddingNewInteraction(false)}
+                    onSubmit={(data) => {
+                      handleAddInteraction(data);
+                      setQuickInteractionType(null);
+                    }}
+                    onCancel={() => {
+                      setIsAddingNewInteraction(false);
+                      setQuickInteractionType(null);
+                    }}
                     isLoading={isAddingInteraction}
+                    defaultType={quickInteractionType as any}
                   />
                 </CardContent>
               </Card>

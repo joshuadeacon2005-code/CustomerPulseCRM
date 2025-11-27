@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, COUNTRIES, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -104,6 +105,50 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
     translation: "",
   });
   
+  // Duplicate detection state
+  interface DuplicateCustomer {
+    id: string;
+    name: string;
+    email: string | null;
+    country: string | null;
+    stage: string;
+  }
+  const [duplicates, setDuplicates] = useState<DuplicateCustomer[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateCheckDismissed, setDuplicateCheckDismissed] = useState(false);
+  
+  // Debounced duplicate check
+  const checkForDuplicates = useCallback(async (name: string, email?: string) => {
+    if (!name || name.length < 3) {
+      setDuplicates([]);
+      return;
+    }
+    
+    setIsCheckingDuplicates(true);
+    try {
+      const params = new URLSearchParams();
+      if (name) params.append('name', name);
+      if (email) params.append('email', email);
+      if (customer?.id) params.append('excludeId', customer.id);
+      
+      const response = await fetch(`/api/customers/check-duplicate?${params.toString()}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDuplicates(data.duplicates || []);
+      }
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  }, [customer?.id]);
+  
+  // Debounce timer ref
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  
   const form = useForm<InsertCustomer | UpdateCustomer>({
     resolver: zodResolver(isEditing ? updateCustomerSchema : insertCustomerSchema),
     defaultValues: customer ? {
@@ -185,11 +230,58 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                 <FormControl>
                   <Input 
                     placeholder="Company Name" 
-                    {...field} 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Debounced duplicate check
+                      if (debounceTimer) clearTimeout(debounceTimer);
+                      const timer = setTimeout(() => {
+                        if (!duplicateCheckDismissed) {
+                          checkForDuplicates(e.target.value);
+                        }
+                      }, 500);
+                      setDebounceTimer(timer);
+                    }}
                     data-testid="input-customer-name"
                   />
                 </FormControl>
                 <FormMessage />
+                {/* Duplicate warning */}
+                {!isEditing && duplicates.length > 0 && !duplicateCheckDismissed && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Potential Duplicates Found</AlertTitle>
+                    <AlertDescription>
+                      <p className="mb-2">Similar customers already exist:</p>
+                      <ul className="space-y-1 text-sm">
+                        {duplicates.map((dup) => (
+                          <li key={dup.id} className="flex items-center justify-between gap-2">
+                            <span>
+                              <strong>{dup.name}</strong>
+                              {dup.country && <span className="text-muted-foreground"> ({dup.country})</span>}
+                              {dup.email && <span className="text-muted-foreground"> - {dup.email}</span>}
+                              <span className="ml-1 text-xs capitalize">({dup.stage})</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-3 flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setDuplicateCheckDismissed(true)}
+                          data-testid="button-dismiss-duplicate-warning"
+                        >
+                          Ignore & Continue
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {isCheckingDuplicates && (
+                  <p className="text-xs text-muted-foreground mt-1">Checking for duplicates...</p>
+                )}
               </FormItem>
             )}
           />

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +41,28 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, differenceInDays } from "date-fns";
+
+// Helper to calculate days since last contact and return status
+function getContactStatus(lastContactDate: Date | null | undefined): { 
+  days: number | null; 
+  status: 'ok' | 'warning' | 'critical' | 'never';
+  label: string;
+} {
+  if (!lastContactDate) {
+    return { days: null, status: 'never', label: 'Never contacted' };
+  }
+  
+  const days = differenceInDays(new Date(), new Date(lastContactDate));
+  
+  if (days >= 30) {
+    return { days, status: 'critical', label: `${days} days ago` };
+  } else if (days >= 14) {
+    return { days, status: 'warning', label: `${days} days ago` };
+  } else {
+    return { days, status: 'ok', label: `${days} days ago` };
+  }
+}
 
 export default function Customers() {
   const [location] = useLocation();
@@ -642,11 +663,31 @@ export default function Customers() {
                             : <span className="text-muted-foreground/50 italic">Not set</span>
                           }
                         </td>
-                        <td className="p-4 text-muted-foreground">
-                          {customer.lastContactDate 
-                            ? formatDistanceToNow(new Date(customer.lastContactDate), { addSuffix: true })
-                            : <span className="text-muted-foreground/50 italic">Never</span>
-                          }
+                        <td className="p-4">
+                          {(() => {
+                            const contactStatus = getContactStatus(customer.lastContactDate);
+                            return (
+                              <div className="flex items-center gap-2">
+                                {contactStatus.status === 'critical' && (
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                )}
+                                {contactStatus.status === 'warning' && (
+                                  <Clock className="h-4 w-4 text-amber-500" />
+                                )}
+                                <span className={
+                                  contactStatus.status === 'critical' ? 'text-red-500 font-medium' :
+                                  contactStatus.status === 'warning' ? 'text-amber-500' :
+                                  contactStatus.status === 'never' ? 'text-muted-foreground/50 italic' :
+                                  'text-muted-foreground'
+                                }>
+                                  {contactStatus.status === 'never' ? 'Never' : contactStatus.label}
+                                </span>
+                                {contactStatus.status === 'critical' && (
+                                  <Badge variant="destructive" className="text-xs ml-1">Needs Attention</Badge>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}

@@ -30,9 +30,10 @@ interface InteractionFormProps {
   onSubmit: (data: InsertInteraction) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  defaultType?: typeof INTERACTION_TYPES[number];
 }
 
-export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: InteractionFormProps) {
+export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, defaultType }: InteractionFormProps) {
   const { toast } = useToast();
 
   const form = useForm<InsertInteraction>({
@@ -40,7 +41,7 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading }: I
     defaultValues: {
       customerId,
       category: "sales",
-      type: "Call",
+      type: defaultType || "Call",
       description: "",
     },
   });
