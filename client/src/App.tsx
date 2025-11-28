@@ -24,10 +24,12 @@ import TasksPage from "@/pages/tasks";
 import ReportsPage from "@/pages/reports";
 import UserDetailsPage from "@/pages/user-details";
 import NotFound from "@/pages/not-found";
+import ComparativeAnalytics from "@/pages/comparative-analytics";
+import Pipeline from "@/pages/pipeline";
 
 function AuthenticatedApp() {
   const { user } = useAuth();
-  
+
   const style = {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "4rem",
@@ -41,9 +43,9 @@ function AuthenticatedApp() {
           <header className="flex items-center justify-between gap-4 h-24 px-4 border-b shrink-0">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <img 
-                src="/logo-main.png" 
-                alt="Bloom & Grow" 
+              <img
+                src="/logo-main.png"
+                alt="Bloom & Grow"
                 className="h-[130px] object-contain"
               />
             </div>
@@ -110,6 +112,8 @@ function AuthenticatedApp() {
                   <ReportsPage />
                 </ProtectedRoute>
               </Route>
+              <Route path="/comparative" component={ComparativeAnalytics} />
+              <Route path="/pipeline" component={Pipeline} />
               <Route component={NotFound} />
             </Switch>
           </main>

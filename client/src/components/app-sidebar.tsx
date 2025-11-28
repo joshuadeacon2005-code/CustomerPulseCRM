@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, TrendingUp } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -68,6 +68,16 @@ export function AppSidebar() {
       url: "/sales",
       icon: DollarSign,
     },
+    {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
+      title: "Pipeline",
+      url: "/pipeline",
+      icon: Target,
+    },
   ];
 
   const adminNav = [
@@ -100,6 +110,16 @@ export function AppSidebar() {
       title: "Sales Dashboard",
       url: "/sales",
       icon: DollarSign,
+    },
+    {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
+      title: "Pipeline",
+      url: "/pipeline",
+      icon: Target,
     },
   ];
 
@@ -134,6 +154,16 @@ export function AppSidebar() {
       url: "/sales",
       icon: DollarSign,
     },
+    {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
+      title: "Pipeline",
+      url: "/pipeline",
+      icon: Target,
+    },
   ];
 
   const managerNav = [
@@ -162,6 +192,16 @@ export function AppSidebar() {
       url: "/segments",
       icon: Target,
     },
+    {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
+      title: "Pipeline",
+      url: "/pipeline",
+      icon: Target,
+    },
   ];
 
   const salesmanNav = [
@@ -180,24 +220,34 @@ export function AppSidebar() {
       url: "/sales",
       icon: DollarSign,
     },
+    {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
+      title: "Pipeline",
+      url: "/pipeline",
+      icon: Target,
+    },
   ];
 
   const getNavigationForRole = (role: UserRole | undefined) => {
     if (!role) return salesmanNav;
-    
+
     // Normalize role to lowercase for case-insensitive matching
     const roleStr = (role as string).toLowerCase();
-    
+
     // CEO and admin have identical permissions and navigation
     if (roleStr === "ceo" || roleStr === "admin") {
       return ceoNav;
     }
-    
+
     // Sales director uses the admin navigation
     if (roleStr === "sales_director") {
       return adminNav;
     }
-    
+
     switch (roleStr) {
       case "regional_manager":
         return regionalManagerNav;
@@ -216,9 +266,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
-          <img 
-            src="/logo-icon-small.png" 
-            alt="Bloom & Grow" 
+          <img
+            src="/logo-icon-small.png"
+            alt="Bloom & Grow"
             className="h-12 w-12 object-contain"
           />
           <div>
@@ -227,7 +277,7 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
