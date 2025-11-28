@@ -6,13 +6,7 @@ import { Link } from "wouter";
 
 export default function UserManualPage() {
   const handleDownload = () => {
-    const content = document.getElementById('manual-content');
-    if (!content) return;
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -459,9 +453,17 @@ export default function UserManualPage() {
         </div>
       </body>
       </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Bloom_Grow_CRM_User_Manual.html';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -476,7 +478,7 @@ export default function UserManualPage() {
           </Link>
           <Button onClick={handleDownload} data-testid="button-download-manual">
             <Download className="h-4 w-4 mr-2" />
-            Download / Print Manual
+            Download Manual
           </Button>
         </div>
 
