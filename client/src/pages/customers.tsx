@@ -326,7 +326,7 @@ export default function Customers() {
   });
   
   // Get unique countries from customers (excluding Unknown) with custom order
-  const countryOrder = ["Hong Kong", "Australia", "New Zealand", "Macau"];
+  const countryOrder = ["Hong Kong", "Singapore", "Australia", "New Zealand", "Macau", "Indonesia"];
   const uniqueCountries = Array.from(
     new Set(customers?.map(c => c.country).filter((c): c is string => !!c && c !== "Unknown"))
   ).sort((a, b) => {
@@ -465,20 +465,40 @@ export default function Customers() {
         </div>
       </div>
 
-      {/* Country Filter Bar */}
-      <div className="flex items-stretch gap-4 w-full">
-        {uniqueCountries.map((country) => (
-          <Button
-            key={country}
-            size="lg"
-            variant="default"
-            onClick={() => setCountryFilter(country)}
-            className={`flex-1 h-16 text-lg font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
-            data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            {country}
-          </Button>
-        ))}
+      {/* Country Filter Bar - Two Rows */}
+      <div className="flex flex-col gap-3 w-full">
+        {/* First Row */}
+        <div className="flex items-stretch gap-4 w-full">
+          {uniqueCountries.slice(0, 3).map((country) => (
+            <Button
+              key={country}
+              size="lg"
+              variant="default"
+              onClick={() => setCountryFilter(country)}
+              className={`flex-1 h-14 text-base font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
+              data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {country}
+            </Button>
+          ))}
+        </div>
+        {/* Second Row */}
+        {uniqueCountries.length > 3 && (
+          <div className="flex items-stretch gap-4 w-full">
+            {uniqueCountries.slice(3).map((country) => (
+              <Button
+                key={country}
+                size="lg"
+                variant="default"
+                onClick={() => setCountryFilter(country)}
+                className={`flex-1 h-14 text-base font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
+                data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {country}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
       <Card>
