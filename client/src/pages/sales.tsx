@@ -15,7 +15,8 @@ import { insertMonthlyTargetSchema } from "@shared/schema";
 import type { Sale, MonthlyTarget } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
-import { Edit, TrendingUp, Target as TargetIcon, FileText } from "lucide-react";
+import { Edit, TrendingUp, Target as TargetIcon, FileText, Download } from "lucide-react";
+import { exportSalesReport } from "@/lib/export-utils";
 import { useLocation } from "wouter";
 
 const months = [
@@ -252,15 +253,33 @@ export default function SalesPage() {
           <h1 className="text-3xl font-bold">Sales Dashboard</h1>
           <p className="text-muted-foreground">Welcome, {user?.name}</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setLocation("/reports")}
-          data-testid="button-generate-report"
-          className="gap-2"
-        >
-          <FileText className="h-4 w-4" />
-          Generate Sales Report
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const dateStr = format(new Date(), 'yyyy-MM-dd');
+              exportSalesReport(sales, targets, `sales-report-${dateStr}`);
+              toast({
+                title: "Export Complete",
+                description: "Sales report has been downloaded as Excel file",
+              });
+            }}
+            data-testid="button-export-excel"
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export to Excel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/reports")}
+            data-testid="button-generate-report"
+            className="gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            Generate Sales Report
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

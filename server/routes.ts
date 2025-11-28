@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -2370,6 +2370,318 @@ Format your response as a structured analysis that's easy to parse for display.`
     } catch (error) {
       console.error("Error summarizing note:", error);
       res.status(500).json({ error: "Failed to summarize note" });
+    }
+  });
+
+  // AI Next Best Action - Which customers should I contact today?
+  app.get("/api/ai/next-best-action", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
+      
+      // Get customers based on role (the getCustomers method already handles role filtering)
+      const customers = await storage.getCustomers(userId, userRole);
+      
+      if (customers.length === 0) {
+        return res.json({
+          recommendations: [],
+          message: "No customers assigned to you yet."
+        });
+      }
+      
+      // Gather customer data with interactions
+      const customersWithData = await Promise.all(
+        customers.slice(0, 50).map(async (customer: CustomerWithBrands) => {
+          const interactions = await storage.getInteractionsByCustomer(customer.id);
+          const lastInteraction = interactions[0];
+          const daysSinceContact = customer.lastContactDate 
+            ? Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
+            : 999;
+          
+          return {
+            id: customer.id,
+            name: customer.name,
+            stage: customer.stage,
+            country: customer.country,
+            retailerType: customer.retailerType,
+            quarterlySoftTarget: customer.quarterlySoftTarget,
+            lastContactDate: customer.lastContactDate,
+            daysSinceContact,
+            interactionCount: interactions.length,
+            lastInteractionType: lastInteraction?.type,
+            lastInteractionDescription: lastInteraction?.description?.slice(0, 200),
+          };
+        })
+      );
+      
+      // Sort by priority (days since contact, then by target value)
+      const prioritized = customersWithData
+        .sort((a: { daysSinceContact: number }, b: { daysSinceContact: number }) => b.daysSinceContact - a.daysSinceContact)
+        .slice(0, 10);
+      
+      const customerSummary = prioritized.map((c: { name: string; stage: string; daysSinceContact: number; interactionCount: number; quarterlySoftTarget: string | null }) => 
+        `- ${c.name} (${c.stage}): ${c.daysSinceContact} days since contact, ${c.interactionCount} total interactions, ${c.quarterlySoftTarget ? `$${c.quarterlySoftTarget} quarterly target` : 'no target set'}`
+      ).join('\n');
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales advisor helping prioritize customer outreach. Provide 3-5 specific, actionable recommendations for which customers to contact today and why. Be concise and practical."
+          },
+          {
+            role: "user",
+            content: `Here are my customers that may need attention today:\n\n${customerSummary}\n\nProvide 3-5 prioritized recommendations for who I should contact today, with specific reasons and suggested talking points. Format each recommendation as a JSON object with fields: customerId, customerName, priority (1-5), reason, suggestedAction.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      });
+      
+      const aiResponse = completion.choices[0].message.content || '';
+      
+      // Try to parse structured recommendations
+      let recommendations: Array<{
+        customerId: string;
+        customerName: string;
+        priority: number;
+        reason: string;
+        suggestedAction: string;
+      }> = [];
+      
+      try {
+        // Try to extract JSON array from response
+        const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          recommendations = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        // Fallback: Use the raw AI response
+      }
+      
+      res.json({
+        recommendations: recommendations.length > 0 ? recommendations : prioritized.slice(0, 5).map((c: { id: string; name: string; daysSinceContact: number; lastInteractionType?: string }, i: number) => ({
+          customerId: c.id,
+          customerName: c.name,
+          priority: i + 1,
+          reason: c.daysSinceContact > 30 ? "Overdue for contact" : "Regular follow-up needed",
+          suggestedAction: c.lastInteractionType === "Call" ? "Schedule a meeting" : "Make a call"
+        })),
+        rawInsights: aiResponse,
+        analyzedCount: prioritized.length
+      });
+    } catch (error) {
+      console.error("Error generating next best action:", error);
+      res.status(500).json({ error: "Failed to generate recommendations" });
+    }
+  });
+
+  // AI Churn Risk Scoring
+  app.get("/api/ai/churn-risk/:customerId", isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.params.customerId;
+      const customer = await storage.getCustomerWithDetails(customerId);
+      
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      
+      // Check authorization
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
+      
+      if (userRole === "salesman" && customer.assignedTo !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Gather engagement data
+      const interactions = await storage.getInteractionsByCustomer(customerId);
+      const sales = await storage.getMonthlySales(userId, userRole, customerId);
+      
+      // Calculate engagement metrics
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      
+      const recentInteractions = interactions.filter(i => new Date(i.date) > thirtyDaysAgo).length;
+      const daysSinceLastContact = customer.lastContactDate 
+        ? Math.floor((now.getTime() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+      
+      // For churn risk, we calculate based on monthly tracking data
+      const totalRecentSalesAmount = sales.reduce((sum, s) => sum + (s.actual ? parseFloat(s.actual) : 0), 0);
+      
+      // Calculate base risk score (0-100)
+      let riskScore = 0;
+      let riskFactors: string[] = [];
+      
+      // Factor 1: Days since last contact (max 30 points)
+      if (daysSinceLastContact >= 60) {
+        riskScore += 30;
+        riskFactors.push("No contact in over 60 days");
+      } else if (daysSinceLastContact >= 30) {
+        riskScore += 20;
+        riskFactors.push("No contact in over 30 days");
+      } else if (daysSinceLastContact >= 14) {
+        riskScore += 10;
+        riskFactors.push("Limited recent contact");
+      }
+      
+      // Factor 2: Interaction frequency (max 25 points)
+      if (recentInteractions === 0) {
+        riskScore += 25;
+        riskFactors.push("No interactions in the last 30 days");
+      } else if (recentInteractions < 2) {
+        riskScore += 15;
+        riskFactors.push("Low interaction frequency");
+      }
+      
+      // Factor 3: Sales activity (max 25 points)
+      if (customer.stage === "customer") {
+        if (totalRecentSalesAmount === 0) {
+          riskScore += 25;
+          riskFactors.push("No purchases in the last 90 days");
+        } else if (customer.quarterlySoftTarget && totalRecentSalesAmount < parseFloat(customer.quarterlySoftTarget) * 0.5) {
+          riskScore += 15;
+          riskFactors.push("Below 50% of quarterly target");
+        }
+      }
+      
+      // Factor 4: Stage-based risk (max 20 points)
+      if (customer.stage === "prospect" && daysSinceLastContact > 21) {
+        riskScore += 20;
+        riskFactors.push("Prospect going cold - needs follow-up");
+      } else if (customer.stage === "lead" && daysSinceLastContact > 14) {
+        riskScore += 15;
+        riskFactors.push("Lead may be losing interest");
+      }
+      
+      // Determine risk level
+      let riskLevel: "low" | "medium" | "high" | "critical";
+      if (riskScore >= 70) {
+        riskLevel = "critical";
+      } else if (riskScore >= 50) {
+        riskLevel = "high";
+      } else if (riskScore >= 25) {
+        riskLevel = "medium";
+      } else {
+        riskLevel = "low";
+      }
+      
+      // Generate AI recommendations for high-risk customers
+      let aiRecommendations = "";
+      if (riskScore >= 40) {
+        const prompt = `Customer "${customer.name}" has a churn risk score of ${riskScore}/100 (${riskLevel}).
+
+Risk factors:
+${riskFactors.map(f => `- ${f}`).join('\n')}
+
+Customer details:
+- Stage: ${customer.stage}
+- Days since last contact: ${daysSinceLastContact}
+- Recent interactions (30 days): ${recentInteractions}
+- Total interactions: ${interactions.length}
+
+Provide 2-3 specific, actionable recommendations to reduce churn risk and re-engage this customer.`;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a customer success expert. Provide brief, actionable recommendations to reduce churn risk."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 300,
+        });
+        
+        aiRecommendations = completion.choices[0].message.content || "";
+      }
+      
+      res.json({
+        customerId,
+        customerName: customer.name,
+        riskScore,
+        riskLevel,
+        riskFactors,
+        metrics: {
+          daysSinceLastContact,
+          recentInteractions,
+          totalInteractions: interactions.length,
+          recentSalesAmount: totalRecentSalesAmount,
+          quarterlySoftTarget: customer.quarterlySoftTarget ? parseFloat(customer.quarterlySoftTarget) : null,
+        },
+        recommendations: aiRecommendations,
+      });
+    } catch (error) {
+      console.error("Error calculating churn risk:", error);
+      res.status(500).json({ error: "Failed to calculate churn risk" });
+    }
+  });
+
+  // Bulk churn risk for dashboard
+  app.get("/api/ai/churn-risk-summary", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
+      
+      // Get customers based on role (the getCustomers method already handles role filtering)
+      const customers = await storage.getCustomers(userId, userRole);
+      
+      // Calculate quick risk scores
+      const now = new Date();
+      const riskSummary = customers.map((customer: CustomerWithBrands) => {
+        const daysSinceLastContact = customer.lastContactDate 
+          ? Math.floor((now.getTime() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        
+        let riskScore = 0;
+        if (daysSinceLastContact >= 60) riskScore += 40;
+        else if (daysSinceLastContact >= 30) riskScore += 25;
+        else if (daysSinceLastContact >= 14) riskScore += 10;
+        
+        if (customer.stage === "customer" && daysSinceLastContact > 21) riskScore += 20;
+        else if (customer.stage === "prospect" && daysSinceLastContact > 14) riskScore += 15;
+        
+        let riskLevel: "low" | "medium" | "high" | "critical";
+        if (riskScore >= 50) riskLevel = "critical";
+        else if (riskScore >= 35) riskLevel = "high";
+        else if (riskScore >= 15) riskLevel = "medium";
+        else riskLevel = "low";
+        
+        return {
+          customerId: customer.id,
+          customerName: customer.name,
+          stage: customer.stage,
+          riskScore,
+          riskLevel,
+          daysSinceLastContact,
+        };
+      });
+      
+      // Sort by risk score descending
+      type RiskItem = { riskScore: number; riskLevel: "low" | "medium" | "high" | "critical" };
+      riskSummary.sort((a: RiskItem, b: RiskItem) => b.riskScore - a.riskScore);
+      
+      const summary = {
+        totalCustomers: customers.length,
+        criticalRisk: riskSummary.filter((r: RiskItem) => r.riskLevel === "critical").length,
+        highRisk: riskSummary.filter((r: RiskItem) => r.riskLevel === "high").length,
+        mediumRisk: riskSummary.filter((r: RiskItem) => r.riskLevel === "medium").length,
+        lowRisk: riskSummary.filter((r: RiskItem) => r.riskLevel === "low").length,
+        topAtRiskCustomers: riskSummary.filter((r: RiskItem) => r.riskLevel === "critical" || r.riskLevel === "high").slice(0, 10),
+      };
+      
+      res.json(summary);
+    } catch (error) {
+      console.error("Error generating churn risk summary:", error);
+      res.status(500).json({ error: "Failed to generate churn risk summary" });
     }
   });
 

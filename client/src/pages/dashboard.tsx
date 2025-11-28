@@ -25,6 +25,7 @@ import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, I
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
+import { AiNextActionCard } from "@/components/ai-next-action-card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -586,6 +587,11 @@ export default function Dashboard() {
       {/* AI Sales Forecast Widget - Only show for own dashboard */}
       {isViewingOwnDashboard && (
         <AiForecastCard />
+      )}
+
+      {/* AI Next Best Action Widget */}
+      {isViewingOwnDashboard && (
+        <AiNextActionCard />
       )}
 
       {/* At-Risk Customers Widget */}

@@ -102,6 +102,7 @@ import { CustomerForm } from "./customer-form";
 import { InteractionForm } from "./interaction-form";
 import { CustomerTargets } from "./customer-targets";
 import { AIInsightsPanel } from "./ai-insights-panel";
+import { ChurnRiskIndicator } from "./churn-risk-indicator";
 
 // Helper function to format structured address
 function formatStructuredAddress(address: CustomerAddress): string {
@@ -647,6 +648,11 @@ export function CustomerDetailModal({
                     )}
                     <div className="text-sm text-muted-foreground pt-2 border-t">
                       Customer since {format(new Date(customer.createdAt), "MMMM d, yyyy")}
+                    </div>
+                    
+                    {/* Churn Risk Indicator */}
+                    <div className="pt-3 border-t">
+                      <ChurnRiskIndicator customerId={customer.id} />
                     </div>
                   </CardContent>
                 </Card>

@@ -41,7 +41,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatDistanceToNow, differenceInDays } from "date-fns";
+import { formatDistanceToNow, differenceInDays, format } from "date-fns";
+import { exportCustomerList } from "@/lib/export-utils";
 
 // Helper to calculate days since last contact and return status
 function getContactStatus(lastContactDate: Date | null | undefined): { 
@@ -415,12 +416,35 @@ export default function Customers() {
           
           <Button 
             variant="outline"
+            onClick={() => {
+              if (filteredCustomers && filteredCustomers.length > 0) {
+                const dateStr = format(new Date(), 'yyyy-MM-dd');
+                exportCustomerList(filteredCustomers, `customer-list-${dateStr}`);
+                toast({
+                  title: "Export Complete",
+                  description: `${filteredCustomers.length} customers exported to Excel file`,
+                });
+              } else {
+                toast({
+                  title: "No Data",
+                  description: "No customers to export",
+                  variant: "destructive",
+                });
+              }
+            }}
+            data-testid="button-export-customers"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button 
+            variant="outline"
             asChild
             data-testid="button-download-template"
           >
             <a href="/api/download/customer-template" download="customer_import_template.xlsx">
               <Download className="h-4 w-4 mr-2" />
-              Download Template
+              Template
             </a>
           </Button>
           <Button 

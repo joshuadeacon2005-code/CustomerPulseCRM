@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DashboardStats, Customer, User } from "@shared/schema";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
-import { Users as UsersIcon, Target, Activity, UserCheck, Building2, TrendingUp, TrendingDown, DollarSign, Award, MapPin, ChevronDown, ChevronUp } from "lucide-react";
+import { Users as UsersIcon, Target, Activity, UserCheck, Building2, TrendingUp, TrendingDown, DollarSign, Award, MapPin, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { exportAnalyticsReport } from "@/lib/export-utils";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +46,7 @@ function getMonthOptions() {
 
 export default function Analytics() {
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [view, setView] = useState<"monthly" | "overall">("overall");
   const [showAllTeams, setShowAllTeams] = useState(false);
   
@@ -244,12 +247,42 @@ export default function Analytics() {
           </p>
         </div>
         
-        <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")}>
-          <TabsList data-testid="tabs-analytics-view">
-            <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
-            <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (stats && customers) {
+                const dateStr = format(new Date(), 'yyyy-MM-dd');
+                exportAnalyticsReport(
+                  {
+                    totalCustomers: stats.totalCustomers,
+                    leadCount: stats.leadCount,
+                    prospectCount: stats.prospectCount,
+                    customerCount: stats.customerCount,
+                  },
+                  customers,
+                  `analytics-report-${dateStr}`
+                );
+                toast({
+                  title: "Export Complete",
+                  description: "Analytics report has been downloaded as Excel file",
+                });
+              }
+            }}
+            data-testid="button-export-analytics"
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export to Excel
+          </Button>
+          
+          <Tabs value={view} onValueChange={(v) => setView(v as "monthly" | "overall")}>
+            <TabsList data-testid="tabs-analytics-view">
+              <TabsTrigger value="overall" data-testid="tab-overall">Overall</TabsTrigger>
+              <TabsTrigger value="monthly" data-testid="tab-monthly">Monthly</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {view === "monthly" && (
