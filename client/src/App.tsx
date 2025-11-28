@@ -23,6 +23,7 @@ import TargetsPage from "@/pages/targets";
 import TasksPage from "@/pages/tasks";
 import ReportsPage from "@/pages/reports";
 import UserDetailsPage from "@/pages/user-details";
+import UserManualPage from "@/pages/user-manual";
 import NotFound from "@/pages/not-found";
 import ComparativeAnalytics from "@/pages/comparative-analytics";
 import Pipeline from "@/pages/pipeline";
@@ -114,6 +115,7 @@ function AuthenticatedApp() {
               </Route>
               <Route path="/comparative" component={ComparativeAnalytics} />
               <Route path="/pipeline" component={Pipeline} />
+              <Route path="/manual" component={UserManualPage} />
               <Route component={NotFound} />
             </Switch>
           </main>

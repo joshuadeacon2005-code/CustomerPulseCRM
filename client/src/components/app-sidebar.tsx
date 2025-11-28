@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, TrendingUp } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, TrendingUp, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -305,16 +305,29 @@ export function AppSidebar() {
         <div className="text-xs text-muted-foreground">
           Logged in as: {user?.name} ({user?.role ? getRoleDisplayName(user.role as UserRole) : ''})
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => logout()}
-          className="w-full"
-          data-testid="button-logout"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/manual" className="flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              data-testid="button-user-manual"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Help
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => logout()}
+            className="flex-1"
+            data-testid="button-logout"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
