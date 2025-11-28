@@ -4,7 +4,7 @@
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. It supports role-based access, multi-country customer data management, brand assignments, monthly target setting, and detailed sales reporting with budget vs. actuals. The application aims to enhance sales team efficiency and provide actionable insights for business growth.
 
 ## User Preferences
-- Default theme: Dark mode
+- Default theme: Light mode
 - Design approach: Enterprise CRM (inspired by Linear/Notion/HubSpot)
 - Information density: High (business productivity tool)
 - Primary use case: Sales team customer relationship management with comprehensive tracking and reporting
@@ -13,7 +13,7 @@ A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to strea
 The application uses a React and TypeScript frontend, an Express.js and TypeScript backend, and a PostgreSQL database.
 
 **UI/UX Decisions:**
-- **Theme & Branding**: Dark mode primary with an orange and teal color scheme. Inter font for typography.
+- **Theme & Branding**: Light mode primary (dark mode available via toggle) with an orange and teal color scheme. Inter font for typography.
 - **Components**: Professional design utilizing Shadcn UI, Tailwind CSS, and Radix UI primitives for subtle interactions and smooth transitions.
 - **Information Flow**: Role-based navigation and data filtering ensure users see only relevant information.
 - **Dashboards**: Analytics and Admin dashboards offer comprehensive overviews, team structure visualization, and role-specific performance metrics.
