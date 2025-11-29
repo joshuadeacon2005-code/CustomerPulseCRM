@@ -59,13 +59,13 @@ export function AppSidebar() {
       icon: PieChart,
     },
     {
-      title: "Segments",
-      url: "/segments",
+      title: "Pipeline",
+      url: "/pipeline",
       icon: Target,
     },
     {
-      title: "Pipeline",
-      url: "/pipeline",
+      title: "Segments",
+      url: "/segments",
       icon: Target,
     },
     {
@@ -97,13 +97,13 @@ export function AppSidebar() {
       icon: PieChart,
     },
     {
-      title: "Segments",
-      url: "/segments",
+      title: "Pipeline",
+      url: "/pipeline",
       icon: Target,
     },
     {
-      title: "Pipeline",
-      url: "/pipeline",
+      title: "Segments",
+      url: "/segments",
       icon: Target,
     },
     {
@@ -135,13 +135,13 @@ export function AppSidebar() {
       icon: PieChart,
     },
     {
-      title: "Segments",
-      url: "/segments",
+      title: "Pipeline",
+      url: "/pipeline",
       icon: Target,
     },
     {
-      title: "Pipeline",
-      url: "/pipeline",
+      title: "Segments",
+      url: "/segments",
       icon: Target,
     },
     {
@@ -173,13 +173,13 @@ export function AppSidebar() {
       icon: PieChart,
     },
     {
-      title: "Segments",
-      url: "/segments",
+      title: "Pipeline",
+      url: "/pipeline",
       icon: Target,
     },
     {
-      title: "Pipeline",
-      url: "/pipeline",
+      title: "Segments",
+      url: "/segments",
       icon: Target,
     },
   ];
@@ -196,13 +196,18 @@ export function AppSidebar() {
       icon: Users,
     },
     {
-      title: "Segments",
-      url: "/segments",
-      icon: Target,
+      title: "Analytics",
+      url: "/analytics",
+      icon: PieChart,
     },
     {
       title: "Pipeline",
       url: "/pipeline",
+      icon: Target,
+    },
+    {
+      title: "Segments",
+      url: "/segments",
       icon: Target,
     },
     {
