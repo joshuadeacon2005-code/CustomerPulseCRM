@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, TrendingUp, BookOpen } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -49,11 +49,6 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -90,11 +85,6 @@ export function AppSidebar() {
       title: "Admin Dashboard",
       url: "/admin",
       icon: BarChart3,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
     },
     {
       title: "Customers",
@@ -135,11 +125,6 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
-    },
-    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -176,11 +161,6 @@ export function AppSidebar() {
       title: "Manager Dashboard",
       url: "/admin",
       icon: BarChart3,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
     },
     {
       title: "Customers",

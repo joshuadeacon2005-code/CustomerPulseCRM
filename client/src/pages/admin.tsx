@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,9 +40,9 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole, Sale, UserDetails } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -88,6 +90,12 @@ export default function AdminPage() {
   const [userOfficeFilter, setUserOfficeFilter] = useState<string>("all");
   const [userManagerFilter, setUserManagerFilter] = useState<string>("all");
 
+  // Comparative analytics state
+  const [selectedRegion1, setSelectedRegion1] = useState<string>("all");
+  const [selectedRegion2, setSelectedRegion2] = useState<string>("all");
+  const [selectedRep1, setSelectedRep1] = useState<string>("all");
+  const [selectedRep2, setSelectedRep2] = useState<string>("all");
+
   const { data: stats, isLoading: isLoadingStats } = useQuery<AdminDashboardStats>({
     queryKey: ["/api/admin/stats"],
   });
@@ -100,12 +108,122 @@ export default function AdminPage() {
     queryKey: ["/api/sales"],
   });
 
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
   const { data: userDetails, isLoading: isLoadingUserDetails } = useQuery<UserDetails>({
     queryKey: ["/api/admin/user-details", selectedUserId],
     enabled: !!selectedUserId && userDetailsOpen,
   });
 
   const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
+
+  // Comparative analytics data
+  const regions = useMemo(() => {
+    const uniqueRegions = new Set(customers.map(c => c.country).filter(Boolean));
+    return Array.from(uniqueRegions).sort();
+  }, [customers]);
+
+  const salesReps = useMemo(() => {
+    return allUsers.filter(u => u.role === "salesman" || u.role === "manager");
+  }, [allUsers]);
+
+  const regionalComparison = useMemo(() => {
+    const getRegionStats = (region: string) => {
+      const regionCustomers = region === "all" 
+        ? customers 
+        : customers.filter(c => c.country === region);
+      
+      return {
+        totalCustomers: regionCustomers.length,
+        leads: regionCustomers.filter(c => c.stage === "lead").length,
+        prospects: regionCustomers.filter(c => c.stage === "prospect").length,
+        customers: regionCustomers.filter(c => c.stage === "customer").length,
+        avgTarget: regionCustomers.reduce((sum, c) => sum + (Number(c.quarterlySoftTargetBaseCurrency) || 0), 0) / (regionCustomers.length || 1),
+        conversionRate: regionCustomers.filter(c => c.stage === "customer").length / (regionCustomers.length || 1) * 100,
+      };
+    };
+
+    const region1Stats = getRegionStats(selectedRegion1);
+    const region2Stats = getRegionStats(selectedRegion2);
+
+    return [
+      {
+        metric: "Total Customers",
+        [selectedRegion1 === "all" ? "All Regions" : selectedRegion1]: region1Stats.totalCustomers,
+        [selectedRegion2 === "all" ? "All Regions" : selectedRegion2]: region2Stats.totalCustomers,
+      },
+      {
+        metric: "Leads",
+        [selectedRegion1 === "all" ? "All Regions" : selectedRegion1]: region1Stats.leads,
+        [selectedRegion2 === "all" ? "All Regions" : selectedRegion2]: region2Stats.leads,
+      },
+      {
+        metric: "Prospects",
+        [selectedRegion1 === "all" ? "All Regions" : selectedRegion1]: region1Stats.prospects,
+        [selectedRegion2 === "all" ? "All Regions" : selectedRegion2]: region2Stats.prospects,
+      },
+      {
+        metric: "Customers",
+        [selectedRegion1 === "all" ? "All Regions" : selectedRegion1]: region1Stats.customers,
+        [selectedRegion2 === "all" ? "All Regions" : selectedRegion2]: region2Stats.customers,
+      },
+    ];
+  }, [customers, selectedRegion1, selectedRegion2]);
+
+  const repComparison = useMemo(() => {
+    const getRepStats = (repId: string) => {
+      const repCustomers = repId === "all" 
+        ? customers 
+        : customers.filter(c => c.assignedTo === repId);
+      
+      const repInteractions = repCustomers.reduce((sum, c) => sum + (c.interactions?.length || 0), 0);
+      
+      return {
+        totalCustomers: repCustomers.length,
+        leads: repCustomers.filter(c => c.stage === "lead").length,
+        prospects: repCustomers.filter(c => c.stage === "prospect").length,
+        customers: repCustomers.filter(c => c.stage === "customer").length,
+        interactions: repInteractions,
+        conversionRate: repCustomers.filter(c => c.stage === "customer").length / (repCustomers.length || 1) * 100,
+      };
+    };
+
+    const rep1Stats = getRepStats(selectedRep1);
+    const rep2Stats = getRepStats(selectedRep2);
+
+    const rep1Name = selectedRep1 === "all" ? "All Reps" : allUsers.find(u => u.id === selectedRep1)?.name || "Rep 1";
+    const rep2Name = selectedRep2 === "all" ? "All Reps" : allUsers.find(u => u.id === selectedRep2)?.name || "Rep 2";
+
+    return [
+      {
+        metric: "Total Customers",
+        [rep1Name]: rep1Stats.totalCustomers,
+        [rep2Name]: rep2Stats.totalCustomers,
+      },
+      {
+        metric: "Active Customers",
+        [rep1Name]: rep1Stats.customers,
+        [rep2Name]: rep2Stats.customers,
+      },
+      {
+        metric: "Prospects",
+        [rep1Name]: rep1Stats.prospects,
+        [rep2Name]: rep2Stats.prospects,
+      },
+      {
+        metric: "Leads",
+        [rep1Name]: rep1Stats.leads,
+        [rep2Name]: rep2Stats.leads,
+      },
+      {
+        metric: "Interactions",
+        [rep1Name]: rep1Stats.interactions,
+        [rep2Name]: rep2Stats.interactions,
+      },
+    ];
+  }, [customers, allUsers, selectedRep1, selectedRep2]);
 
   const getUserById = (userId: string | null) => {
     if (!userId) return null;
@@ -460,7 +578,14 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="overview" data-testid="tab-admin-overview">Overview</TabsTrigger>
+          <TabsTrigger value="comparative" data-testid="tab-admin-comparative">Comparative</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Total Sales</CardTitle>
@@ -1063,6 +1188,130 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="comparative" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Regional Comparison
+              </CardTitle>
+              <CardDescription>Compare performance metrics between different regions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Region 1</label>
+                  <Select value={selectedRegion1} onValueChange={setSelectedRegion1}>
+                    <SelectTrigger data-testid="select-region-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Regions</SelectItem>
+                      {regions.map(region => (
+                        <SelectItem key={region} value={region}>{region}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Region 2</label>
+                  <Select value={selectedRegion2} onValueChange={setSelectedRegion2}>
+                    <SelectTrigger data-testid="select-region-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Regions</SelectItem>
+                      {regions.map(region => (
+                        <SelectItem key={region} value={region}>{region}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={regionalComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="metric" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey={selectedRegion1 === "all" ? "All Regions" : selectedRegion1} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={selectedRegion2 === "all" ? "All Regions" : selectedRegion2} fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UsersIcon className="h-5 w-5 text-primary" />
+                Sales Rep Comparison
+              </CardTitle>
+              <CardDescription>Compare performance metrics between sales representatives</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Sales Rep 1</label>
+                  <Select value={selectedRep1} onValueChange={setSelectedRep1}>
+                    <SelectTrigger data-testid="select-rep-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Reps</SelectItem>
+                      {salesReps.map(rep => (
+                        <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Sales Rep 2</label>
+                  <Select value={selectedRep2} onValueChange={setSelectedRep2}>
+                    <SelectTrigger data-testid="select-rep-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Reps</SelectItem>
+                      {salesReps.map(rep => (
+                        <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={repComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="metric" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey={repComparison[0] ? Object.keys(repComparison[0])[1] : ""} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={repComparison[0] ? Object.keys(repComparison[0])[2] : ""} fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={editSaleDialog} onOpenChange={setEditSaleDialog}>
         <DialogContent>
