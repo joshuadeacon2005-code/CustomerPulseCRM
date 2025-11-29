@@ -49,6 +49,11 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -64,19 +69,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
-    },
-    {
       title: "Pipeline",
       url: "/pipeline",
       icon: Target,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -92,6 +92,11 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -107,19 +112,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
-    },
-    {
       title: "Pipeline",
       url: "/pipeline",
       icon: Target,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -135,6 +135,11 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -150,19 +155,14 @@ export function AppSidebar() {
       icon: Target,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
-    },
-    {
       title: "Pipeline",
       url: "/pipeline",
       icon: Target,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
@@ -178,6 +178,11 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
+      title: "Comparative",
+      url: "/comparative",
+      icon: TrendingUp,
+    },
+    {
       title: "Customers",
       url: "/customers",
       icon: Users,
@@ -191,11 +196,6 @@ export function AppSidebar() {
       title: "Segments",
       url: "/segments",
       icon: Target,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
     },
     {
       title: "Pipeline",
@@ -216,19 +216,19 @@ export function AppSidebar() {
       icon: Users,
     },
     {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
-    {
-      title: "Comparative",
-      url: "/comparative",
-      icon: TrendingUp,
+      title: "Segments",
+      url: "/segments",
+      icon: Target,
     },
     {
       title: "Pipeline",
       url: "/pipeline",
       icon: Target,
+    },
+    {
+      title: "Sales Dashboard",
+      url: "/sales",
+      icon: DollarSign,
     },
   ];
 
