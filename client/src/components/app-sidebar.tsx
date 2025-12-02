@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, BookOpen } from "lucide-react";
+import { DollarSign, BarChart3, LogOut, Users, PieChart, Target, Home, BookOpen, GitBranch } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -63,7 +63,7 @@ export function AppSidebar() {
     {
       title: "Pipeline",
       url: "/pipeline",
-      icon: Target,
+      icon: GitBranch,
     },
     {
       title: "Segments",
@@ -101,7 +101,7 @@ export function AppSidebar() {
     {
       title: "Pipeline",
       url: "/pipeline",
-      icon: Target,
+      icon: GitBranch,
     },
     {
       title: "Segments",
@@ -139,7 +139,7 @@ export function AppSidebar() {
     {
       title: "Pipeline",
       url: "/pipeline",
-      icon: Target,
+      icon: GitBranch,
     },
     {
       title: "Segments",
@@ -177,7 +177,7 @@ export function AppSidebar() {
     {
       title: "Pipeline",
       url: "/pipeline",
-      icon: Target,
+      icon: GitBranch,
     },
     {
       title: "Segments",
@@ -205,7 +205,7 @@ export function AppSidebar() {
     {
       title: "Pipeline",
       url: "/pipeline",
-      icon: Target,
+      icon: GitBranch,
     },
     {
       title: "Segments",
