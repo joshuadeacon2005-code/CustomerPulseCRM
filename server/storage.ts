@@ -40,6 +40,10 @@ import {
   type InsertOauthState,
   type CustomerMonthlyTarget,
   type InsertCustomerMonthlyTarget,
+  type Office,
+  type InsertOffice,
+  type OfficeAssignment,
+  type InsertOfficeAssignment,
   users,
   sales,
   customers,
@@ -55,6 +59,8 @@ import {
   oauthStates,
   customerMonthlyTargets,
   exchangeRates,
+  offices,
+  officeAssignments,
   type ExchangeRate,
   type InsertExchangeRate,
 } from "@shared/schema";
@@ -162,6 +168,21 @@ export interface IStorage {
   getExchangeRate(fromCurrency: string, toCurrency: string): Promise<{ rate: string; updatedAt: Date } | undefined>;
   getAllExchangeRates(): Promise<Array<{ fromCurrency: string; toCurrency: string; rate: string; updatedAt: Date }>>;
   createExchangeRate(fromCurrency: string, toCurrency: string, rate: string): Promise<void>;
+
+  // Office management
+  getOffices(): Promise<Office[]>;
+  getOffice(id: string): Promise<Office | undefined>;
+  createOffice(office: InsertOffice): Promise<Office>;
+  updateOffice(id: string, office: Partial<InsertOffice>): Promise<Office | undefined>;
+  deleteOffice(id: string): Promise<boolean>;
+
+  // Office assignment management
+  getOfficeAssignments(officeId?: string): Promise<(OfficeAssignment & { userName?: string; officeName?: string })[]>;
+  getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string })[]>;
+  getOfficeUsers(officeId: string): Promise<(User & { roleType: string })[]>;
+  assignUserToOffice(assignment: InsertOfficeAssignment): Promise<OfficeAssignment>;
+  removeUserFromOffice(userId: string, officeId: string): Promise<boolean>;
+  getUserAssignedOfficeIds(userId: string): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -350,26 +371,67 @@ export class DatabaseStorage implements IStorage {
 
     if (effectiveRole === "ceo") {
       allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
-    } else if (effectiveRole === "manager") {
+    } else if (effectiveRole === "manager" || effectiveRole === "regional_manager") {
+      // Get team members assigned to this manager
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
+      
+      // Also get customers from offices the manager is assigned to
+      const managerOfficeIds = await this.getUserAssignedOfficeIds(userId);
+      
+      // Get all users assigned to those offices
+      const officeUserIds: string[] = [];
+      for (const officeId of managerOfficeIds) {
+        const officeUsers = await this.getOfficeUsers(officeId);
+        officeUserIds.push(...officeUsers.map(u => u.id));
+      }
+      
+      // Combine all user IDs (team members + office members)
+      const combinedUserIds = [...new Set([...allUserIds, ...officeUserIds])];
 
-      if (allUserIds.length === 0) {
+      if (combinedUserIds.length === 0 && managerOfficeIds.length === 0) {
         allCustomers = [];
+      } else {
+        // Get customers assigned to users OR customers assigned to the manager's offices
+        const conditions = [];
+        
+        if (combinedUserIds.length > 0) {
+          conditions.push(inArray(customers.assignedTo, combinedUserIds));
+        }
+        
+        if (managerOfficeIds.length > 0) {
+          conditions.push(inArray(customers.officeId, managerOfficeIds));
+        }
+        
+        allCustomers = await db
+          .select()
+          .from(customers)
+          .where(or(...conditions))
+          .orderBy(desc(customers.createdAt));
+      }
+    } else {
+      // Salesman - see their own customers and customers in their assigned office
+      const salesmanOfficeIds = await this.getUserAssignedOfficeIds(userId);
+      
+      if (salesmanOfficeIds.length > 0) {
+        allCustomers = await db
+          .select()
+          .from(customers)
+          .where(
+            or(
+              eq(customers.assignedTo, userId),
+              inArray(customers.officeId, salesmanOfficeIds)
+            )
+          )
+          .orderBy(desc(customers.createdAt));
       } else {
         allCustomers = await db
           .select()
           .from(customers)
-          .where(inArray(customers.assignedTo, allUserIds))
+          .where(eq(customers.assignedTo, userId))
           .orderBy(desc(customers.createdAt));
       }
-    } else {
-      allCustomers = await db
-        .select()
-        .from(customers)
-        .where(eq(customers.assignedTo, userId))
-        .orderBy(desc(customers.createdAt));
     }
 
     const customersWithBrands = await Promise.all(
@@ -1194,6 +1256,158 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       }
     });
+  }
+
+  // Office management
+  async getOffices(): Promise<Office[]> {
+    return await db.select().from(offices).orderBy(offices.name);
+  }
+
+  async getOffice(id: string): Promise<Office | undefined> {
+    const [office] = await db.select().from(offices).where(eq(offices.id, id));
+    return office;
+  }
+
+  async createOffice(officeData: InsertOffice): Promise<Office> {
+    const [office] = await db.insert(offices).values(officeData).returning();
+    return office;
+  }
+
+  async updateOffice(id: string, officeData: Partial<InsertOffice>): Promise<Office | undefined> {
+    const [office] = await db
+      .update(offices)
+      .set(officeData)
+      .where(eq(offices.id, id))
+      .returning();
+    return office;
+  }
+
+  async deleteOffice(id: string): Promise<boolean> {
+    const result = await db.delete(offices).where(eq(offices.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Office assignment management
+  async getOfficeAssignments(officeId?: string): Promise<(OfficeAssignment & { userName?: string; officeName?: string })[]> {
+    const query = officeId
+      ? db.select().from(officeAssignments).where(eq(officeAssignments.officeId, officeId))
+      : db.select().from(officeAssignments);
+    
+    const assignments = await query;
+    
+    // Get user and office names
+    const enrichedAssignments = await Promise.all(
+      assignments.map(async (assignment) => {
+        const user = await this.getUser(assignment.userId);
+        const office = await this.getOffice(assignment.officeId);
+        return {
+          ...assignment,
+          userName: user?.name,
+          officeName: office?.name,
+        };
+      })
+    );
+    
+    return enrichedAssignments;
+  }
+
+  async getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string })[]> {
+    const assignments = await db
+      .select()
+      .from(officeAssignments)
+      .where(eq(officeAssignments.userId, userId));
+    
+    const enrichedAssignments = await Promise.all(
+      assignments.map(async (assignment) => {
+        const office = await this.getOffice(assignment.officeId);
+        return {
+          ...assignment,
+          officeName: office?.name,
+        };
+      })
+    );
+    
+    return enrichedAssignments;
+  }
+
+  async getOfficeUsers(officeId: string): Promise<(User & { roleType: string })[]> {
+    const assignments = await db
+      .select()
+      .from(officeAssignments)
+      .where(eq(officeAssignments.officeId, officeId));
+    
+    const usersWithRoles = await Promise.all(
+      assignments.map(async (assignment) => {
+        const user = await this.getUser(assignment.userId);
+        return user ? { ...user, roleType: assignment.roleType } : null;
+      })
+    );
+    
+    return usersWithRoles.filter((u): u is User & { roleType: string } => u !== null);
+  }
+
+  async assignUserToOffice(assignment: InsertOfficeAssignment): Promise<OfficeAssignment> {
+    // Get the user to check their role
+    const user = await this.getUser(assignment.userId);
+    
+    // For salesmen role type OR if the user is a salesman, enforce single office restriction
+    const isSalesman = assignment.roleType === 'salesman' || (user && user.role === 'salesman');
+    
+    if (isSalesman) {
+      // Remove ALL existing assignments for salesmen (they can only have one office)
+      await db
+        .delete(officeAssignments)
+        .where(eq(officeAssignments.userId, assignment.userId));
+    }
+    
+    // Check if this exact assignment already exists (for non-salesmen)
+    const [existing] = await db
+      .select()
+      .from(officeAssignments)
+      .where(
+        and(
+          eq(officeAssignments.userId, assignment.userId),
+          eq(officeAssignments.officeId, assignment.officeId)
+        )
+      );
+    
+    if (existing) {
+      // Update existing assignment
+      const [updated] = await db
+        .update(officeAssignments)
+        .set({ roleType: assignment.roleType })
+        .where(eq(officeAssignments.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    // Create new assignment
+    const [created] = await db
+      .insert(officeAssignments)
+      .values(assignment)
+      .returning();
+    return created;
+  }
+
+  async removeUserFromOffice(userId: string, officeId: string): Promise<boolean> {
+    const result = await db
+      .delete(officeAssignments)
+      .where(
+        and(
+          eq(officeAssignments.userId, userId),
+          eq(officeAssignments.officeId, officeId)
+        )
+      );
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getUserAssignedOfficeIds(userId: string): Promise<string[]> {
+    const assignments = await db
+      .select({ officeId: officeAssignments.officeId })
+      .from(officeAssignments)
+      .where(eq(officeAssignments.userId, userId));
+    
+    return assignments.map(a => a.officeId);
   }
 }
 

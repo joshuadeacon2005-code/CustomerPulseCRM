@@ -29,7 +29,14 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 
 **Technical Implementations & Feature Specifications:**
 - **Authentication & RBAC**: Passport-local strategy with scrypt hashing, session management, and multi-level role-based access control (CEO, Sales Director, Regional Manager, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to 'salesman'.
-- **Regional Office Management**: Users can be assigned to specific regional offices (e.g., Hong Kong, Australia/New Zealand).
+- **Regional Office Management**: Users can be assigned to specific regional offices with the following features:
+    - **Offices**: 7 pre-seeded regional offices (Hong Kong, Singapore, Shanghai, Australia/New Zealand, Indonesia, Malaysia, Guangzhou)
+    - **Office Assignments**: Supports three role types (salesman, manager, viewer) for different access levels
+    - **Single-Office Restriction**: Salesmen can only be assigned to one office at a time (enforced at storage layer)
+    - **Multi-Office Access**: Managers can be assigned to multiple offices to oversee multiple regions
+    - **Office-Based Data Visibility**: Customers can be assigned to offices; managers and salesmen see customers from their assigned offices
+    - **Admin UI**: "Offices" tab in Admin Dashboard for viewing offices, assigned users, and managing assignments
+    - **Customer Linking**: Customers have an optional `officeId` field to link them to specific offices
 - **Homepage Dashboard**: Role-based productivity dashboard (`/dashboard`) featuring:
     - **Today's Priorities**: Banners for overdue tasks, today's tasks, and follow-up reminders.
     - **Quick Action Button**: Floating "+" button for common actions like logging interactions or adding customers.

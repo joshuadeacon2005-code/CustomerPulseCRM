@@ -40,9 +40,9 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer, Office, OfficeAssignment } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp, Building2, Plus, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -96,6 +96,12 @@ export default function AdminPage() {
   const [selectedRep1, setSelectedRep1] = useState<string>("all");
   const [selectedRep2, setSelectedRep2] = useState<string>("all");
 
+  // Office management state
+  const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
+  const [assignUserDialogOpen, setAssignUserDialogOpen] = useState(false);
+  const [assignmentUserId, setAssignmentUserId] = useState<string>("");
+  const [assignmentRoleType, setAssignmentRoleType] = useState<string>("salesman");
+
   const { data: stats, isLoading: isLoadingStats } = useQuery<AdminDashboardStats>({
     queryKey: ["/api/admin/stats"],
   });
@@ -115,6 +121,20 @@ export default function AdminPage() {
   const { data: userDetails, isLoading: isLoadingUserDetails } = useQuery<UserDetails>({
     queryKey: ["/api/admin/user-details", selectedUserId],
     enabled: !!selectedUserId && userDetailsOpen,
+  });
+
+  // Office queries
+  const { data: offices = [] } = useQuery<Office[]>({
+    queryKey: ["/api/offices"],
+  });
+
+  const { data: officeUsers = [] } = useQuery<(User & { roleType: string })[]>({
+    queryKey: ["/api/offices", selectedOffice, "users"],
+    enabled: !!selectedOffice,
+  });
+
+  const { data: allAssignments = [] } = useQuery<(OfficeAssignment & { userName?: string; officeName?: string })[]>({
+    queryKey: ["/api/office-assignments"],
   });
 
   const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
@@ -537,6 +557,52 @@ export default function AdminPage() {
     },
   });
 
+  // Office assignment mutations
+  const assignUserToOfficeMutation = useMutation({
+    mutationFn: async ({ userId, officeId, roleType }: { userId: string; officeId: string; roleType: string }) => {
+      return await apiRequest("POST", "/api/office-assignments", { userId, officeId, roleType });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User assigned to office successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/office-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/offices"] });
+      setAssignUserDialogOpen(false);
+      setAssignmentUserId("");
+      setAssignmentRoleType("salesman");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign user to office",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeUserFromOfficeMutation = useMutation({
+    mutationFn: async ({ userId, officeId }: { userId: string; officeId: string }) => {
+      return await apiRequest("DELETE", "/api/office-assignments", { userId, officeId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User removed from office",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/office-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/offices"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove user from office",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleGenerateUserAISummary = (user: Omit<User, 'password'>) => {
     setSelectedUserForAI(user);
     setAiSummary(null);
@@ -582,8 +648,9 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="overview" data-testid="tab-admin-overview">Overview</TabsTrigger>
+          <TabsTrigger value="offices" data-testid="tab-admin-offices">Offices</TabsTrigger>
           <TabsTrigger value="comparative" data-testid="tab-admin-comparative">Comparative</TabsTrigger>
         </TabsList>
 
@@ -1193,6 +1260,202 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="offices" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Office Management
+              </CardTitle>
+              <CardDescription>Assign salesmen and managers to regional offices</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Office List */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Regional Offices</h3>
+                  <div className="space-y-2">
+                    {offices.map((office) => {
+                      const officeAssignmentCount = allAssignments.filter(a => a.officeId === office.id).length;
+                      return (
+                        <div
+                          key={office.id}
+                          className={`p-4 border rounded-lg cursor-pointer hover-elevate ${selectedOffice === office.id ? 'border-primary bg-primary/5' : ''}`}
+                          onClick={() => setSelectedOffice(office.id)}
+                          data-testid={`card-office-${office.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{office.name}</h4>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span className="font-mono">{office.code}</span>
+                                {office.region && <span>| {office.region}</span>}
+                              </div>
+                            </div>
+                            <Badge variant="secondary" data-testid={`badge-office-users-${office.id}`}>
+                              <UsersIcon className="h-3 w-3 mr-1" />
+                              {officeAssignmentCount} {officeAssignmentCount === 1 ? 'user' : 'users'}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {offices.length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        No offices found
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Office Details */}
+                <div className="space-y-4">
+                  {selectedOffice ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-lg">
+                          {offices.find(o => o.id === selectedOffice)?.name} Staff
+                        </h3>
+                        <Button
+                          size="sm"
+                          onClick={() => setAssignUserDialogOpen(true)}
+                          data-testid="button-assign-user-to-office"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Assign User
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {allAssignments
+                          .filter(a => a.officeId === selectedOffice)
+                          .map((assignment) => {
+                            const user = allUsers.find(u => u.id === assignment.userId);
+                            if (!user) return null;
+                            return (
+                              <div
+                                key={assignment.id}
+                                className="flex items-center justify-between p-3 border rounded-lg"
+                                data-testid={`row-office-user-${user.id}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-primary">
+                                      {user.name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium">{user.name}</p>
+                                    <p className="text-sm text-muted-foreground">{user.role}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={assignment.roleType === 'manager' ? 'default' : 'secondary'}>
+                                    {assignment.roleType}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeUserFromOfficeMutation.mutate({ 
+                                      userId: user.id, 
+                                      officeId: selectedOffice 
+                                    })}
+                                    data-testid={`button-remove-user-${user.id}`}
+                                  >
+                                    <X className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        {allAssignments.filter(a => a.officeId === selectedOffice).length === 0 && (
+                          <div className="text-center text-muted-foreground py-8 border rounded-lg">
+                            No users assigned to this office yet
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground py-12">
+                      Select an office to view and manage its staff
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Assign User Dialog */}
+          <Dialog open={assignUserDialogOpen} onOpenChange={setAssignUserDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Assign User to Office</DialogTitle>
+                <DialogDescription>
+                  Assign a team member to {offices.find(o => o.id === selectedOffice)?.name}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Select User</Label>
+                  <Select value={assignmentUserId} onValueChange={setAssignmentUserId}>
+                    <SelectTrigger data-testid="select-assignment-user">
+                      <SelectValue placeholder="Choose a user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allUsers
+                        .filter(u => !allAssignments.some(a => a.userId === u.id && a.officeId === selectedOffice))
+                        .map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} ({user.role})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Role Type</Label>
+                  <Select value={assignmentRoleType} onValueChange={setAssignmentRoleType}>
+                    <SelectTrigger data-testid="select-assignment-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="salesman">Salesman</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Salesmen can only be assigned to one office. Managers can view multiple offices.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAssignUserDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (selectedOffice && assignmentUserId) {
+                      assignUserToOfficeMutation.mutate({
+                        userId: assignmentUserId,
+                        officeId: selectedOffice,
+                        roleType: assignmentRoleType,
+                      });
+                    }
+                  }}
+                  disabled={!assignmentUserId || assignUserToOfficeMutation.isPending}
+                  data-testid="button-confirm-assign-user"
+                >
+                  {assignUserToOfficeMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
+                  Assign User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="comparative" className="space-y-6">

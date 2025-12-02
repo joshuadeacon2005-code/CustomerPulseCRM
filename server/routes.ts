@@ -2685,6 +2685,180 @@ Provide 2-3 specific, actionable recommendations to reduce churn risk and re-eng
     }
   });
 
+  // ===== OFFICE MANAGEMENT ROUTES =====
+  
+  // Get all offices
+  app.get("/api/offices", isAuthenticated, async (_req, res) => {
+    try {
+      const officesList = await storage.getOffices();
+      res.json(officesList);
+    } catch (error) {
+      console.error("Error fetching offices:", error);
+      res.status(500).json({ error: "Failed to fetch offices" });
+    }
+  });
+
+  // Get single office
+  app.get("/api/offices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const office = await storage.getOffice(req.params.id);
+      if (!office) {
+        return res.status(404).json({ error: "Office not found" });
+      }
+      res.json(office);
+    } catch (error) {
+      console.error("Error fetching office:", error);
+      res.status(500).json({ error: "Failed to fetch office" });
+    }
+  });
+
+  // Create office (admin only)
+  app.post("/api/offices", isAuthenticated, async (req, res) => {
+    const effectiveRole = getEffectiveRole(req.user!.role as UserRole);
+    if (effectiveRole !== "ceo" && effectiveRole !== "regional_manager") {
+      return res.status(403).json({ error: "Only admins can create offices" });
+    }
+    
+    try {
+      const office = await storage.createOffice(req.body);
+      res.status(201).json(office);
+    } catch (error: any) {
+      console.error("Error creating office:", error);
+      if (error.code === "23505") {
+        return res.status(400).json({ error: "Office with this name or code already exists" });
+      }
+      res.status(500).json({ error: "Failed to create office" });
+    }
+  });
+
+  // Update office (admin only)
+  app.patch("/api/offices/:id", isAuthenticated, async (req, res) => {
+    const effectiveRole = getEffectiveRole(req.user!.role as UserRole);
+    if (effectiveRole !== "ceo" && effectiveRole !== "regional_manager") {
+      return res.status(403).json({ error: "Only admins can update offices" });
+    }
+    
+    try {
+      const office = await storage.updateOffice(req.params.id, req.body);
+      if (!office) {
+        return res.status(404).json({ error: "Office not found" });
+      }
+      res.json(office);
+    } catch (error: any) {
+      console.error("Error updating office:", error);
+      if (error.code === "23505") {
+        return res.status(400).json({ error: "Office with this name or code already exists" });
+      }
+      res.status(500).json({ error: "Failed to update office" });
+    }
+  });
+
+  // Delete office (admin only)
+  app.delete("/api/offices/:id", isAuthenticated, async (req, res) => {
+    const effectiveRole = getEffectiveRole(req.user!.role as UserRole);
+    if (effectiveRole !== "ceo") {
+      return res.status(403).json({ error: "Only CEO can delete offices" });
+    }
+    
+    try {
+      const deleted = await storage.deleteOffice(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Office not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting office:", error);
+      res.status(500).json({ error: "Failed to delete office" });
+    }
+  });
+
+  // Get users assigned to an office
+  app.get("/api/offices/:id/users", isAuthenticated, async (req, res) => {
+    try {
+      const users = await storage.getOfficeUsers(req.params.id);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching office users:", error);
+      res.status(500).json({ error: "Failed to fetch office users" });
+    }
+  });
+
+  // Get all office assignments (optionally filtered by office)
+  app.get("/api/office-assignments", isAuthenticated, async (req, res) => {
+    try {
+      const officeId = req.query.officeId as string | undefined;
+      const assignments = await storage.getOfficeAssignments(officeId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching office assignments:", error);
+      res.status(500).json({ error: "Failed to fetch office assignments" });
+    }
+  });
+
+  // Get user's office assignments
+  app.get("/api/users/:userId/office-assignments", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getUserOfficeAssignments(req.params.userId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching user office assignments:", error);
+      res.status(500).json({ error: "Failed to fetch user office assignments" });
+    }
+  });
+
+  // Assign user to office
+  app.post("/api/office-assignments", isAuthenticated, async (req, res) => {
+    const effectiveRole = getEffectiveRole(req.user!.role as UserRole);
+    if (effectiveRole !== "ceo" && effectiveRole !== "regional_manager" && effectiveRole !== "manager") {
+      return res.status(403).json({ error: "Not authorized to assign users to offices" });
+    }
+    
+    try {
+      const { userId, officeId, roleType } = req.body;
+      
+      if (!userId || !officeId) {
+        return res.status(400).json({ error: "userId and officeId are required" });
+      }
+      
+      const assignment = await storage.assignUserToOffice({
+        userId,
+        officeId,
+        roleType: roleType || "salesman",
+      });
+      
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error assigning user to office:", error);
+      res.status(500).json({ error: "Failed to assign user to office" });
+    }
+  });
+
+  // Remove user from office
+  app.delete("/api/office-assignments", isAuthenticated, async (req, res) => {
+    const effectiveRole = getEffectiveRole(req.user!.role as UserRole);
+    if (effectiveRole !== "ceo" && effectiveRole !== "regional_manager" && effectiveRole !== "manager") {
+      return res.status(403).json({ error: "Not authorized to remove users from offices" });
+    }
+    
+    try {
+      const { userId, officeId } = req.body;
+      
+      if (!userId || !officeId) {
+        return res.status(400).json({ error: "userId and officeId are required" });
+      }
+      
+      const removed = await storage.removeUserFromOffice(userId, officeId);
+      if (!removed) {
+        return res.status(404).json({ error: "Assignment not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing user from office:", error);
+      res.status(500).json({ error: "Failed to remove user from office" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

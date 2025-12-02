@@ -13,6 +13,9 @@ export const REGIONAL_OFFICES = [
   "Guangzhou",
 ] as const;
 
+// Office assignment role types
+export const OFFICE_ROLE_TYPES = ["salesman", "manager", "viewer"] as const;
+
 export const CURRENCIES = [
   "USD",
   "HKD",
@@ -78,6 +81,7 @@ export const customers = pgTable("customers", {
   contactEmail: text("contact_email"),
   stage: text("stage").notNull().default("lead"),
   assignedTo: text("assigned_to"),
+  officeId: varchar("office_id"),
   personalNotes: text("personal_notes"),
   registeredWithBC: boolean("registered_with_bc").notNull().default(false),
   ordersViaBC: boolean("orders_via_bc").notNull().default(false),
@@ -232,6 +236,26 @@ export const exchangeRates = pgTable("exchange_rates", {
   toCurrency: text("to_currency").notNull(),
   rate: decimal("rate", { precision: 12, scale: 6 }).notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Offices - Regional offices that users can be assigned to
+export const offices = pgTable("offices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  code: text("code").notNull().unique(),
+  region: text("region"),
+  country: text("country"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Office assignments - Links users to offices with role type
+// Salesmen can only be assigned to one office, managers can have multiple
+export const officeAssignments = pgTable("office_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  officeId: varchar("office_id").notNull(),
+  roleType: text("role_type").notNull().default("salesman"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 
@@ -532,6 +556,25 @@ export const insertExchangeRateSchema = createInsertSchema(exchangeRates).omit({
   rate: z.string().regex(/^\d+(\.\d{1,6})?$/, "Invalid rate format"),
 });
 
+export const insertOfficeSchema = createInsertSchema(offices).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1, "Office name is required"),
+  code: z.string().min(1, "Office code is required").max(10),
+  region: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+});
+
+export const insertOfficeAssignmentSchema = createInsertSchema(officeAssignments).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  userId: z.string().min(1),
+  officeId: z.string().min(1),
+  roleType: z.enum(OFFICE_ROLE_TYPES).default("salesman"),
+});
+
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -566,6 +609,11 @@ export type OauthState = typeof oauthStates.$inferSelect;
 export type InsertOauthState = z.infer<typeof insertOauthStateSchema>;
 export type ExchangeRate = typeof exchangeRates.$inferSelect;
 export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
+export type Office = typeof offices.$inferSelect;
+export type InsertOffice = z.infer<typeof insertOfficeSchema>;
+export type OfficeAssignment = typeof officeAssignments.$inferSelect;
+export type InsertOfficeAssignment = z.infer<typeof insertOfficeAssignmentSchema>;
+export type OfficeRoleType = typeof OFFICE_ROLE_TYPES[number];
 
 export type UserRole = "ceo" | "sales_director" | "marketing_director" | "regional_manager" | "manager" | "salesman";
 export type Currency = typeof CURRENCIES[number];
