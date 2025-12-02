@@ -213,7 +213,7 @@ export function isAuthenticated(req: any, res: any, next: any) {
 
 export function isAdmin(req: any, res: any, next: any) {
   const userRole = req.user?.role?.toLowerCase();
-  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "admin" || userRole === "regional_manager" || userRole === "manager")) {
+  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "marketing_director" || userRole === "admin" || userRole === "regional_manager" || userRole === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Admin access required");
@@ -221,14 +221,14 @@ export function isAdmin(req: any, res: any, next: any) {
 
 export function isCEO(req: any, res: any, next: any) {
   const userRole = req.user?.role?.toLowerCase();
-  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "admin")) {
+  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "marketing_director" || userRole === "admin")) {
     return next();
   }
-  res.status(403).send("Forbidden: CEO/Sales Director access required");
+  res.status(403).send("Forbidden: CEO/Director access required");
 }
 
 export function isManager(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "sales_director" || req.user?.role === "admin" || req.user?.role === "regional_manager" || req.user?.role === "manager")) {
+  if (req.isAuthenticated() && (req.user?.role === "sales_director" || req.user?.role === "marketing_director" || req.user?.role === "admin" || req.user?.role === "regional_manager" || req.user?.role === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Manager access required");

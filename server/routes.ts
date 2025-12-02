@@ -876,7 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/sales", isAuthenticated, async (req, res) => {
     try {
-      if (req.user!.role === "ceo" || req.user!.role === "sales_director" || req.user!.role === "regional_manager" || req.user!.role === "manager") {
+      if (req.user!.role === "ceo" || req.user!.role === "sales_director" || req.user!.role === "marketing_director" || req.user!.role === "regional_manager" || req.user!.role === "manager") {
         const sales = await storage.getSales(req.user!.id, req.user!.role as UserRole);
         res.json(sales);
       } else {
@@ -1988,7 +1988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Authorization: Only allow access if user is assigned to customer or is admin
       const userRole = req.user!.role as UserRole;
       const userId = req.user!.id;
-      const isAdminRole = ['ceo', 'admin', 'sales_director'].includes(userRole);
+      const isAdminRole = ['ceo', 'admin', 'sales_director', 'marketing_director'].includes(userRole);
       const isAssignedToCustomer = customer.assignedTo === userId;
       
       // For managers/regional managers, check if customer is assigned to their team
@@ -2091,7 +2091,7 @@ Be specific, data-driven, and focus on actionable insights.`;
       
       // Check authorization
       const isOwnPerformance = currentUserId === userId;
-      const isAdminRole = ['ceo', 'admin', 'sales_director'].includes(currentUserRole);
+      const isAdminRole = ['ceo', 'admin', 'sales_director', 'marketing_director'].includes(currentUserRole);
       
       // For managers, only allow if target user is their direct report
       let isDirectReport = false;

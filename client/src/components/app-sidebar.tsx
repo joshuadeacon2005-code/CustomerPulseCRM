@@ -26,6 +26,8 @@ export function AppSidebar() {
         return "CEO";
       case "sales_director":
         return "Sales Director";
+      case "marketing_director":
+        return "Marketing Director";
       case "regional_manager":
         return "Regional Manager";
       case "manager":
@@ -228,8 +230,8 @@ export function AppSidebar() {
       return ceoNav;
     }
 
-    // Sales director uses the admin navigation
-    if (roleStr === "sales_director") {
+    // Sales director and marketing director use the admin navigation
+    if (roleStr === "sales_director" || roleStr === "marketing_director") {
       return adminNav;
     }
 

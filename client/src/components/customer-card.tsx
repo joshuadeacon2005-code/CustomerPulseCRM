@@ -86,18 +86,36 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
         {/* Last Contact Status */}
         {(() => {
           const contactStatus = getContactStatus(customer.lastContactDate);
+          const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
+          
           if (contactStatus.status === 'critical') {
             return (
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t text-red-500">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Needs attention ({contactStatus.days} days)</span>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                <span className="text-xs font-medium text-red-500">{contactStatus.days} days ago</span>
+                <Badge variant="destructive" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
+                  Needs Attention
+                </Badge>
               </div>
             );
           } else if (contactStatus.status === 'warning') {
             return (
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t text-amber-500">
-                <Clock className="h-3.5 w-3.5" />
-                <span className="text-xs">Last contact: {contactStatus.days} days ago</span>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
+                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs text-amber-500">{contactStatus.days} days ago</span>
+                <Badge variant="secondary" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
+                  Needs Attention
+                </Badge>
+              </div>
+            );
+          } else if (contactStatus.status === 'never') {
+            return (
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
+                <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground italic">Never contacted</span>
+                <Badge variant="secondary" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
+                  Needs Attention
+                </Badge>
               </div>
             );
           }

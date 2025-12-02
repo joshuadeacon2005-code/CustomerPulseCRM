@@ -567,7 +567,7 @@ export type InsertOauthState = z.infer<typeof insertOauthStateSchema>;
 export type ExchangeRate = typeof exchangeRates.$inferSelect;
 export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
 
-export type UserRole = "ceo" | "sales_director" | "regional_manager" | "manager" | "salesman";
+export type UserRole = "ceo" | "sales_director" | "marketing_director" | "regional_manager" | "manager" | "salesman";
 export type Currency = typeof CURRENCIES[number];
 export type RetailerType = typeof RETAILER_TYPES[number];
 export type MeetingType = typeof MEETING_TYPES[number];

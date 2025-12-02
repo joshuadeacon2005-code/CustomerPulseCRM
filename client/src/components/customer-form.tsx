@@ -253,15 +253,24 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     <AlertTitle>Potential Duplicates Found</AlertTitle>
                     <AlertDescription>
                       <p className="mb-2">Similar customers already exist:</p>
-                      <ul className="space-y-1 text-sm">
+                      <ul className="space-y-2 text-sm">
                         {duplicates.map((dup) => (
-                          <li key={dup.id} className="flex items-center justify-between gap-2">
+                          <li key={dup.id} className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-md">
                             <span>
                               <strong>{dup.name}</strong>
                               {dup.country && <span className="text-muted-foreground"> ({dup.country})</span>}
                               {dup.email && <span className="text-muted-foreground"> - {dup.email}</span>}
                               <span className="ml-1 text-xs capitalize">({dup.stage})</span>
                             </span>
+                            <a 
+                              href={`/customers?customer=${dup.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              data-testid={`link-view-duplicate-${dup.id}`}
+                            >
+                              View <ExternalLink className="h-3 w-3" />
+                            </a>
                           </li>
                         ))}
                       </ul>
@@ -392,6 +401,19 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     placeholder="contact@example.com" 
                     {...field} 
                     value={field.value || ""}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Debounced duplicate check by email
+                      if (debounceTimer) clearTimeout(debounceTimer);
+                      const email = e.target.value;
+                      if (email && email.includes('@') && !duplicateCheckDismissed) {
+                        const timer = setTimeout(() => {
+                          const currentName = form.getValues('name');
+                          checkForDuplicates(currentName || '', email);
+                        }, 500);
+                        setDebounceTimer(timer);
+                      }
+                    }}
                     data-testid="input-contact-email"
                   />
                 </FormControl>

@@ -76,6 +76,7 @@ export default function Customers() {
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [retailerTypeFilter, setRetailerTypeFilter] = useState<string>("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
+  const [attentionFilter, setAttentionFilter] = useState<string>("all");
   const [isBrandSelectOpen, setIsBrandSelectOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
@@ -322,7 +323,14 @@ export default function Customers() {
     const matchesCountry = countryFilter === "all" || 
       (customer.country || "").toLowerCase() === countryFilter.toLowerCase();
     
-    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry;
+    // Attention filter
+    const contactStatus = getContactStatus(customer.lastContactDate);
+    const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
+    const matchesAttention = attentionFilter === "all" || 
+      (attentionFilter === "needs_attention" && needsAttention) ||
+      (attentionFilter === "ok" && !needsAttention);
+    
+    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry && matchesAttention;
   });
   
   // Get unique countries from customers (excluding Unknown) with custom order
@@ -371,6 +379,7 @@ export default function Customers() {
     setBrandFilter([]);
     setRetailerTypeFilter("all");
     setCountryFilter("all");
+    setAttentionFilter("all");
   };
 
   const activeFilterCount = 
@@ -378,7 +387,8 @@ export default function Customers() {
     (stageFilterLocal !== "all" ? 1 : 0) +
     (brandFilter.length > 0 ? 1 : 0) +
     (retailerTypeFilter !== "all" ? 1 : 0) +
-    (countryFilter !== "all" ? 1 : 0);
+    (countryFilter !== "all" ? 1 : 0) +
+    (attentionFilter !== "all" ? 1 : 0);
 
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
@@ -589,6 +599,18 @@ export default function Customers() {
                   <SelectItem value="Distributor">Distributor</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={attentionFilter} onValueChange={setAttentionFilter}>
+                <SelectTrigger className="w-full sm:w-48" data-testid="select-attention-filter">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Attention Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                  <SelectItem value="ok">Recently Contacted</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {activeFilterCount > 0 && (
@@ -710,13 +732,17 @@ export default function Customers() {
                         <td className="p-4">
                           {(() => {
                             const contactStatus = getContactStatus(customer.lastContactDate);
+                            const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
                             return (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 {contactStatus.status === 'critical' && (
                                   <AlertTriangle className="h-4 w-4 text-red-500" />
                                 )}
                                 {contactStatus.status === 'warning' && (
                                   <Clock className="h-4 w-4 text-amber-500" />
+                                )}
+                                {contactStatus.status === 'never' && (
+                                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                                 )}
                                 <span className={
                                   contactStatus.status === 'critical' ? 'text-red-500 font-medium' :
@@ -726,8 +752,14 @@ export default function Customers() {
                                 }>
                                   {contactStatus.status === 'never' ? 'Never' : contactStatus.label}
                                 </span>
-                                {contactStatus.status === 'critical' && (
-                                  <Badge variant="destructive" className="text-xs ml-1">Needs Attention</Badge>
+                                {needsAttention && (
+                                  <Badge 
+                                    variant={contactStatus.status === 'critical' ? 'destructive' : 'secondary'}
+                                    className="text-xs ml-1"
+                                    data-testid={`badge-needs-attention-${customer.id}`}
+                                  >
+                                    Needs Attention
+                                  </Badge>
                                 )}
                               </div>
                             );

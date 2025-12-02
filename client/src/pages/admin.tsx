@@ -236,6 +236,8 @@ export default function AdminPage() {
         return "CEO";
       case "sales_director":
         return "Sales Director";
+      case "marketing_director":
+        return "Marketing Director";
       case "regional_manager":
         return "Regional Manager";
       case "manager":
@@ -249,10 +251,11 @@ export default function AdminPage() {
   
   const getRoleRank = (role: UserRole): number => {
     switch (role) {
-      case "ceo": return 5;
-      case "sales_director": return 4;
-      case "regional_manager": return 3;
-      case "manager": return 2;
+      case "ceo": return 6;
+      case "sales_director": return 5;
+      case "marketing_director": return 5;
+      case "regional_manager": return 4;
+      case "manager": return 3;
       case "salesman": return 1;
       default: return 0;
     }
@@ -762,6 +765,7 @@ export default function AdminPage() {
                     <SelectItem value="all">All Positions</SelectItem>
                     <SelectItem value="ceo">CEO</SelectItem>
                     <SelectItem value="sales_director">Sales Director</SelectItem>
+                    <SelectItem value="marketing_director">Marketing Director</SelectItem>
                     <SelectItem value="regional_manager">Regional Manager</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="salesman">Salesman</SelectItem>
@@ -1092,6 +1096,7 @@ export default function AdminPage() {
                     <SelectContent>
                       <SelectItem value="ceo" data-testid="option-new-ceo">CEO</SelectItem>
                       <SelectItem value="sales_director" data-testid="option-new-sales-director">Sales Director</SelectItem>
+                      <SelectItem value="marketing_director" data-testid="option-new-marketing-director">Marketing Director</SelectItem>
                       <SelectItem value="regional_manager" data-testid="option-new-regional-manager">Regional Manager</SelectItem>
                       <SelectItem value="manager" data-testid="option-new-manager">Manager</SelectItem>
                       <SelectItem value="salesman" data-testid="option-new-salesman">Salesman</SelectItem>
@@ -1447,6 +1452,7 @@ export default function AdminPage() {
                   <SelectContent>
                     <SelectItem value="ceo">CEO</SelectItem>
                     <SelectItem value="sales_director">Sales Director</SelectItem>
+                    <SelectItem value="marketing_director">Marketing Director</SelectItem>
                     <SelectItem value="regional_manager">Regional Manager</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="salesman">Salesman</SelectItem>
