@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -392,22 +392,35 @@ export default function Customers() {
 
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
+  // Calculate stats
+  const stats = {
+    total: customers?.length || 0,
+    leads: customers?.filter(c => c.stage === 'lead').length || 0,
+    prospects: customers?.filter(c => c.stage === 'prospect').length || 0,
+    customers: customers?.filter(c => c.stage === 'customer').length || 0,
+    needsAttention: customers?.filter(c => {
+      const status = getContactStatus(c.lastContactDate);
+      return status.status === 'critical' || status.status === 'warning' || status.status === 'never';
+    }).length || 0,
+  };
+
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-customers-title">Customers</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl font-bold" data-testid="text-customers-title">Customers</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Manage your leads, prospects, and customers
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {/* View Toggle */}
-          <div className="flex gap-0.5 border rounded-md p-1">
+          <div className="flex border rounded-md p-0.5 bg-muted/30">
             <Button 
               variant="ghost" 
               size="icon"
-              className={viewMode === "grid" ? "bg-accent" : ""}
+              className={viewMode === "grid" ? "bg-background shadow-sm" : ""}
               onClick={() => setViewMode("grid")}
               data-testid="button-view-grid"
             >
@@ -416,7 +429,7 @@ export default function Customers() {
             <Button 
               variant="ghost" 
               size="icon"
-              className={viewMode === "table" ? "bg-accent" : ""}
+              className={viewMode === "table" ? "bg-background shadow-sm" : ""}
               onClick={() => setViewMode("table")}
               data-testid="button-view-table"
             >
@@ -426,6 +439,7 @@ export default function Customers() {
           
           <Button 
             variant="outline"
+            size="sm"
             onClick={() => {
               if (filteredCustomers && filteredCustomers.length > 0) {
                 const dateStr = format(new Date(), 'yyyy-MM-dd');
@@ -444,205 +458,273 @@ export default function Customers() {
             }}
             data-testid="button-export-customers"
           >
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="h-4 w-4 mr-1.5" />
             Export
           </Button>
           <Button 
             variant="outline"
+            size="sm"
             asChild
             data-testid="button-download-template"
           >
             <a href="/api/download/customer-template" download="customer_import_template.xlsx">
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-1.5" />
               Template
             </a>
           </Button>
           <Button 
             variant="outline"
+            size="sm"
             onClick={() => setIsImportDialogOpen(true)}
             data-testid="button-import-customers"
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="h-4 w-4 mr-1.5" />
             Import
           </Button>
           <Button 
+            size="sm"
             onClick={() => setIsAddDialogOpen(true)}
             data-testid="button-add-customer"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-1.5" />
             Add Customer
           </Button>
         </div>
       </div>
 
-      {/* Country Filter Bar - Two Rows */}
-      <div className="flex flex-col gap-3 w-full">
-        {/* First Row */}
-        <div className="flex items-stretch gap-4 w-full">
-          {uniqueCountries.slice(0, 3).map((country) => (
-            <Button
-              key={country}
-              size="lg"
-              variant="default"
-              onClick={() => setCountryFilter(country)}
-              className={`flex-1 h-14 text-base font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
-              data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              {country}
-            </Button>
-          ))}
-        </div>
-        {/* Second Row */}
-        {uniqueCountries.length > 3 && (
-          <div className="flex items-stretch gap-4 w-full">
-            {uniqueCountries.slice(3).map((country) => (
+      {/* Stats Cards Row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <UsersIcon className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${stageFilterLocal === 'lead' ? 'ring-2 ring-blue-500' : 'hover-elevate'}`}
+          onClick={() => setStageFilterLocal(stageFilterLocal === 'lead' ? 'all' : 'lead')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.leads}</p>
+                <p className="text-xs text-muted-foreground">Leads</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${stageFilterLocal === 'prospect' ? 'ring-2 ring-amber-500' : 'hover-elevate'}`}
+          onClick={() => setStageFilterLocal(stageFilterLocal === 'prospect' ? 'all' : 'prospect')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.prospects}</p>
+                <p className="text-xs text-muted-foreground">Prospects</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${stageFilterLocal === 'customer' ? 'ring-2 ring-green-500' : 'hover-elevate'}`}
+          onClick={() => setStageFilterLocal(stageFilterLocal === 'customer' ? 'all' : 'customer')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Award className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.customers}</p>
+                <p className="text-xs text-muted-foreground">Customers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${attentionFilter === 'needs_attention' ? 'ring-2 ring-red-500' : 'hover-elevate'}`}
+          onClick={() => setAttentionFilter(attentionFilter === 'needs_attention' ? 'all' : 'needs_attention')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.needsAttention}</p>
+                <p className="text-xs text-muted-foreground">Need Attention</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Country Pills */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground mr-1">Region:</span>
+        <Button
+          size="sm"
+          variant={countryFilter === "all" ? "default" : "outline"}
+          className="rounded-full"
+          onClick={() => setCountryFilter("all")}
+          data-testid="button-country-all"
+        >
+          All
+        </Button>
+        {uniqueCountries.map((country) => (
+          <Button
+            key={country}
+            size="sm"
+            variant={countryFilter === country ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setCountryFilter(countryFilter === country ? "all" : country)}
+            data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            {country}
+          </Button>
+        ))}
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, phone, or contact..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-customers"
+            />
+          </div>
+          
+          {/* Filter dropdowns */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Popover open={isBrandSelectOpen} onOpenChange={setIsBrandSelectOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="justify-start gap-1.5"
+                  data-testid="select-brand-filter"
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  {brandFilter.length === 0 ? (
+                    "Brands"
+                  ) : (
+                    <Badge variant="secondary" className="px-1.5 text-xs font-normal no-default-hover-elevate">
+                      {brandFilter.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search brands..." />
+                  <CommandList>
+                    <CommandEmpty>
+                      {isLoadingBrands ? "Loading..." : "No brands found."}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {brands?.map((brand) => (
+                        <CommandItem
+                          key={brand.id}
+                          onSelect={() => handleToggleBrand(brand.id)}
+                        >
+                          <Checkbox
+                            checked={brandFilter.includes(brand.id)}
+                            className="mr-2"
+                          />
+                          {brand.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Select value={retailerTypeFilter} onValueChange={setRetailerTypeFilter}>
+              <SelectTrigger className="w-auto min-w-[100px]" data-testid="select-retailer-filter">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="Retail Store">Retail</SelectItem>
+                <SelectItem value="Online">Online</SelectItem>
+                <SelectItem value="Wholesale">Wholesale</SelectItem>
+                <SelectItem value="Distributor">Distributor</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {activeFilterCount > 0 && (
               <Button
-                key={country}
-                size="lg"
-                variant="default"
-                onClick={() => setCountryFilter(country)}
-                className={`flex-1 h-14 text-base font-semibold ${countryFilter === country ? "bg-primary hover:bg-primary/90" : "bg-primary/20 hover:bg-primary/30 text-primary"}`}
-                data-testid={`button-country-${country.toLowerCase().replace(/\s+/g, '-')}`}
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={clearAllFilters}
+                data-testid="button-clear-filters"
               >
-                {country}
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear
               </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Active filter badges */}
+        {(selectedBrandNames.length > 0 || countryFilter !== "all" || stageFilterLocal !== "all" || attentionFilter !== "all") && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground">Active:</span>
+            {countryFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1 no-default-hover-elevate">
+                {countryFilter}
+                <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setCountryFilter("all")} />
+              </Badge>
+            )}
+            {stageFilterLocal !== "all" && (
+              <Badge variant="secondary" className="gap-1 no-default-hover-elevate capitalize">
+                {stageFilterLocal}s
+                <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setStageFilterLocal("all")} />
+              </Badge>
+            )}
+            {attentionFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1 no-default-hover-elevate">
+                {attentionFilter === "needs_attention" ? "Needs Attention" : "Recently Contacted"}
+                <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setAttentionFilter("all")} />
+              </Badge>
+            )}
+            {selectedBrandNames.map((name) => (
+              <Badge key={name} variant="secondary" className="gap-1 no-default-hover-elevate">
+                {name}
+                <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => handleToggleBrand(brands?.find(b => b.name === name)?.id || "")} />
+              </Badge>
             ))}
           </div>
         )}
       </div>
 
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search customers by name, email, or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-customers"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap flex-1">
-              <span className="text-sm font-medium text-muted-foreground">Filters:</span>
-              
-              <Select value={stageFilterLocal} onValueChange={setStageFilterLocal}>
-                <SelectTrigger className="w-full sm:w-40" data-testid="select-filter-stage">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stages</SelectItem>
-                  <SelectItem value="lead">Leads</SelectItem>
-                  <SelectItem value="prospect">Prospects</SelectItem>
-                  <SelectItem value="customer">Customers</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Popover open={isBrandSelectOpen} onOpenChange={setIsBrandSelectOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-48 justify-start"
-                    data-testid="select-brand-filter"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    {brandFilter.length === 0 ? (
-                      "All Brands"
-                    ) : (
-                      <span className="truncate">
-                        {brandFilter.length} brand{brandFilter.length > 1 ? 's' : ''} selected
-                      </span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search brands..." />
-                    <CommandList>
-                      <CommandEmpty>
-                        {isLoadingBrands ? "Loading brands..." : "No brands found."}
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {brands?.map((brand) => (
-                          <CommandItem
-                            key={brand.id}
-                            onSelect={() => handleToggleBrand(brand.id)}
-                          >
-                            <Checkbox
-                              checked={brandFilter.includes(brand.id)}
-                              className="mr-2"
-                            />
-                            {brand.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              <Select value={retailerTypeFilter} onValueChange={setRetailerTypeFilter}>
-                <SelectTrigger className="w-full sm:w-44" data-testid="select-retailer-filter">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Retailer Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="Retail Store">Retail Store</SelectItem>
-                  <SelectItem value="Online">Online</SelectItem>
-                  <SelectItem value="Wholesale">Wholesale</SelectItem>
-                  <SelectItem value="Distributor">Distributor</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={attentionFilter} onValueChange={setAttentionFilter}>
-                <SelectTrigger className="w-full sm:w-48" data-testid="select-attention-filter">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Attention Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                  <SelectItem value="ok">Recently Contacted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {activeFilterCount > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="no-default-hover-elevate">
-                  {activeFilterCount} active filter{activeFilterCount > 1 ? 's' : ''}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  data-testid="button-clear-filters"
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Clear all
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {selectedBrandNames.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Selected brands:</span>
-              {selectedBrandNames.map((name) => (
-                <Badge key={name} variant="outline" className="no-default-hover-elevate">
-                  {name}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Results count */}
+      {filteredCustomers && (
+        <p className="text-sm text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{filteredCustomers.length}</span> of {customers?.length} customers
+        </p>
+      )}
 
       {isLoading ? (
         viewMode === "grid" ? (
@@ -660,7 +742,7 @@ export default function Customers() {
         )
       ) : filteredCustomers && filteredCustomers.length > 0 ? (
         viewMode === "grid" ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="grid-customers">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="grid-customers">
             {filteredCustomers.map((customer) => (
               <CustomerCard
                 key={customer.id}
@@ -670,107 +752,109 @@ export default function Customers() {
             ))}
           </div>
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px]" data-testid="table-customers">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Company</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Country</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Retailer Type</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Stage</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Brands</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Quarterly Target</th>
-                      <th className="text-left p-4 font-medium whitespace-nowrap">Last Contact</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCustomers.map((customer) => (
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="table-customers">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stage</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brands</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quarterly Target</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredCustomers.map((customer) => {
+                    const contactStatus = getContactStatus(customer.lastContactDate);
+                    const stageColors = {
+                      lead: "bg-blue-500",
+                      prospect: "bg-amber-500", 
+                      customer: "bg-green-500"
+                    };
+                    return (
                       <tr 
                         key={customer.id} 
-                        className="border-b hover-elevate cursor-pointer"
+                        className="hover:bg-muted/30 transition-colors cursor-pointer group"
                         onClick={() => handleCustomerClick(customer)}
                         data-testid={`table-row-customer-${customer.id}`}
                       >
-                        <td className="p-4 font-medium">{customer.name}</td>
-                        <td className="p-4 text-muted-foreground">{customer.country || <span className="text-muted-foreground/50 italic">Not set</span>}</td>
-                        <td className="p-4 text-muted-foreground">{customer.retailerType || <span className="text-muted-foreground/50 italic">Not set</span>}</td>
-                        <td className="p-4">
-                          <Badge variant={
-                            customer.stage === "customer" ? "default" :
-                            customer.stage === "prospect" ? "secondary" :
-                            "outline"
-                          }>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-1 h-8 rounded-full ${stageColors[customer.stage as keyof typeof stageColors] || "bg-gray-400"}`} />
+                            <div>
+                              <p className="font-medium text-sm">{customer.name}</p>
+                              {customer.retailerType && (
+                                <p className="text-xs text-muted-foreground">{customer.retailerType}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm">{customer.country || <span className="text-muted-foreground/50">-</span>}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[10px] uppercase font-semibold ${
+                              customer.stage === "customer" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" :
+                              customer.stage === "prospect" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30" :
+                              "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                            }`}
+                          >
                             {customer.stage}
                           </Badge>
                         </td>
-                        <td className="p-4">
+                        <td className="px-4 py-3">
                           {customer.brands && customer.brands.length > 0 ? (
-                            <div className="flex gap-1 flex-wrap">
+                            <div className="flex gap-1">
                               {customer.brands.slice(0, 2).map((brand) => (
-                                <Badge key={brand.id} variant="outline" className="text-xs no-default-hover-elevate">
+                                <Badge key={brand.id} variant="secondary" className="text-[10px] font-normal no-default-hover-elevate">
                                   {brand.name}
                                 </Badge>
                               ))}
                               {customer.brands.length > 2 && (
-                                <Badge variant="outline" className="text-xs no-default-hover-elevate">
-                                  +{customer.brands.length - 2}
-                                </Badge>
+                                <span className="text-xs text-muted-foreground">+{customer.brands.length - 2}</span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground/50 italic">No brands</span>
+                            <span className="text-muted-foreground/50 text-sm">-</span>
                           )}
                         </td>
-                        <td className="p-4 text-muted-foreground">
-                          {customer.quarterlySoftTarget 
-                            ? `$${Number(customer.quarterlySoftTarget).toLocaleString()}`
-                            : <span className="text-muted-foreground/50 italic">Not set</span>
-                          }
+                        <td className="px-4 py-3 text-right">
+                          {customer.quarterlySoftTarget ? (
+                            <span className="font-medium text-sm">
+                              ${Number(customer.quarterlySoftTarget).toLocaleString()}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/50 text-sm">-</span>
+                          )}
                         </td>
-                        <td className="p-4">
-                          {(() => {
-                            const contactStatus = getContactStatus(customer.lastContactDate);
-                            const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
-                            return (
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {contactStatus.status === 'critical' && (
-                                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                                )}
-                                {contactStatus.status === 'warning' && (
-                                  <Clock className="h-4 w-4 text-amber-500" />
-                                )}
-                                {contactStatus.status === 'never' && (
-                                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                                )}
-                                <span className={
-                                  contactStatus.status === 'critical' ? 'text-red-500 font-medium' :
-                                  contactStatus.status === 'warning' ? 'text-amber-500' :
-                                  contactStatus.status === 'never' ? 'text-muted-foreground/50 italic' :
-                                  'text-muted-foreground'
-                                }>
-                                  {contactStatus.status === 'never' ? 'Never' : contactStatus.label}
-                                </span>
-                                {needsAttention && (
-                                  <Badge 
-                                    variant={contactStatus.status === 'critical' ? 'destructive' : 'secondary'}
-                                    className="text-xs ml-1"
-                                    data-testid={`badge-needs-attention-${customer.id}`}
-                                  >
-                                    Needs Attention
-                                  </Badge>
-                                )}
-                              </div>
-                            );
-                          })()}
+                        <td className="px-4 py-3">
+                          {contactStatus.status === 'ok' ? (
+                            <span className="text-sm text-muted-foreground">{contactStatus.days}d ago</span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              {contactStatus.status === 'critical' && <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
+                              {contactStatus.status === 'warning' && <Clock className="h-3.5 w-3.5 text-amber-500" />}
+                              {contactStatus.status === 'never' && <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />}
+                              <span className={`text-xs font-medium ${
+                                contactStatus.status === 'critical' ? 'text-red-600 dark:text-red-400' :
+                                contactStatus.status === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                                'text-muted-foreground'
+                              }`}>
+                                {contactStatus.status === 'never' ? 'Never' : `${contactStatus.days}d`}
+                              </span>
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Card>
         )
       ) : (

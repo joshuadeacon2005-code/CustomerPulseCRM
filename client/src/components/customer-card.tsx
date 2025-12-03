@@ -1,19 +1,31 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Customer, CustomerWithBrands } from "@shared/schema";
-import { Mail, Phone, User, AlertTriangle, Clock } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import { MapPin, Building2, AlertTriangle, Clock, TrendingUp, Mail, Phone } from "lucide-react";
+import { differenceInDays } from "date-fns";
 
 interface CustomerCardProps {
   customer: Customer | CustomerWithBrands;
   onClick: () => void;
 }
 
-const stageColors = {
-  lead: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
-  prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+const stageConfig = {
+  lead: { 
+    bg: "bg-blue-500", 
+    text: "text-blue-700 dark:text-blue-400",
+    badgeBg: "bg-blue-500/10 border-blue-500/30"
+  },
+  prospect: { 
+    bg: "bg-amber-500", 
+    text: "text-amber-700 dark:text-amber-400",
+    badgeBg: "bg-amber-500/10 border-amber-500/30"
+  },
+  customer: { 
+    bg: "bg-green-500", 
+    text: "text-green-700 dark:text-green-400",
+    badgeBg: "bg-green-500/10 border-green-500/30"
+  },
 };
 
 const getInitials = (name: string) => {
@@ -24,7 +36,6 @@ const getInitials = (name: string) => {
   return name.slice(0, 2).toUpperCase();
 };
 
-// Helper to check if customer needs attention based on last contact
 function getContactStatus(lastContactDate: Date | null | undefined): {
   status: 'ok' | 'warning' | 'critical' | 'never';
   days: number | null;
@@ -36,91 +47,151 @@ function getContactStatus(lastContactDate: Date | null | undefined): {
   return { status: 'ok', days };
 }
 
+function formatCurrency(value: number | string | null | undefined): string {
+  if (!value) return "-";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "-";
+  if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`;
+  return `$${num.toLocaleString()}`;
+}
+
 export function CustomerCard({ customer, onClick }: CustomerCardProps) {
+  const stage = customer.stage as keyof typeof stageConfig;
+  const config = stageConfig[stage] || stageConfig.lead;
+  const contactStatus = getContactStatus(customer.lastContactDate);
+  const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
+  const brands = 'brands' in customer ? customer.brands : [];
+  
   return (
     <Card 
-      className="hover-elevate active-elevate-2 cursor-pointer transition-all"
+      className="hover-elevate active-elevate-2 cursor-pointer transition-all group overflow-visible"
       onClick={onClick}
       data-testid={`card-customer-${customer.id}`}
     >
-      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback className="bg-primary/10 text-primary font-medium">
-              {getInitials(customer.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate" data-testid={`text-customer-name-${customer.id}`}>
-              {customer.name}
-            </h3>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-              <Mail className="h-3 w-3 shrink-0" />
-              <span className="truncate">{customer.email}</span>
+      <CardContent className="p-0">
+        {/* Top accent bar with stage color */}
+        <div className={`h-1 ${config.bg} rounded-t-md`} />
+        
+        <div className="p-4 space-y-3">
+          {/* Header: Avatar, Name, Stage */}
+          <div className="flex items-start gap-3">
+            <Avatar className="h-11 w-11 shrink-0 ring-2 ring-background shadow-sm">
+              <AvatarFallback className={`${config.bg} text-white font-semibold text-sm`}>
+                {getInitials(customer.name)}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold text-base leading-tight line-clamp-2" data-testid={`text-customer-name-${customer.id}`}>
+                  {customer.name}
+                </h3>
+                <Badge 
+                  variant="outline" 
+                  className={`${config.badgeBg} ${config.text} uppercase text-[10px] font-semibold shrink-0 px-1.5 py-0`}
+                  data-testid={`badge-stage-${customer.id}`}
+                >
+                  {customer.stage}
+                </Badge>
+              </div>
+              
+              {/* Contact Info */}
+              <div className="flex flex-col gap-0.5 mt-1.5 text-xs text-muted-foreground">
+                {customer.email && (
+                  <span className="flex items-center gap-1 truncate">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{customer.email}</span>
+                  </span>
+                )}
+                {customer.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3 w-3 shrink-0" />
+                    {customer.phone}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <Badge 
-          variant="outline" 
-          className={`${stageColors[customer.stage as keyof typeof stageColors]} uppercase text-xs shrink-0`}
-          data-testid={`badge-stage-${customer.id}`}
-        >
-          {customer.stage}
-        </Badge>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Phone className="h-3.5 w-3.5" />
-          <span className="text-xs">{customer.phone}</span>
-        </div>
-        {customer.assignedTo && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2 pt-2 border-t">
-            <User className="h-3 w-3" />
-            <span>Assigned to: {(customer as any).assignedToName || customer.assignedTo}</span>
+
+          {/* Location & Type Row */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {customer.country && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {customer.country}
+              </span>
+            )}
+            {customer.retailerType && (
+              <span className="flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                {customer.retailerType}
+              </span>
+            )}
           </div>
-        )}
-        <div className="text-xs text-muted-foreground mt-2">
-          Added {format(new Date(customer.createdAt), "MMM d, yyyy")}
-        </div>
-        
-        {/* Last Contact Status */}
-        {(() => {
-          const contactStatus = getContactStatus(customer.lastContactDate);
-          const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
           
-          if (contactStatus.status === 'critical') {
-            return (
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
-                <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                <span className="text-xs font-medium text-red-500">{contactStatus.days} days ago</span>
-                <Badge variant="destructive" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
-                  Needs Attention
+          {/* Brands */}
+          {brands.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {brands.slice(0, 3).map((brand) => (
+                <Badge 
+                  key={brand.id} 
+                  variant="secondary" 
+                  className="text-[10px] px-1.5 py-0 font-normal no-default-hover-elevate"
+                >
+                  {brand.name}
                 </Badge>
-              </div>
-            );
-          } else if (contactStatus.status === 'warning') {
-            return (
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs text-amber-500">{contactStatus.days} days ago</span>
-                <Badge variant="secondary" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
-                  Needs Attention
+              ))}
+              {brands.length > 3 && (
+                <Badge 
+                  variant="outline" 
+                  className="text-[10px] px-1.5 py-0 font-normal no-default-hover-elevate"
+                >
+                  +{brands.length - 3}
                 </Badge>
+              )}
+            </div>
+          )}
+          
+          {/* Quarterly Target */}
+          {customer.quarterlySoftTarget && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+              <TrendingUp className="h-4 w-4 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quarterly Target</p>
+                <p className="font-semibold text-sm text-foreground">
+                  {formatCurrency(customer.quarterlySoftTarget)}
+                </p>
               </div>
-            );
-          } else if (contactStatus.status === 'never') {
-            return (
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t">
-                <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground italic">Never contacted</span>
-                <Badge variant="secondary" className="text-xs ml-auto" data-testid={`badge-needs-attention-${customer.id}`}>
-                  Needs Attention
-                </Badge>
-              </div>
-            );
-          }
-          return null;
-        })()}
+            </div>
+          )}
+          
+          {/* Last Contact Footer - Always Show */}
+          <div className={`flex items-center gap-2 pt-2 border-t ${
+            contactStatus.status === 'critical' ? 'text-red-600 dark:text-red-400' :
+            contactStatus.status === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+            contactStatus.status === 'never' ? 'text-muted-foreground' :
+            'text-muted-foreground'
+          }`}>
+            {contactStatus.status === 'critical' && <AlertTriangle className="h-3.5 w-3.5" />}
+            {contactStatus.status === 'warning' && <Clock className="h-3.5 w-3.5" />}
+            {contactStatus.status === 'never' && <AlertTriangle className="h-3.5 w-3.5" />}
+            {contactStatus.status === 'ok' && <Clock className="h-3.5 w-3.5" />}
+            <span className="text-xs font-medium">
+              {contactStatus.status === 'never' 
+                ? 'Never contacted' 
+                : `Last contact ${contactStatus.days} days ago`}
+            </span>
+            {needsAttention && (
+              <Badge 
+                variant={contactStatus.status === 'critical' ? 'destructive' : 'secondary'}
+                className="text-[10px] ml-auto no-default-hover-elevate"
+              >
+                Needs Attention
+              </Badge>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
