@@ -28,7 +28,19 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 - **Cache Management**: Targeted query invalidation on currency changes refreshes displays.
 
 **Technical Implementations & Feature Specifications:**
-- **Authentication & RBAC**: Passport-local strategy with scrypt hashing, session management, and multi-level role-based access control (CEO, Sales Director, Regional Manager, Manager, Salesman) with `managerId` for team hierarchy. Public registration is restricted to 'salesman'.
+- **Authentication & RBAC**: Passport-local strategy with scrypt hashing, session management, and multi-level role-based access control with `managerId` for team hierarchy. Public registration is restricted to 'salesman'.
+  - **Role Hierarchy & Permissions**:
+    - **CEO**: Full system access - can create/edit/delete users, manage offices, view all data, set targets
+    - **Sales Director**: Admin access - can create/edit users, view all sales data, manage team members
+    - **Marketing Director**: Admin access - can create/edit users, view all data, manage marketing initiatives
+    - **Regional Manager**: Admin access - can create/edit users, manage offices, oversee regional teams
+    - **Manager**: Admin access - can create/edit users assigned to them, view team data
+    - **Salesman**: Basic access - can view/edit their own customers and data only
+  - **Permission Middleware**:
+    - `isAdmin`: CEO, Sales Director, Marketing Director, Admin, Regional Manager, Manager
+    - `isCEO`: CEO, Sales Director, Marketing Director, Admin
+    - `isManager`: CEO, Sales Director, Marketing Director, Admin, Regional Manager, Manager
+  - **Note**: Role comparisons are case-insensitive (e.g., "CEO" and "ceo" are treated the same)
 - **Regional Office Management**: Users can be assigned to specific regional offices with the following features:
     - **Offices**: 7 pre-seeded regional offices (Hong Kong, Singapore, Shanghai, Australia/New Zealand, Indonesia, Malaysia, Guangzhou)
     - **Office Assignments**: Supports three role types (salesman, manager, viewer) for different access levels

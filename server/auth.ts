@@ -211,24 +211,33 @@ export function isAuthenticated(req: any, res: any, next: any) {
   res.sendStatus(401);
 }
 
+// Role hierarchy helper - maps variations to canonical lowercase roles
+export function getEffectiveRole(role: string): string {
+  return role?.toLowerCase() || "";
+}
+
+// Admin access: CEO, Directors, Regional Managers, Managers
 export function isAdmin(req: any, res: any, next: any) {
-  const userRole = req.user?.role?.toLowerCase();
+  const userRole = getEffectiveRole(req.user?.role || "");
   if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "marketing_director" || userRole === "admin" || userRole === "regional_manager" || userRole === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Admin access required");
 }
 
+// CEO/Director access: CEO, Sales Director, Marketing Director
 export function isCEO(req: any, res: any, next: any) {
-  const userRole = req.user?.role?.toLowerCase();
+  const userRole = getEffectiveRole(req.user?.role || "");
   if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "marketing_director" || userRole === "admin")) {
     return next();
   }
   res.status(403).send("Forbidden: CEO/Director access required");
 }
 
+// Manager access: Directors, Regional Managers, Managers (and CEO)
 export function isManager(req: any, res: any, next: any) {
-  if (req.isAuthenticated() && (req.user?.role === "sales_director" || req.user?.role === "marketing_director" || req.user?.role === "admin" || req.user?.role === "regional_manager" || req.user?.role === "manager")) {
+  const userRole = getEffectiveRole(req.user?.role || "");
+  if (req.isAuthenticated() && (userRole === "ceo" || userRole === "sales_director" || userRole === "marketing_director" || userRole === "admin" || userRole === "regional_manager" || userRole === "manager")) {
     return next();
   }
   res.status(403).send("Forbidden: Manager access required");

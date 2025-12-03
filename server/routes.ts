@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
-import { setupAuth, isAuthenticated, isAdmin } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, getEffectiveRole } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
 import * as XLSX from "xlsx";
