@@ -5,7 +5,7 @@ import { Customer } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -77,6 +77,19 @@ function PipelineCard({ customer }: { customer: Customer }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`flex-1 min-h-[200px] ${isOver ? 'bg-muted/50 rounded-lg' : ''}`}
+    >
+      {children}
     </div>
   );
 }
@@ -171,7 +184,24 @@ export default function Pipeline() {
     }
 
     const customerId = active.id as string;
-    const newStage = over.id as string;
+    const overId = over.id as string;
+    
+    // Check if dropped on a stage column directly
+    const validStages = STAGES.map(s => s.id);
+    let newStage: string;
+    
+    if (validStages.includes(overId)) {
+      // Dropped on a stage column
+      newStage = overId;
+    } else {
+      // Dropped on another customer card - get that customer's stage
+      const targetCustomer = customers.find(c => c.id === overId);
+      if (!targetCustomer) {
+        setActiveId(null);
+        return;
+      }
+      newStage = targetCustomer.stage;
+    }
 
     const customer = customers.find(c => c.id === customerId);
     if (customer && customer.stage !== newStage) {
@@ -262,15 +292,17 @@ export default function Pipeline() {
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto pt-4">
-                    {stageCustomers.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-8 text-sm">
-                        No customers in this stage
-                      </div>
-                    ) : (
-                      stageCustomers.map(customer => (
-                        <PipelineCard key={customer.id} customer={customer} />
-                      ))
-                    )}
+                    <DroppableColumn id={stage.id}>
+                      {stageCustomers.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8 text-sm">
+                          No customers in this stage
+                        </div>
+                      ) : (
+                        stageCustomers.map(customer => (
+                          <PipelineCard key={customer.id} customer={customer} />
+                        ))
+                      )}
+                    </DroppableColumn>
                   </CardContent>
                 </Card>
               </SortableContext>

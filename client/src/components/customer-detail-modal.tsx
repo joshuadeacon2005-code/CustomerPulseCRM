@@ -1457,6 +1457,10 @@ function NewBrandForm({
   );
 }
 
+const actionItemFormSchema = insertActionItemSchema.omit({
+  createdBy: true,
+});
+
 function ActionItemForm({
   customerId,
   onSubmit,
@@ -1468,8 +1472,8 @@ function ActionItemForm({
   onCancel: () => void;
   isLoading: boolean;
 }) {
-  const form = useForm<InsertActionItem>({
-    resolver: zodResolver(insertActionItemSchema),
+  const form = useForm({
+    resolver: zodResolver(actionItemFormSchema),
     defaultValues: {
       customerId,
       description: '',
