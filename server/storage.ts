@@ -388,22 +388,31 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Combine all user IDs (team members + office members)
-      const combinedUserIds = [...new Set([...allUserIds, ...officeUserIds])];
+      const combinedUserIds = Array.from(new Set([...allUserIds, ...officeUserIds]));
 
-      if (combinedUserIds.length === 0 && managerOfficeIds.length === 0) {
+      // Get the manager's regionalOffice for country-based filtering
+      const manager = await this.getUser(userId);
+      const managerRegion = manager?.regionalOffice;
+
+      // Build conditions for customer visibility
+      const conditions = [];
+      
+      if (combinedUserIds.length > 0) {
+        conditions.push(inArray(customers.assignedTo, combinedUserIds));
+      }
+      
+      if (managerOfficeIds.length > 0) {
+        conditions.push(inArray(customers.officeId, managerOfficeIds));
+      }
+      
+      // Add region-based filtering: managers can see ALL customers in their region
+      if (managerRegion) {
+        conditions.push(eq(customers.country, managerRegion));
+      }
+
+      if (conditions.length === 0) {
         allCustomers = [];
       } else {
-        // Get customers assigned to users OR customers assigned to the manager's offices
-        const conditions = [];
-        
-        if (combinedUserIds.length > 0) {
-          conditions.push(inArray(customers.assignedTo, combinedUserIds));
-        }
-        
-        if (managerOfficeIds.length > 0) {
-          conditions.push(inArray(customers.officeId, managerOfficeIds));
-        }
-        
         allCustomers = await db
           .select()
           .from(customers)
