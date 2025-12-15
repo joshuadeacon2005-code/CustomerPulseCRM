@@ -722,42 +722,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let validatedData = insertMonthlySalesTrackingSchemaRefined.parse(req.body);
       
-      // Validate and auto-calculate base amounts if currency is provided
-      if (validatedData.currency) {
-        if (validatedData.actual) {
-          const calculatedBaseActual = await validateAndConvertToBase(
-            Number(validatedData.actual),
-            validatedData.currency
-          );
-          
-          if (validatedData.baseCurrencyActual !== undefined) {
-            validateBaseCurrencyAmount(
-              Number(validatedData.actual),
-              validatedData.currency,
-              Number(validatedData.baseCurrencyActual),
-              calculatedBaseActual
-            );
-          } else {
-            validatedData = { ...validatedData, baseCurrencyActual: calculatedBaseActual.toString() };
-          }
-        }
+      // Validate and auto-calculate base amounts for actual if actualCurrency is provided
+      if (validatedData.actualCurrency && validatedData.actual) {
+        const calculatedBaseActual = await validateAndConvertToBase(
+          Number(validatedData.actual),
+          validatedData.actualCurrency
+        );
         
-        if (validatedData.budget) {
-          const calculatedBaseBudget = await validateAndConvertToBase(
-            Number(validatedData.budget),
-            validatedData.currency
+        if (validatedData.actualBaseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.actual),
+            validatedData.actualCurrency,
+            Number(validatedData.actualBaseCurrencyAmount),
+            calculatedBaseActual
           );
-          
-          if (validatedData.baseCurrencyBudget !== undefined) {
-            validateBaseCurrencyAmount(
-              Number(validatedData.budget),
-              validatedData.currency,
-              Number(validatedData.baseCurrencyBudget),
-              calculatedBaseBudget
-            );
-          } else {
-            validatedData = { ...validatedData, baseCurrencyBudget: calculatedBaseBudget.toString() };
-          }
+        } else {
+          validatedData = { ...validatedData, actualBaseCurrencyAmount: calculatedBaseActual.toString() };
+        }
+      }
+      
+      // Validate and auto-calculate base amounts for budget if budgetCurrency is provided
+      if (validatedData.budgetCurrency && validatedData.budget) {
+        const calculatedBaseBudget = await validateAndConvertToBase(
+          Number(validatedData.budget),
+          validatedData.budgetCurrency
+        );
+        
+        if (validatedData.budgetBaseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.budget),
+            validatedData.budgetCurrency,
+            Number(validatedData.budgetBaseCurrencyAmount),
+            calculatedBaseBudget
+          );
+        } else {
+          validatedData = { ...validatedData, budgetBaseCurrencyAmount: calculatedBaseBudget.toString() };
         }
       }
       
@@ -775,42 +774,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let validatedData = updateMonthlySalesTrackingSchema.parse(req.body);
       
-      // Validate and auto-calculate base amounts if currency is provided
-      if (validatedData.currency) {
-        if (validatedData.actual) {
-          const calculatedBaseActual = await validateAndConvertToBase(
-            Number(validatedData.actual),
-            validatedData.currency
-          );
-          
-          if (validatedData.baseCurrencyActual !== undefined) {
-            validateBaseCurrencyAmount(
-              Number(validatedData.actual),
-              validatedData.currency,
-              Number(validatedData.baseCurrencyActual),
-              calculatedBaseActual
-            );
-          } else {
-            validatedData = { ...validatedData, baseCurrencyActual: calculatedBaseActual.toString() };
-          }
-        }
+      // Validate and auto-calculate base amounts for actual if actualCurrency is provided
+      if (validatedData.actualCurrency && validatedData.actual) {
+        const calculatedBaseActual = await validateAndConvertToBase(
+          Number(validatedData.actual),
+          validatedData.actualCurrency
+        );
         
-        if (validatedData.budget) {
-          const calculatedBaseBudget = await validateAndConvertToBase(
-            Number(validatedData.budget),
-            validatedData.currency
+        if (validatedData.actualBaseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.actual),
+            validatedData.actualCurrency,
+            Number(validatedData.actualBaseCurrencyAmount),
+            calculatedBaseActual
           );
-          
-          if (validatedData.baseCurrencyBudget !== undefined) {
-            validateBaseCurrencyAmount(
-              Number(validatedData.budget),
-              validatedData.currency,
-              Number(validatedData.baseCurrencyBudget),
-              calculatedBaseBudget
-            );
-          } else {
-            validatedData = { ...validatedData, baseCurrencyBudget: calculatedBaseBudget.toString() };
-          }
+        } else {
+          validatedData = { ...validatedData, actualBaseCurrencyAmount: calculatedBaseActual.toString() };
+        }
+      }
+      
+      // Validate and auto-calculate base amounts for budget if budgetCurrency is provided
+      if (validatedData.budgetCurrency && validatedData.budget) {
+        const calculatedBaseBudget = await validateAndConvertToBase(
+          Number(validatedData.budget),
+          validatedData.budgetCurrency
+        );
+        
+        if (validatedData.budgetBaseCurrencyAmount !== undefined) {
+          validateBaseCurrencyAmount(
+            Number(validatedData.budget),
+            validatedData.budgetCurrency,
+            Number(validatedData.budgetBaseCurrencyAmount),
+            calculatedBaseBudget
+          );
+        } else {
+          validatedData = { ...validatedData, budgetBaseCurrencyAmount: calculatedBaseBudget.toString() };
         }
       }
       
