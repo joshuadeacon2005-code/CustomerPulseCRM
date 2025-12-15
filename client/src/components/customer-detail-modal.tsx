@@ -304,6 +304,19 @@ export function CustomerDetailModal({
     },
   });
 
+  const deleteMonthlySalesMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/monthly-sales/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      toast({ title: "Sales record deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete sales record", variant: "destructive" });
+    },
+  });
+
   const deleteCustomerMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest('DELETE', `/api/customers/${id}`);
@@ -1125,14 +1138,36 @@ export function CustomerDetailModal({
                         const actual = record.actual ? parseFloat(record.actual) : 0;
                         const variance = actual - budget;
                         const percentage = budget > 0 ? ((actual / budget) * 100).toFixed(1) : '0.0';
+                        const isEditing = editingSalesId === record.id;
                         
                         return (
                           <TableRow key={record.id} data-testid={`row-sales-${record.id}`}>
                             <TableCell>{monthNames[record.month - 1]}</TableCell>
                             <TableCell>{record.year}</TableCell>
-                            <TableCell className="text-right">${budget.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
-                              {editingSalesId === record.id ? (
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  defaultValue={budget}
+                                  className="w-24"
+                                  onBlur={(e) => {
+                                    const value = e.target.value;
+                                    if (value !== budget.toString()) {
+                                      updateMonthlySalesMutation.mutate({
+                                        id: record.id,
+                                        data: { budget: value, budgetCurrency: record.budgetCurrency || 'USD' }
+                                      });
+                                    }
+                                  }}
+                                  data-testid={`input-budget-${record.id}`}
+                                />
+                              ) : (
+                                <span>${budget.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isEditing ? (
                                 <Input
                                   type="number"
                                   step="0.01"
@@ -1140,33 +1175,67 @@ export function CustomerDetailModal({
                                   className="w-24"
                                   onBlur={(e) => {
                                     const value = e.target.value;
-                                    updateMonthlySalesMutation.mutate({
-                                      id: record.id,
-                                      data: { actual: value }
-                                    });
+                                    if (value !== actual.toString()) {
+                                      updateMonthlySalesMutation.mutate({
+                                        id: record.id,
+                                        data: { actual: value, actualCurrency: record.actualCurrency || 'USD' }
+                                      });
+                                    }
                                   }}
                                   data-testid={`input-actual-${record.id}`}
                                 />
                               ) : (
-                                <span>${actual.toFixed(2)}</span>
+                                <span>${actual.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               )}
                             </TableCell>
                             <TableCell className={cn(
                               "text-right font-medium",
                               variance > 0 ? "text-green-600" : variance < 0 ? "text-red-600" : ""
                             )}>
-                              {variance > 0 ? '+' : ''}{variance.toFixed(2)}
+                              {variance > 0 ? '+' : ''}{variance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="text-right">{percentage}%</TableCell>
                             <TableCell>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setEditingSalesId(editingSalesId === record.id ? null : record.id)}
-                                data-testid={`button-edit-sales-${record.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingSalesId(isEditing ? null : record.id)}
+                                  data-testid={`button-edit-sales-${record.id}`}
+                                >
+                                  {isEditing ? <Check className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="text-destructive hover:text-destructive"
+                                      data-testid={`button-delete-sales-${record.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Sales Record</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete the sales record for {monthNames[record.month - 1]} {record.year}? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteMonthlySalesMutation.mutate(record.id)}
+                                        className="bg-destructive text-destructive-foreground hover-elevate"
+                                        data-testid={`button-confirm-delete-sales-${record.id}`}
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

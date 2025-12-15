@@ -828,6 +828,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/monthly-sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteMonthlySales(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Sales record not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete sales record" });
+    }
+  });
+
   app.post("/api/sales", isAuthenticated, async (req, res) => {
     try {
       let validatedData = insertSaleSchemaRefined.parse({

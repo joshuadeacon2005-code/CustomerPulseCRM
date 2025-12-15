@@ -131,6 +131,7 @@ export interface IStorage {
   getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]>;
   createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
+  deleteMonthlySales(id: string): Promise<boolean>;
 
   getSegments(): Promise<Segment[]>;
   getStats(options?: { monthly?: boolean; month?: number; year?: number }): Promise<DashboardStats>;
@@ -908,6 +909,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(monthlySalesTracking.id, id))
       .returning();
     return sales;
+  }
+
+  async deleteMonthlySales(id: string): Promise<boolean> {
+    const result = await db.delete(monthlySalesTracking).where(eq(monthlySalesTracking.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getSegments(): Promise<Segment[]> {
