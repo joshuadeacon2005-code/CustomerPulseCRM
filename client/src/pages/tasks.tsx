@@ -43,7 +43,9 @@ import { cn } from "@/lib/utils";
 import { z } from "zod";
 import Papa from "papaparse";
 
-const formSchema = insertActionItemSchema.extend({
+const formSchema = insertActionItemSchema.omit({
+  createdBy: true,
+}).extend({
   dueDate: z.date().optional().nullable(),
   visitDate: z.date().optional().nullable(),
 });
