@@ -141,7 +141,7 @@ export default function AdminPage() {
 
   // Comparative analytics data
   const regions = useMemo(() => {
-    const uniqueRegions = new Set(customers.map(c => c.country).filter(Boolean));
+    const uniqueRegions = new Set(customers.map(c => c.country).filter((c): c is string => c !== null && c !== undefined));
     return Array.from(uniqueRegions).sort();
   }, [customers]);
 
@@ -198,7 +198,7 @@ export default function AdminPage() {
         ? customers 
         : customers.filter(c => c.assignedTo === repId);
       
-      const repInteractions = repCustomers.reduce((sum, c) => sum + (c.interactions?.length || 0), 0);
+      const repInteractions = 0; // Interactions are fetched separately
       
       return {
         totalCustomers: repCustomers.length,
