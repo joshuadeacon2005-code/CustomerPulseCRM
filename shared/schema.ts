@@ -358,6 +358,10 @@ export const updateCustomerSchema = createInsertSchema(customers).omit({
   createdAt: true,
 }).partial().extend({
   stage: z.enum(["lead", "prospect", "customer"]).optional(),
+  // Handle both Date objects and ISO strings from JSON serialization
+  firstOrderDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  lastContactDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  dateOfFirstContact: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
 });
 
 export const insertInteractionSchema = createInsertSchema(interactions).omit({
