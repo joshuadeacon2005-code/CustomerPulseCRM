@@ -90,6 +90,11 @@ export default function AdminPage() {
   const [userOfficeFilter, setUserOfficeFilter] = useState<string>("all");
   const [userManagerFilter, setUserManagerFilter] = useState<string>("all");
 
+  // Customer assignments filters
+  const [customerSalesmanFilter, setCustomerSalesmanFilter] = useState<string>("all");
+  const [customerNameFilter, setCustomerNameFilter] = useState("");
+  const [customerOfficeFilter, setCustomerOfficeFilter] = useState<string>("all");
+
   // Comparative analytics state
   const [selectedRegion1, setSelectedRegion1] = useState<string>("all");
   const [selectedRegion2, setSelectedRegion2] = useState<string>("all");
@@ -148,6 +153,30 @@ export default function AdminPage() {
   const salesReps = useMemo(() => {
     return allUsers.filter(u => u.role === "salesman" || u.role === "manager");
   }, [allUsers]);
+
+  // Filtered customers for Assignments tab
+  const filteredCustomersForAssignments = useMemo(() => {
+    return customers.filter(customer => {
+      // Salesman filter
+      if (customerSalesmanFilter === "unassigned") {
+        if (customer.assignedTo) return false;
+      } else if (customerSalesmanFilter !== "all" && customer.assignedTo !== customerSalesmanFilter) {
+        return false;
+      }
+      // Name filter
+      if (customerNameFilter && !customer.name.toLowerCase().includes(customerNameFilter.toLowerCase())) {
+        return false;
+      }
+      // Office filter
+      if (customerOfficeFilter !== "all" && customer.officeId !== customerOfficeFilter) {
+        return false;
+      }
+      return true;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers, customerSalesmanFilter, customerNameFilter, customerOfficeFilter]);
+
+  // Get office by ID helper
+  const getOfficeById = (id: string) => offices.find(o => o.id === id);
 
   const regionalComparison = useMemo(() => {
     const getRegionStats = (region: string) => {
@@ -648,8 +677,9 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-xl grid-cols-4">
           <TabsTrigger value="overview" data-testid="tab-admin-overview">Overview</TabsTrigger>
+          <TabsTrigger value="assignments" data-testid="tab-admin-assignments">Assignments</TabsTrigger>
           <TabsTrigger value="offices" data-testid="tab-admin-offices">Offices</TabsTrigger>
           <TabsTrigger value="comparative" data-testid="tab-admin-comparative">Comparative</TabsTrigger>
         </TabsList>
@@ -1190,6 +1220,129 @@ export default function AdminPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="assignments" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UsersIcon className="h-5 w-5 text-primary" />
+                Customer Assignments
+              </CardTitle>
+              <CardDescription>View which customers are assigned to each salesman</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-salesman-filter">Filter by Salesman</Label>
+                  <Select value={customerSalesmanFilter} onValueChange={setCustomerSalesmanFilter}>
+                    <SelectTrigger id="customer-salesman-filter" data-testid="select-filter-customer-salesman">
+                      <SelectValue placeholder="All Salesmen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Salesmen</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {allUsers
+                        .filter(u => u.role === "salesman" || u.role === "manager")
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name-filter">Search by Customer Name</Label>
+                  <Input
+                    id="customer-name-filter"
+                    placeholder="Filter by customer name..."
+                    value={customerNameFilter}
+                    onChange={(e) => setCustomerNameFilter(e.target.value)}
+                    data-testid="input-filter-customer-name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="customer-office-filter">Filter by Office</Label>
+                  <Select value={customerOfficeFilter} onValueChange={setCustomerOfficeFilter}>
+                    <SelectTrigger id="customer-office-filter" data-testid="select-filter-customer-office">
+                      <SelectValue placeholder="All Offices" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Offices</SelectItem>
+                      {offices.map((office) => (
+                        <SelectItem key={office.id} value={office.id}>
+                          {office.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="text-sm text-muted-foreground mb-4">
+                Showing {filteredCustomersForAssignments.length} of {customers.length} customers
+              </div>
+              
+              {filteredCustomersForAssignments.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No customers match the current filters
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer Name</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead>Office</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead>Country</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCustomersForAssignments.map((customer) => {
+                      const assignedUser = customer.assignedTo ? getUserById(customer.assignedTo) : null;
+                      const office = customer.officeId ? getOfficeById(customer.officeId) : null;
+                      return (
+                        <TableRow key={customer.id} data-testid={`row-customer-assignment-${customer.id}`}>
+                          <TableCell className="font-medium">
+                            <Link href={`/customers?id=${customer.id}`} className="hover:underline text-primary">
+                              {customer.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            {assignedUser ? (
+                              <span data-testid={`text-assigned-${customer.id}`}>{assignedUser.name}</span>
+                            ) : (
+                              <span className="text-muted-foreground italic">Unassigned</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {office ? (
+                              <Badge variant="outline">{office.name}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={customer.stage === "customer" ? "default" : customer.stage === "prospect" ? "secondary" : "outline"}
+                            >
+                              {customer.stage}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{customer.country || "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="offices" className="space-y-6">
