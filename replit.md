@@ -64,7 +64,7 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 - **Target Management**: Supports Personal and General monthly sales targets, with role-based setting capabilities and per-customer monthly targets.
 - **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actuals and variance reporting.
 - **Analytics**: Advanced analytics with monthly and overall views, month selector, team structure visualization, and performance metrics.
-- **Admin Dashboard Features**: Two-tab layout with Overview (Regional Leaderboard, User Management with filtering/sorting/bulk selection/inline editing) and Comparative Analytics (Region vs Region and Rep vs Rep comparison charts).
+- **Admin Dashboard Features**: Four-tab layout with Overview (Regional Leaderboard, User Management with filtering/sorting/bulk selection/inline editing), Assignments (Customer-to-Salesman mapping with filters by salesman, name, and office), Offices (Regional office management), and Comparative Analytics (Region vs Region and Rep vs Rep comparison charts).
 - **AI-Powered Insights (via OpenAI GPT-4o-mini)**:
     - **Customer AI Insights**: In-modal analysis of sales, purchasing, and engagement with actionable recommendations.
     - **User Performance AI Summary**: Comprehensive performance analysis for users (admin/manager access).
