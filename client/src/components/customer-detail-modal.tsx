@@ -1551,9 +1551,14 @@ function ActionItemForm({
     },
   });
 
+  const handleFormSubmit = (data: typeof actionItemFormSchema._output) => {
+    // createdBy will be set by the parent component/API
+    onSubmit(data as InsertActionItem);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="description"
