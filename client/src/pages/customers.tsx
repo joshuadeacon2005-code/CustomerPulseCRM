@@ -493,7 +493,7 @@ export default function Customers() {
       </div>
 
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="hover-elevate relative overflow-visible" data-testid="card-total-stats">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
           <CardContent className="relative p-4">
