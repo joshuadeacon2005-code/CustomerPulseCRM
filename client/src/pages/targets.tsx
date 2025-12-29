@@ -246,11 +246,12 @@ export default function TargetsPage() {
       </Tabs>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-set-target">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
               {selectedMonthTarget || editingTarget ? `Edit ${targetView === "general" ? "General" : "Personal"} Target for ${monthName}` : `Set ${targetView === "general" ? "General" : "Personal"} Target for ${monthName}`}
-              {targetView === "general" && <TargetIcon className="h-5 w-5" />}
             </CardTitle>
             <CardDescription>
               {selectedMonthTarget || editingTarget 
@@ -259,7 +260,7 @@ export default function TargetsPage() {
               }
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="targetAmount">Target Amount ($)</Label>
@@ -293,12 +294,16 @@ export default function TargetsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Selection</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-current-selection">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2">
+              <TargetIcon className="h-5 w-5 text-secondary" />
+              Current Selection
+            </CardTitle>
             <CardDescription>Target details for {monthName} {currentYear}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             {isLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-12 w-full" />
@@ -334,8 +339,9 @@ export default function TargetsPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="hover-elevate relative overflow-visible" data-testid="card-all-targets">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-xl pointer-events-none" />
+        <CardHeader className="relative">
           <CardTitle>All {targetView === "general" ? "General" : "Personal"} Targets for {currentYear}</CardTitle>
           <CardDescription>View and manage all your {targetView} monthly targets</CardDescription>
         </CardHeader>

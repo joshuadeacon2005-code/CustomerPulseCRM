@@ -686,28 +686,36 @@ export default function AdminPage() {
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Sales</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-admin-total-sales">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Total Sales
+            </CardTitle>
             <CardDescription>
               {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "All sales across all team members" : "Sales from your team"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <p className="text-4xl font-bold" data-testid="text-admin-total-sales">
               {stats?.totalSales || 0}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Revenue</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-admin-total-revenue">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-secondary" />
+              Total Revenue
+            </CardTitle>
             <CardDescription>
               {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "Total revenue across all team members" : "Revenue from your team"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <p className="text-4xl font-bold" data-testid="text-admin-total-revenue">
               ${stats?.totalRevenue || "0.00"}
             </p>

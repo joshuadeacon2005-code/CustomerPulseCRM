@@ -222,37 +222,53 @@ export default function Pipeline() {
 
       {/* Pipeline Metrics */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Pipeline Value</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-pipeline-total">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Total Pipeline Value
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-2xl font-bold">
               ${stageMetrics.reduce((sum, m) => sum + m.value, 0).toLocaleString()}
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Lead → Prospect</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-lead-prospect">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-secondary" />
+              Lead → Prospect
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-2xl font-bold">{conversionMetrics.leadToProspect}%</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Prospect → Customer</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-prospect-customer">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Prospect → Customer
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-2xl font-bold">{conversionMetrics.prospectToCustomer}%</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Overall Conversion</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-overall-conversion">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Target className="h-4 w-4 text-secondary" />
+              Overall Conversion
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-2xl font-bold">{conversionMetrics.overall}%</div>
           </CardContent>
         </Card>

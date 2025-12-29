@@ -283,12 +283,16 @@ export default function SalesPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Log New Sale</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-log-sale">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Log New Sale
+            </CardTitle>
             <CardDescription>Record a new sale transaction</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="customerName">Customer Name</Label>
@@ -335,19 +339,29 @@ export default function SalesPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Statistics</CardTitle>
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-statistics">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2">
+              <TargetIcon className="h-5 w-5 text-secondary" />
+              Your Statistics
+            </CardTitle>
             <CardDescription>Your sales performance</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Sales</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5">
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Total Sales
+                </span>
                 <span className="text-2xl font-bold" data-testid="text-total-sales">{sales.length}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Revenue</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/5">
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <TargetIcon className="h-4 w-4 text-secondary" />
+                  Total Revenue
+                </span>
                 <span className="text-2xl font-bold" data-testid="text-total-revenue">
                   ${totalAmount.toFixed(2)}
                 </span>
@@ -357,12 +371,13 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="hover-elevate relative overflow-visible" data-testid="card-recent-sales">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-xl pointer-events-none" />
+        <CardHeader className="relative">
           <CardTitle>Recent Sales</CardTitle>
           <CardDescription>Your recent sales transactions</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           {isLoading ? (
             <div className="text-center text-muted-foreground">Loading...</div>
           ) : sales.length === 0 ? (

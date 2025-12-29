@@ -440,17 +440,18 @@ export default function Tasks() {
       </div>
 
       {/* CSV Import Card */}
-      <Card className="mb-6" data-testid="card-csv-import">
-        <CardHeader className="pb-3">
+      <Card className="mb-6 hover-elevate relative overflow-visible" data-testid="card-csv-import">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+        <CardHeader className="relative pb-3">
           <div className="flex items-center gap-2">
-            <FileUp className="h-5 w-5 text-orange-500" />
+            <FileUp className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Import Todos from CSV</h2>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Upload a CSV file with columns: title, description, due_date, type (call/visit)
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <input
             type="file"
             accept=".csv"

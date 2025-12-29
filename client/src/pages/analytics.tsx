@@ -313,12 +313,13 @@ export default function Analytics() {
 
       {/* KPI Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover-elevate">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-total-customers">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Total Customers</h3>
             <UsersIcon className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-3xl font-bold" data-testid="text-total-customers">{stats?.totalCustomers || 0}</div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <span className="text-primary font-medium">{activeCustomers} active</span>
@@ -328,12 +329,13 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-conversion-rate">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Conversion Rate</h3>
-            <Target className="h-5 w-5 text-primary" />
+            <Target className="h-5 w-5 text-secondary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-3xl font-bold" data-testid="text-conversion-rate">
               {conversionRate.toFixed(1)}%
             </div>
@@ -360,14 +362,15 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-activity">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">
               {view === "monthly" ? "Monthly Activity" : "Recent Activity"}
             </h3>
             <Activity className="h-5 w-5 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-3xl font-bold" data-testid="text-recent-activity">{stats?.recentInteractions || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {view === "monthly" ? "Interactions this month" : "Interactions in last 7 days"}
@@ -375,12 +378,13 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-new-leads">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardHeader className="relative flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <h3 className="text-sm font-medium text-muted-foreground">New Leads</h3>
-            <Award className="h-5 w-5 text-primary" />
+            <Award className="h-5 w-5 text-secondary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="text-3xl font-bold" data-testid="text-total-leads">{totalLeads}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {view === "monthly" ? "This month" : "Total pipeline"}
@@ -390,15 +394,16 @@ export default function Analytics() {
       </div>
 
       {/* Sales Pipeline Value Card - Full Width */}
-      <Card className="hover-elevate">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+      <Card className="hover-elevate relative overflow-visible" data-testid="card-pipeline-value">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-xl pointer-events-none" />
+        <CardHeader className="relative flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
           <div>
             <h3 className="text-lg font-semibold">Sales Pipeline Value</h3>
             <p className="text-sm text-muted-foreground">Weighted pipeline based on quarterly soft targets</p>
           </div>
           <DollarSign className="h-6 w-6 text-primary" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <div className="grid gap-6 md:grid-cols-4">
             {/* Weighted Total */}
             <div className="space-y-2">

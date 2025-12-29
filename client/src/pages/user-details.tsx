@@ -245,11 +245,15 @@ export default function UserDetailsPage() {
       <div>
         <h2 className="text-xl font-semibold mb-4">Current Month Performance</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Target</CardTitle>
+          <Card className="hover-elevate relative overflow-visible" data-testid="card-target">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TargetIcon className="h-4 w-4 text-primary" />
+                Target
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
               <div className="text-3xl font-bold" data-testid="text-target-amount">
                 ${currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
               </div>
@@ -259,11 +263,15 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Sales to Date</CardTitle>
+          <Card className="hover-elevate relative overflow-visible" data-testid="card-sales">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-secondary" />
+                Sales to Date
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
               <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
                 ${currentMonthSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
@@ -273,11 +281,15 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
+          <Card className="hover-elevate relative overflow-visible" data-testid="card-progress">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Progress
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
               <div className="text-3xl font-bold" data-testid="text-progress-percent">
                 {currentMonthTarget?.targetAmount
                   ? Math.round((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100)
@@ -295,12 +307,16 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Interactions</CardTitle>
+          <Card className="hover-elevate relative overflow-visible" data-testid="card-interactions">
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-secondary" />
+                Interactions
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-purple-600 dark:text-purple-400" data-testid="text-interaction-count">
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-secondary" data-testid="text-interaction-count">
                 {currentMonthInteractions.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -309,12 +325,16 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">New Customers</CardTitle>
+          <Card className="hover-elevate relative overflow-visible" data-testid="card-new-customers">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+            <CardHeader className="relative pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Plus className="h-4 w-4 text-primary" />
+                New Customers
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400" data-testid="text-new-customers-count">
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-primary" data-testid="text-new-customers-count">
                 {newCustomersThisMonth.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -326,8 +346,9 @@ export default function UserDetailsPage() {
       </div>
 
       {/* Customer-Specific Progress Bars */}
-      <Card>
-        <CardHeader>
+      <Card className="hover-elevate relative overflow-visible" data-testid="card-customer-performance">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-xl pointer-events-none" />
+        <CardHeader className="relative">
           <CardTitle className="text-lg">Customer Performance</CardTitle>
           <CardDescription>
             Monthly progress with each customer

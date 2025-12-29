@@ -494,8 +494,9 @@ export default function Customers() {
 
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="bg-gradient-to-br from-background to-muted/20">
-          <CardContent className="p-4">
+        <Card className="hover-elevate relative overflow-visible" data-testid="card-total-stats">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardContent className="relative p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
                 <UsersIcon className="h-4 w-4 text-primary" />
