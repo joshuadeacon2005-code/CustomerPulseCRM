@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { 
@@ -20,11 +19,7 @@ import {
   TrendingUp,
   TrendingDown,
   Building2,
-  Filter,
-  BarChart3,
-  PieChart,
-  Layers,
-  GitBranch
+  Filter
 } from "lucide-react";
 import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
@@ -427,51 +422,6 @@ export default function Dashboard() {
               </Card>
             </Link>
           </div>
-        </div>
-      )}
-
-      {/* Explore CRM Features - Bento Grid */}
-      {isViewingOwnDashboard && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Explore CRM Features</h2>
-          <BentoGrid className="lg:grid-rows-2 auto-rows-[12rem]">
-            <BentoCard
-              name="Analytics"
-              className="lg:col-span-1 lg:row-span-2"
-              background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
-              Icon={BarChart3}
-              description="Deep dive into your sales performance with comprehensive charts and insights."
-              href="/analytics"
-              cta="View Analytics"
-            />
-            <BentoCard
-              name="Customer Segments"
-              className="lg:col-span-1 lg:row-span-1"
-              background={<div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10" />}
-              Icon={PieChart}
-              description="Filter and organize customers into smart segments."
-              href="/segments"
-              cta="Explore Segments"
-            />
-            <BentoCard
-              name="Sales Pipeline"
-              className="lg:col-span-1 lg:row-span-1"
-              background={<div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10" />}
-              Icon={GitBranch}
-              description="Track deals through every stage of your pipeline."
-              href="/pipeline"
-              cta="View Pipeline"
-            />
-            <BentoCard
-              name="Team Management"
-              className="lg:col-span-2 lg:row-span-1"
-              background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
-              Icon={Layers}
-              description="Monitor team performance, set targets, and manage customer assignments across your organization."
-              href="/admin"
-              cta="Admin Dashboard"
-            />
-          </BentoGrid>
         </div>
       )}
 
