@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { ArrowRightIcon } from "@radix-ui/react-icons";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 const BentoGrid = ({
   children,
@@ -40,18 +39,20 @@ const BentoCard = ({
   href: string;
   cta: string;
 }) => (
-  <div
-    key={name}
+  <a
+    href={href}
     className={cn(
-      "group relative col-span-3 flex flex-col justify-between overflow-hidden rounded-xl",
-      "bg-card border border-border",
+      "group relative col-span-3 flex flex-col justify-between overflow-hidden rounded-xl cursor-pointer",
+      "bg-card border border-border hover-elevate",
       "transform-gpu dark:bg-card dark:border-border",
+      "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
       className,
     )}
+    data-testid={`bento-card-${name.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <div>{background}</div>
-    <div className="pointer-events-none z-10 flex transform-gpu flex-col gap-1 p-6 transition-all duration-300 group-hover:-translate-y-10">
-      <Icon className="h-12 w-12 origin-left transform-gpu text-primary transition-all duration-300 ease-in-out group-hover:scale-75" />
+    <div className="z-10 flex transform-gpu flex-col gap-1 p-6 transition-all duration-300 group-hover:-translate-y-2">
+      <Icon className="h-12 w-12 origin-left transform-gpu text-primary transition-all duration-300 ease-in-out group-hover:scale-90" />
       <h3 className="text-xl font-semibold text-foreground">
         {name}
       </h3>
@@ -60,18 +61,16 @@ const BentoCard = ({
 
     <div
       className={cn(
-        "pointer-events-none absolute bottom-0 flex w-full translate-y-10 transform-gpu flex-row items-center p-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100",
+        "absolute bottom-0 flex w-full transform-gpu flex-row items-center p-4 transition-all duration-300",
       )}
     >
-      <Button variant="ghost" asChild size="sm" className="pointer-events-auto text-primary hover:text-primary">
-        <a href={href}>
-          {cta}
-          <ArrowRightIcon className="ml-2 h-4 w-4" />
-        </a>
-      </Button>
+      <span className="inline-flex items-center text-sm font-medium text-primary">
+        {cta}
+        <ArrowRightIcon className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+      </span>
     </div>
     <div className="pointer-events-none absolute inset-0 transform-gpu transition-all duration-300 group-hover:bg-primary/[.03] group-hover:dark:bg-primary/[.05]" />
-  </div>
+  </a>
 );
 
 export { BentoCard, BentoGrid };

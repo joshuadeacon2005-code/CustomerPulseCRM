@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { Segment, Customer } from "@shared/schema";
-import { Target, Users, TrendingUp, ArrowRight, Download, Filter, Plus, X } from "lucide-react";
+import { Target, Users, TrendingUp, ArrowRight, Download, Filter, Plus, X, Star, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -75,13 +76,11 @@ export default function Segments() {
       });
     }
 
-    if (dynamicFilter.hasInteractions !== undefined) {
-      filtered = filtered.filter(c => 
-        dynamicFilter.hasInteractions 
-          ? c.interactions && c.interactions.length > 0
-          : !c.interactions || c.interactions.length === 0
-      );
-    }
+    // Note: interactions are fetched separately, not on customer object
+    // This filter is disabled as customer objects don't have interactions property
+    // if (dynamicFilter.hasInteractions !== undefined) {
+    //   filtered = filtered.filter(c => dynamicFilter.hasInteractions);
+    // }
 
     if (dynamicFilter.country && dynamicFilter.country.length > 0) {
       filtered = filtered.filter(c => 
@@ -93,7 +92,7 @@ export default function Segments() {
   }, [customers, dynamicFilter]);
 
   const countries = useMemo(() => {
-    return Array.from(new Set(customers.map(c => c.country).filter(Boolean))).sort();
+    return Array.from(new Set(customers.map(c => c.country).filter((c): c is string => c !== null))).sort();
   }, [customers]);
 
   const handleExportSegment = () => {
@@ -155,6 +154,15 @@ export default function Segments() {
       </div>
     );
   }
+
+  // Calculate segment stats
+  const highValueCustomers = customers.filter(c => Number(c.quarterlySoftTargetBaseCurrency) >= 10000);
+  const recentCustomers = customers.filter(c => c.stage === 'customer');
+  const needsFollowUp = customers.filter(c => {
+    if (!c.lastContactDate) return true;
+    return differenceInDays(new Date(), new Date(c.lastContactDate)) >= 14;
+  });
+  const atRiskLeads = customers.filter(c => c.stage === 'lead' && (!c.lastContactDate || differenceInDays(new Date(), new Date(c.lastContactDate)) >= 30));
 
   return (
     <div className="space-y-8 p-6">
@@ -333,6 +341,37 @@ export default function Segments() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Segment Overview - Bento Grid */}
+      <BentoGrid className="lg:grid-rows-1 auto-rows-[10rem]">
+        <BentoCard
+          name="High Value"
+          className="lg:col-span-1"
+          background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
+          Icon={Star}
+          description={`${highValueCustomers.length} customers with $10K+ quarterly targets`}
+          href="/customers?filter=high-value"
+          cta="View Customers"
+        />
+        <BentoCard
+          name="Active Customers"
+          className="lg:col-span-1"
+          background={<div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10" />}
+          Icon={Users}
+          description={`${recentCustomers.length} customers currently active in your portfolio`}
+          href="/customers?stage=customer"
+          cta="View All"
+        />
+        <BentoCard
+          name="Needs Follow-up"
+          className="lg:col-span-1"
+          background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
+          Icon={Clock}
+          description={`${needsFollowUp.length} customers not contacted in 14+ days`}
+          href="/customers?filter=follow-up"
+          cta="Follow Up"
+        />
+      </BentoGrid>
 
       {segments && segments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2">
