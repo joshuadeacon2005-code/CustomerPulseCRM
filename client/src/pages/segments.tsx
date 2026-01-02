@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { Segment, Customer } from "@shared/schema";
 import { Target, Users, TrendingUp, ArrowRight, Download, Filter, Plus, X, Star, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
@@ -141,13 +140,18 @@ export default function Segments() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 p-6">
+      <div className="space-y-6 p-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
         <div className="grid gap-6 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2].map((i) => (
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
@@ -165,11 +169,11 @@ export default function Segments() {
   const atRiskLeads = customers.filter(c => c.stage === 'lead' && (!c.lastContactDate || differenceInDays(new Date(), new Date(c.lastContactDate)) >= 30));
 
   return (
-    <div className="space-y-8 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-segments-title">Customer Segments</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold" data-testid="text-segments-title">Customer Segments</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             View and manage customer segments with dynamic filtering
           </p>
         </div>
@@ -342,36 +346,51 @@ export default function Segments() {
         </Dialog>
       </div>
 
-      {/* Segment Overview - Bento Grid */}
-      <BentoGrid className="lg:grid-rows-1 auto-rows-[10rem]">
-        <BentoCard
-          name="High Value"
-          className="lg:col-span-1"
-          background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
-          Icon={Star}
-          description={`${highValueCustomers.length} customers with $10K+ quarterly targets`}
-          href="/customers?filter=high-value"
-          cta="View Customers"
-        />
-        <BentoCard
-          name="Active Customers"
-          className="lg:col-span-1"
-          background={<div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10" />}
-          Icon={Users}
-          description={`${recentCustomers.length} customers currently active in your portfolio`}
-          href="/customers?stage=customer"
-          cta="View All"
-        />
-        <BentoCard
-          name="Needs Follow-up"
-          className="lg:col-span-1"
-          background={<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10" />}
-          Icon={Clock}
-          description={`${needsFollowUp.length} customers not contacted in 14+ days`}
-          href="/customers?filter=follow-up"
-          cta="Follow Up"
-        />
-      </BentoGrid>
+      {/* Segment Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="hover-elevate relative overflow-visible">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Star className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{highValueCustomers.length}</p>
+                <p className="text-xs text-muted-foreground">High Value ($10K+)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover-elevate relative overflow-visible">
+          <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-secondary/10">
+                <Users className="h-4 w-4 text-secondary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{recentCustomers.length}</p>
+                <p className="text-xs text-muted-foreground">Active Customers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover-elevate relative overflow-visible">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
+          <CardContent className="relative p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Clock className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{needsFollowUp.length}</p>
+                <p className="text-xs text-muted-foreground">Needs Follow-up (14+ days)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {segments && segments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2">
