@@ -580,6 +580,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/action-items/:id", isAuthenticated, async (req, res) => {
+    try {
+      const updates = req.body;
+      const actionItem = await storage.updateActionItem(req.params.id, updates);
+      if (!actionItem) {
+        return res.status(404).json({ error: "Action item not found" });
+      }
+      res.json(actionItem);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update action item" });
+    }
+  });
+
   app.patch("/api/action-items/:id/complete", isAuthenticated, async (req, res) => {
     try {
       const actionItem = await storage.completeActionItem(req.params.id);

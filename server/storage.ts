@@ -120,6 +120,7 @@ export interface IStorage {
   getActionItems(userId: string, userRole: UserRole, filter?: "all" | "overdue" | "today" | "upcoming"): Promise<ActionItemWithCustomer[]>;
   getActionItemsByCustomer(customerId: string): Promise<ActionItem[]>;
   createActionItem(item: InsertActionItem): Promise<ActionItem>;
+  updateActionItem(id: string, updates: Partial<ActionItem>): Promise<ActionItem | undefined>;
   completeActionItem(id: string): Promise<ActionItem | undefined>;
 
   getCustomerMonthlyTargets(customerId: string): Promise<CustomerMonthlyTarget[]>;
@@ -795,6 +796,15 @@ export class DatabaseStorage implements IStorage {
 
   async createActionItem(itemData: InsertActionItem): Promise<ActionItem> {
     const [item] = await db.insert(actionItems).values(itemData).returning();
+    return item;
+  }
+
+  async updateActionItem(id: string, updates: Partial<ActionItem>): Promise<ActionItem | undefined> {
+    const [item] = await db
+      .update(actionItems)
+      .set(updates)
+      .where(eq(actionItems.id, id))
+      .returning();
     return item;
   }
 
