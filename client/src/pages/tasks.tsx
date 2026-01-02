@@ -46,6 +46,7 @@ import Papa from "papaparse";
 const formSchema = insertActionItemSchema.omit({
   createdBy: true,
 }).extend({
+  customerId: z.string().min(1, "Please select a customer"),
   dueDate: z.date().optional().nullable(),
   visitDate: z.date().optional().nullable(),
 });
