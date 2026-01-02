@@ -254,10 +254,14 @@ export default function Customers() {
         description: "The customer has been successfully added.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      let errorMessage = "Failed to add customer. Please try again.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
       toast({
-        title: "Error",
-        description: "Failed to add customer. Please try again.",
+        title: "Error adding customer",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -274,10 +278,14 @@ export default function Customers() {
         description: "The customer has been successfully updated.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      let errorMessage = "Failed to update customer. Please try again.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
       toast({
-        title: "Error",
-        description: "Failed to update customer. Please try again.",
+        title: "Error updating customer",
+        description: errorMessage,
         variant: "destructive",
       });
     },

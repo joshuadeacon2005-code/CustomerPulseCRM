@@ -130,12 +130,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(201).json(customer);
-    } catch (error) {
-      if (error instanceof Error && 'issues' in error) {
-        return res.status(400).json({ error: "Invalid customer data", details: error });
+    } catch (error: any) {
+      if (error?.issues) {
+        // Zod validation error - extract specific field errors
+        const fieldErrors = error.issues.map((issue: any) => {
+          const field = issue.path?.join('.') || 'unknown';
+          return `${field}: ${issue.message}`;
+        }).join('; ');
+        return res.status(400).json({ 
+          error: `Validation failed: ${fieldErrors}`,
+          details: error.issues 
+        });
       }
       console.error("Error creating customer:", error);
-      res.status(500).json({ error: "Failed to create customer" });
+      res.status(500).json({ error: "Failed to create customer. Please check all required fields." });
     }
   });
 
@@ -572,11 +580,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const actionItem = await storage.createActionItem(validatedData);
       res.status(201).json(actionItem);
-    } catch (error) {
-      if (error instanceof Error && 'issues' in error) {
-        return res.status(400).json({ error: "Invalid action item data", details: error });
+    } catch (error: any) {
+      if (error?.issues) {
+        // Zod validation error - extract specific field errors
+        const fieldErrors = error.issues.map((issue: any) => {
+          const field = issue.path?.join('.') || 'unknown';
+          return `${field}: ${issue.message}`;
+        }).join('; ');
+        return res.status(400).json({ 
+          error: `Validation failed: ${fieldErrors}`,
+          details: error.issues 
+        });
       }
-      res.status(500).json({ error: "Failed to create action item" });
+      res.status(500).json({ error: "Failed to create action item. Please check all required fields." });
     }
   });
 

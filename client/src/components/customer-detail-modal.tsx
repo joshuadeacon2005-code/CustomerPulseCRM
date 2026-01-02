@@ -268,11 +268,16 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
       setIsAddingActionItem(false);
       toast({ title: "Action item created" });
     },
-    onError: () => {
-      toast({ title: "Failed to create action item", variant: "destructive" });
+    onError: (error: any) => {
+      let errorMessage = "Failed to create action item. Please check all required fields.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
     },
   });
 
