@@ -28,7 +28,8 @@ const upload = multer({
     if (allowedMimeTypes.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls)$/)) {
       cb(null, true);
     } else {
-      cb(new Error('Only Excel files are allowed'));
+      // Reject invalid file types - multer will pass the error to the route handler
+      (cb as any)(new Error('Invalid file type'), false);
     }
   }
 });
@@ -108,6 +109,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertCustomerSchema.parse(customerPayload);
       
+      // Check for duplicate customer (same name + region/country)
+      const allCustomers = await storage.getCustomers(req.user!.id, 'ceo');
+      const duplicate = allCustomers.find(c => 
+        c.name.toLowerCase().trim() === validatedData.name.toLowerCase().trim() &&
+        c.country?.toLowerCase().trim() === validatedData.country?.toLowerCase().trim()
+      );
+      
+      if (duplicate) {
+        return res.status(409).json({ 
+          error: 'Customer with this name and region already exists',
+          existingCustomerId: duplicate.id
+        });
+      }
+      
       // Use provided assignedTo if present, otherwise assign to current user
       const customerData = {
         ...validatedData,
@@ -157,10 +172,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Customer not found" });
       }
       res.json(customer);
-    } catch (error) {
-      if (error instanceof Error && 'issues' in error) {
-        return res.status(400).json({ error: "Invalid customer data", details: error });
+    } catch (error: any) {
+      if (error?.issues) {
+        // Zod validation error - extract specific field errors
+        const fieldErrors = error.issues.map((issue: any) => {
+          const field = issue.path?.join('.') || 'unknown';
+          return `${field}: ${issue.message}`;
+        }).join('; ');
+        return res.status(400).json({ 
+          error: `Validation failed: ${fieldErrors}`,
+          details: error.issues 
+        });
       }
+      console.error("Error updating customer:", error);
       res.status(500).json({ error: "Failed to update customer" });
     }
   });
