@@ -705,7 +705,8 @@ export class DatabaseStorage implements IStorage {
     if (userRole === "sales_director" || userRole === "marketing_director" || userRole === "ceo") {
       const allCustomers = await db.select().from(customers);
       allowedCustomerIds = allCustomers.map(c => c.id);
-    } else if (userRole === "manager") {
+    } else if (userRole === "manager" || userRole === "regional_manager") {
+      // Managers and regional managers: include own customers + team members' customers
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
       const allUserIds = [userId, ...teamMemberIds];
@@ -716,11 +717,19 @@ export class DatabaseStorage implements IStorage {
         .where(inArray(customers.assignedTo, allUserIds));
       allowedCustomerIds = teamCustomers.map(c => c.id);
     } else {
-      const ownCustomers = await db
+      // For salespeople and other roles: include own customers + any team members' customers
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+      const allUserIds = [userId, ...teamMemberIds];
+      
+      const userCustomers = await db
         .select()
         .from(customers)
-        .where(eq(customers.assignedTo, userId));
-      allowedCustomerIds = ownCustomers.map(c => c.id);
+        .where(inArray(customers.assignedTo, allUserIds));
+      
+      // Use Set to avoid duplicates
+      const customerIdSet = new Set(userCustomers.map(c => c.id));
+      allowedCustomerIds = Array.from(customerIdSet);
     }
 
     if (allowedCustomerIds.length === 0) {
