@@ -632,6 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         ...(req.body.dueDate !== undefined && { dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null }),
         ...(req.body.visitDate !== undefined && { visitDate: req.body.visitDate ? new Date(req.body.visitDate) : null }),
+        ...(req.body.completedAt !== undefined && { completedAt: req.body.completedAt ? new Date(req.body.completedAt) : null }),
       };
       const actionItem = await storage.updateActionItem(req.params.id, updates);
       if (!actionItem) {
