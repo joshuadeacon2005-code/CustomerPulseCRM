@@ -35,6 +35,29 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  // Mutation to toggle action item status
+  const toggleActionItemMutation = useMutation({
+    mutationFn: async ({ itemId, completed }: { itemId: string; completed: boolean }) => {
+      return apiRequest('PATCH', `/api/action-items/${itemId}`, {
+        completedAt: completed ? new Date().toISOString() : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
+      toast({
+        title: "Success",
+        description: "Action item updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update action item",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Determine which user's data to show (for managers/CEOs viewing team member dashboards)
   const effectiveUserId = selectedUserId || user?.id;
@@ -990,15 +1013,27 @@ export default function Dashboard() {
                     data-testid={`action-item-${item.id}`}
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      {item.completedAt ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      ) : isOverdue ? (
-                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                      ) : isDueToday ? (
-                        <Circle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0"
+                        onClick={() => toggleActionItemMutation.mutate({ 
+                          itemId: item.id, 
+                          completed: !item.completedAt 
+                        })}
+                        disabled={toggleActionItemMutation.isPending}
+                        data-testid={`button-toggle-action-${item.id}`}
+                      >
+                        {item.completedAt ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        ) : isOverdue ? (
+                          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        ) : isDueToday ? (
+                          <Circle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        )}
+                      </Button>
                       
                       <div className="flex-1 min-w-0">
                         <p className={`font-medium ${item.completedAt ? 'line-through text-muted-foreground' : ''}`}>
