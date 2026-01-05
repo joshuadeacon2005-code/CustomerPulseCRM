@@ -598,10 +598,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/action-items", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertActionItemSchema.parse({
+      // Convert date strings to Date objects before validation
+      const bodyWithDates = {
         ...req.body,
         createdBy: req.user!.id,
-      });
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+        visitDate: req.body.visitDate ? new Date(req.body.visitDate) : undefined,
+      };
+      
+      const validatedData = insertActionItemSchema.parse(bodyWithDates);
       const actionItem = await storage.createActionItem(validatedData);
       res.status(201).json(actionItem);
     } catch (error: any) {
@@ -622,7 +627,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/action-items/:id", isAuthenticated, async (req, res) => {
     try {
-      const updates = req.body;
+      // Convert date strings to Date objects if present
+      const updates = {
+        ...req.body,
+        ...(req.body.dueDate !== undefined && { dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null }),
+        ...(req.body.visitDate !== undefined && { visitDate: req.body.visitDate ? new Date(req.body.visitDate) : null }),
+      };
       const actionItem = await storage.updateActionItem(req.params.id, updates);
       if (!actionItem) {
         return res.status(404).json({ error: "Action item not found" });
