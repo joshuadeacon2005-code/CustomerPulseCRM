@@ -596,16 +596,17 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Historical Months */}
-        <div className="mt-4">
-          <Link href="/targets">
-            <Button variant="outline" size="sm" data-testid="button-view-historical">
-              <Calendar className="h-4 w-4 mr-2" />
-              View Historical & Future Months
-            </Button>
-          </Link>
-        </div>
       </div>
+
+      {/* Personal Targets Widget - Show monthly targets with progress */}
+      {isViewingOwnDashboard && (
+        <PersonalTargetsWidget 
+          monthlyTargets={monthlyTargets}
+          monthlySales={monthlySales}
+          userCustomerIds={userCustomerIds}
+          effectiveUserId={effectiveUserId}
+        />
+      )}
 
       {/* AI Sales Forecast Widget - Only show for own dashboard */}
       {isViewingOwnDashboard && (
@@ -1102,5 +1103,245 @@ export default function Dashboard() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Personal Targets Widget Component
+function PersonalTargetsWidget({
+  monthlyTargets,
+  monthlySales,
+  userCustomerIds,
+  effectiveUserId,
+}: {
+  monthlyTargets: MonthlyTarget[];
+  monthlySales: MonthlySalesTracking[];
+  userCustomerIds: string[];
+  effectiveUserId: string | undefined;
+}) {
+  const { toast } = useToast();
+  const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
+  const [targetAmount, setTargetAmount] = useState<string>("");
+
+  // Generate array of months to show (current month + next 5 months)
+  const today = new Date();
+  const monthsToShow = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    return {
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+      label: format(date, 'MMM yyyy'),
+      isCurrentMonth: i === 0,
+    };
+  });
+
+  // Create/update target mutation
+  const saveTargetMutation = useMutation({
+    mutationFn: async ({ month, year, amount }: { month: number; year: number; amount: number }) => {
+      const existingTarget = monthlyTargets.find(
+        t => t.month === month && t.year === year && t.salesmanId === effectiveUserId && t.targetType === 'personal'
+      );
+      
+      if (existingTarget) {
+        return apiRequest('PATCH', `/api/targets/${existingTarget.id}`, {
+          targetAmount: amount.toString(),
+        });
+      } else {
+        return apiRequest('POST', '/api/targets', {
+          month,
+          year,
+          targetAmount: amount.toString(),
+          salesmanId: effectiveUserId,
+          targetType: 'personal',
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/targets'] });
+      setEditingMonth(null);
+      setTargetAmount("");
+      toast({
+        title: "Target saved",
+        description: "Your monthly target has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save target. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveTarget = (month: number, year: number) => {
+    const amount = parseFloat(targetAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid target amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveTargetMutation.mutate({ month, year, amount });
+  };
+
+  return (
+    <Card data-testid="card-personal-targets">
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <TargetIcon className="h-5 w-5 text-primary" />
+            <CardTitle>My Personal Targets</CardTitle>
+          </div>
+          <Link href="/targets">
+            <Button variant="outline" size="sm" data-testid="button-manage-targets">
+              Manage All Targets
+            </Button>
+          </Link>
+        </div>
+        <CardDescription>Set and track your monthly sales goals</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {monthsToShow.map(({ month, year, label, isCurrentMonth }) => {
+            const target = monthlyTargets.find(
+              t => t.month === month && t.year === year && 
+                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+            );
+            
+            // Calculate actual sales for this month
+            const monthSales = monthlySales.filter(
+              s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
+            );
+            const actualSales = monthSales.reduce(
+              (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
+            );
+            
+            const targetAmt = target ? Number(target.targetAmount) : 0;
+            const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
+            const isEditing = editingMonth?.month === month && editingMonth?.year === year;
+            
+            return (
+              <Card 
+                key={`${month}-${year}`} 
+                className={`${isCurrentMonth ? 'border-primary/50 bg-primary/5' : ''}`}
+                data-testid={`card-target-${month}-${year}`}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{label}</p>
+                      {isCurrentMonth && (
+                        <Badge variant="secondary" className="text-xs mt-1">Current</Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                          <input
+                            type="number"
+                            value={targetAmount}
+                            onChange={(e) => setTargetAmount(e.target.value)}
+                            placeholder="0"
+                            className="w-full pl-7 pr-3 py-2 border rounded-md text-sm"
+                            autoFocus
+                            data-testid={`input-target-${month}-${year}`}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveTarget(month, year)}
+                          disabled={saveTargetMutation.isPending}
+                          data-testid={`button-save-target-${month}-${year}`}
+                        >
+                          {saveTargetMutation.isPending ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setEditingMonth(null);
+                            setTargetAmount("");
+                          }}
+                          data-testid={`button-cancel-target-${month}-${year}`}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {targetAmt > 0 ? (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <div>
+                              <span className="text-2xl font-bold">${actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              <span className="text-muted-foreground text-sm"> / ${targetAmt.toLocaleString()}</span>
+                            </div>
+                            <span className={`text-sm font-medium ${
+                              progress >= 100 ? 'text-green-600 dark:text-green-400' :
+                              progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
+                              progress >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                              'text-red-600 dark:text-red-400'
+                            }`}>
+                              {Math.round(progress)}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                progress >= 100 ? 'bg-green-600' :
+                                progress >= 75 ? 'bg-blue-600' :
+                                progress >= 50 ? 'bg-amber-600' :
+                                'bg-red-600'
+                              }`}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="w-full"
+                            onClick={() => {
+                              setEditingMonth({ month, year });
+                              setTargetAmount(targetAmt.toString());
+                            }}
+                            data-testid={`button-edit-target-${month}-${year}`}
+                          >
+                            Edit Target
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="text-center py-2">
+                          <p className="text-sm text-muted-foreground mb-2">No target set</p>
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              setEditingMonth({ month, year });
+                              setTargetAmount("");
+                            }}
+                            data-testid={`button-set-target-${month}-${year}`}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Set Target
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
