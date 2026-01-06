@@ -786,7 +786,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let validatedData = insertMonthlySalesTrackingSchemaRefined.parse(req.body);
       
-      // Validate and auto-calculate base amounts for actual if actualCurrency is provided
+      // Ensure budgetCurrency defaults to USD if not provided
+      if (!validatedData.budgetCurrency) {
+        validatedData = { ...validatedData, budgetCurrency: "USD" };
+      }
+      
+      // Validate and auto-calculate base amounts for actual if actualCurrency and actual are provided
       if (validatedData.actualCurrency && validatedData.actual) {
         const calculatedBaseActual = await validateAndConvertToBase(
           Number(validatedData.actual),
@@ -805,17 +810,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Validate and auto-calculate base amounts for budget if budgetCurrency is provided
-      if (validatedData.budgetCurrency && validatedData.budget) {
+      // Always calculate base amount for budget (required field)
+      if (validatedData.budget) {
+        const budgetCurrency = validatedData.budgetCurrency || "USD";
         const calculatedBaseBudget = await validateAndConvertToBase(
           Number(validatedData.budget),
-          validatedData.budgetCurrency
+          budgetCurrency
         );
         
         if (validatedData.budgetBaseCurrencyAmount !== undefined) {
           validateBaseCurrencyAmount(
             Number(validatedData.budget),
-            validatedData.budgetCurrency,
+            budgetCurrency,
             Number(validatedData.budgetBaseCurrencyAmount),
             calculatedBaseBudget
           );
@@ -827,6 +833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthlySales = await storage.createMonthlySales(validatedData);
       res.status(201).json(monthlySales);
     } catch (error) {
+      console.error("Monthly sales creation error:", error);
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid monthly sales data", details: error });
       }
