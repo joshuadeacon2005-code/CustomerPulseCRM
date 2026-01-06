@@ -180,7 +180,7 @@ export interface IStorage {
 
   // Office assignment management
   getOfficeAssignments(officeId?: string): Promise<(OfficeAssignment & { userName?: string; officeName?: string })[]>;
-  getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string })[]>;
+  getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string; officeCurrency?: string })[]>;
   getOfficeUsers(officeId: string): Promise<(User & { roleType: string })[]>;
   assignUserToOffice(assignment: InsertOfficeAssignment): Promise<OfficeAssignment>;
   removeUserFromOffice(userId: string, officeId: string): Promise<boolean>;
@@ -1354,7 +1354,7 @@ export class DatabaseStorage implements IStorage {
     return enrichedAssignments;
   }
 
-  async getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string })[]> {
+  async getUserOfficeAssignments(userId: string): Promise<(OfficeAssignment & { officeName?: string; officeCurrency?: string })[]> {
     const assignments = await db
       .select()
       .from(officeAssignments)
@@ -1366,6 +1366,7 @@ export class DatabaseStorage implements IStorage {
         return {
           ...assignment,
           officeName: office?.name,
+          officeCurrency: office?.defaultCurrency,
         };
       })
     );

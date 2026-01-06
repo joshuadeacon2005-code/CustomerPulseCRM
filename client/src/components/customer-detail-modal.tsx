@@ -103,6 +103,7 @@ import { InteractionForm } from "./interaction-form";
 import { CustomerTargets } from "./customer-targets";
 import { AIInsightsPanel } from "./ai-insights-panel";
 import { ChurnRiskIndicator } from "./churn-risk-indicator";
+import { useAuth } from "@/hooks/useAuth";
 
 // Helper function to format structured address
 function formatStructuredAddress(address: CustomerAddress): string {
@@ -288,6 +289,16 @@ export function CustomerDetailModal({
   const [editingAddress, setEditingAddress] = useState<CustomerAddress | null>(null);
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Fetch user's office assignments to get their regional currency
+  const { data: userOfficeAssignments } = useQuery<Array<{ officeName?: string; officeCurrency?: string }>>({
+    queryKey: ['/api/office-assignments', user?.id],
+    enabled: open && !!user?.id,
+  });
+
+  // Get the user's office currency (first assignment's currency or default to USD)
+  const userOfficeCurrency = userOfficeAssignments?.[0]?.officeCurrency || "USD";
 
   const { data: allBrands } = useQuery<Brand[]>({
     queryKey: ['/api/brands'],
@@ -1225,6 +1236,7 @@ export function CustomerDetailModal({
                     onSubmit={(data) => createMonthlySalesMutation.mutate(data)}
                     onCancel={() => setIsAddingSales(false)}
                     isLoading={createMonthlySalesMutation.isPending}
+                    defaultCurrency={userOfficeCurrency}
                   />
                 </CardContent>
               </Card>
@@ -1785,11 +1797,13 @@ function MonthlySalesForm({
   onSubmit,
   onCancel,
   isLoading,
+  defaultCurrency = "USD",
 }: {
   customerId: string;
   onSubmit: (data: InsertMonthlySalesTracking) => void;
   onCancel: () => void;
   isLoading: boolean;
+  defaultCurrency?: string;
 }) {
   const form = useForm<InsertMonthlySalesTracking>({
     resolver: zodResolver(insertMonthlySalesTrackingSchema),
@@ -1799,6 +1813,8 @@ function MonthlySalesForm({
       year: new Date().getFullYear(),
       budget: '',
       actual: '',
+      budgetCurrency: defaultCurrency as "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR",
+      actualCurrency: defaultCurrency as "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR",
     },
   });
 
@@ -1852,6 +1868,32 @@ function MonthlySalesForm({
             )}
           />
         </div>
+        <FormField
+          control={form.control}
+          name="budgetCurrency"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Currency</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="USD">USD - US Dollar</SelectItem>
+                  <SelectItem value="HKD">HKD - Hong Kong Dollar</SelectItem>
+                  <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                  <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                  <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                  <SelectItem value="IDR">IDR - Indonesian Rupiah</SelectItem>
+                  <SelectItem value="MYR">MYR - Malaysian Ringgit</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}

@@ -245,6 +245,7 @@ export const offices = pgTable("offices", {
   code: text("code").notNull().unique(),
   region: text("region"),
   country: text("country"),
+  defaultCurrency: text("default_currency").notNull().default("USD"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

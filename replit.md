@@ -49,6 +49,7 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
     - **Office-Based Data Visibility**: Customers can be assigned to offices; managers and salesmen see customers from their assigned offices
     - **Admin UI**: "Offices" tab in Admin Dashboard for viewing offices, assigned users, and managing assignments
     - **Customer Linking**: Customers have an optional `officeId` field to link them to specific offices
+    - **Regional Default Currency**: Each office has a default currency (HKD, SGD, CNY, AUD, IDR, MYR, USD) that automatically sets the currency for new sales records created by users assigned to that office
 - **Homepage Dashboard**: Role-based productivity dashboard (`/dashboard`) featuring:
     - **Today's Priorities**: Banners for overdue tasks, today's tasks, and follow-up reminders.
     - **Quick Action Button**: Floating "+" button for common actions like logging interactions or adding customers.
