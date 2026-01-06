@@ -155,7 +155,98 @@ const stageColors = {
   lead: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+  at_risk: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
+
+const CUSTOMER_STAGES = [
+  { value: "lead", label: "Lead", color: "bg-blue-500", lightColor: "bg-blue-100 dark:bg-blue-900/30" },
+  { value: "prospect", label: "Prospect", color: "bg-amber-500", lightColor: "bg-amber-100 dark:bg-amber-900/30" },
+  { value: "customer", label: "Customer", color: "bg-green-500", lightColor: "bg-green-100 dark:bg-green-900/30" },
+  { value: "at_risk", label: "At Risk", color: "bg-red-500", lightColor: "bg-red-100 dark:bg-red-900/30" },
+] as const;
+
+interface StageSliderProps {
+  currentStage: string;
+  onStageChange: (stage: string) => void;
+  isUpdating?: boolean;
+}
+
+function StageSlider({ currentStage, onStageChange, isUpdating }: StageSliderProps) {
+  const currentIndex = CUSTOMER_STAGES.findIndex(s => s.value === currentStage);
+  
+  return (
+    <div className="w-full py-3" data-testid="stage-slider">
+      <div className="relative">
+        {/* Progress bar background */}
+        <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted rounded-full -translate-y-1/2" />
+        
+        {/* Progress bar fill */}
+        <div 
+          className="absolute top-1/2 left-0 h-1 rounded-full -translate-y-1/2 transition-all duration-300"
+          style={{ 
+            width: `${(currentIndex / (CUSTOMER_STAGES.length - 1)) * 100}%`,
+            background: currentIndex === 3 
+              ? 'linear-gradient(to right, #3b82f6, #f59e0b, #22c55e, #ef4444)' 
+              : currentIndex === 2 
+                ? 'linear-gradient(to right, #3b82f6, #f59e0b, #22c55e)'
+                : currentIndex === 1
+                  ? 'linear-gradient(to right, #3b82f6, #f59e0b)'
+                  : '#3b82f6'
+          }}
+        />
+        
+        {/* Stage points */}
+        <div className="relative flex justify-between">
+          {CUSTOMER_STAGES.map((stage, index) => {
+            const isActive = stage.value === currentStage;
+            const isPast = index < currentIndex;
+            
+            return (
+              <button
+                key={stage.value}
+                onClick={() => !isUpdating && onStageChange(stage.value)}
+                disabled={isUpdating}
+                className={cn(
+                  "relative flex flex-col items-center group transition-all duration-200",
+                  isUpdating && "cursor-not-allowed opacity-50"
+                )}
+                data-testid={`stage-button-${stage.value}`}
+              >
+                {/* Circle indicator */}
+                <div 
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300",
+                    isActive 
+                      ? `${stage.color} border-white shadow-lg scale-110` 
+                      : isPast 
+                        ? `${stage.color} border-white/50`
+                        : "bg-muted border-muted-foreground/20 group-hover:border-muted-foreground/40"
+                  )}
+                >
+                  {(isActive || isPast) && (
+                    <Check className="h-4 w-4 text-white" />
+                  )}
+                </div>
+                
+                {/* Label */}
+                <span 
+                  className={cn(
+                    "mt-2 text-xs font-medium transition-all duration-200",
+                    isActive 
+                      ? "text-foreground" 
+                      : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
+                  {stage.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const categoryIcons = {
   marketing: MailIcon,
@@ -254,6 +345,20 @@ export function CustomerDetailModal({
     },
     onError: () => {
       toast({ title: "Failed to complete action item", variant: "destructive" });
+    },
+  });
+
+  const updateStageMutation = useMutation({
+    mutationFn: async (stage: string) => {
+      return await apiRequest('PATCH', `/api/customers/${customer?.id}`, { stage });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      toast({ title: "Customer stage updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update stage", variant: "destructive" });
     },
   });
 
@@ -454,14 +559,6 @@ export function CustomerDetailModal({
                   </div>
                 )}
                 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`${stageColors[customer.stage as keyof typeof stageColors]} uppercase`}
-                  >
-                    {customer.stage}
-                  </Badge>
-                </div>
               </div>
             </div>
             {!isEditing && (
@@ -580,6 +677,17 @@ export function CustomerDetailModal({
             )}
           </div>
         </DialogHeader>
+
+        {/* Stage Slider */}
+        {!isEditing && (
+          <div className="mt-4 px-2">
+            <StageSlider 
+              currentStage={customer.stage}
+              onStageChange={(stage) => updateStageMutation.mutate(stage)}
+              isUpdating={updateStageMutation.isPending}
+            />
+          </div>
+        )}
 
         <Tabs defaultValue="overview" className="mt-6">
           <TabsList className="grid w-full grid-cols-4">

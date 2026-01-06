@@ -555,6 +555,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     <SelectItem value="lead">Lead</SelectItem>
                     <SelectItem value="prospect">Prospect</SelectItem>
                     <SelectItem value="customer">Customer</SelectItem>
+                    <SelectItem value="at_risk">At Risk</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
