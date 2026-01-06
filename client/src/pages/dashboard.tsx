@@ -376,6 +376,16 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* Personal Targets Widget - Show monthly targets with progress */}
+      {isViewingOwnDashboard && (
+        <PersonalTargetsWidget 
+          monthlyTargets={monthlyTargets}
+          monthlySales={monthlySales}
+          userCustomerIds={userCustomerIds}
+          effectiveUserId={effectiveUserId}
+        />
+      )}
+
       {/* Quick Actions - Only show for own dashboard */}
       {isViewingOwnDashboard && (
         <div>
@@ -597,16 +607,6 @@ export default function Dashboard() {
         </div>
 
       </div>
-
-      {/* Personal Targets Widget - Show monthly targets with progress */}
-      {isViewingOwnDashboard && (
-        <PersonalTargetsWidget 
-          monthlyTargets={monthlyTargets}
-          monthlySales={monthlySales}
-          userCustomerIds={userCustomerIds}
-          effectiveUserId={effectiveUserId}
-        />
-      )}
 
       {/* AI Sales Forecast Widget - Only show for own dashboard */}
       {isViewingOwnDashboard && (
