@@ -19,7 +19,8 @@ import {
   TrendingUp,
   TrendingDown,
   Building2,
-  Filter
+  Filter,
+  X
 } from "lucide-react";
 import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
@@ -1203,7 +1204,7 @@ function PersonalTargetsWidget({
         <CardDescription>Set and track your monthly sales goals</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
           {monthsToShow.map(({ month, year, label, isCurrentMonth }) => {
             const target = monthlyTargets.find(
               t => t.month === month && t.year === year && 
@@ -1223,121 +1224,118 @@ function PersonalTargetsWidget({
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
             return (
-              <Card 
+              <div 
                 key={`${month}-${year}`} 
-                className={`${isCurrentMonth ? 'border-primary/50 bg-primary/5' : ''}`}
+                className={`rounded-lg border p-3 space-y-2 ${isCurrentMonth ? 'border-primary/50 bg-primary/5' : 'bg-card'}`}
                 data-testid={`card-target-${month}-${year}`}
               >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{label}</p>
-                      {isCurrentMonth && (
-                        <Badge variant="secondary" className="text-xs mt-1">Current</Badge>
-                      )}
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-medium text-sm">{label}</p>
+                  {isCurrentMonth && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Now</Badge>
+                  )}
+                </div>
+                
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                      <input
+                        type="number"
+                        value={targetAmount}
+                        onChange={(e) => setTargetAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full pl-5 pr-2 py-1.5 border rounded text-xs"
+                        autoFocus
+                        data-testid={`input-target-${month}-${year}`}
+                      />
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => handleSaveTarget(month, year)}
+                        disabled={saveTargetMutation.isPending}
+                        data-testid={`button-save-target-${month}-${year}`}
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="h-7 text-xs px-2"
+                        onClick={() => {
+                          setEditingMonth(null);
+                          setTargetAmount("");
+                        }}
+                        data-testid={`button-cancel-target-${month}-${year}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                          <input
-                            type="number"
-                            value={targetAmount}
-                            onChange={(e) => setTargetAmount(e.target.value)}
-                            placeholder="0"
-                            className="w-full pl-7 pr-3 py-2 border rounded-md text-sm"
-                            autoFocus
-                            data-testid={`input-target-${month}-${year}`}
+                ) : (
+                  <>
+                    {targetAmt > 0 ? (
+                      <div className="space-y-2">
+                        <div className="text-center">
+                          <div className="text-lg font-bold">${actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                          <div className="text-xs text-muted-foreground">/ ${targetAmt.toLocaleString()}</div>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all ${
+                              progress >= 100 ? 'bg-green-600' :
+                              progress >= 75 ? 'bg-blue-600' :
+                              progress >= 50 ? 'bg-amber-600' :
+                              'bg-red-600'
+                            }`}
+                            style={{ width: `${progress}%` }}
                           />
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleSaveTarget(month, year)}
-                          disabled={saveTargetMutation.isPending}
-                          data-testid={`button-save-target-${month}-${year}`}
-                        >
-                          {saveTargetMutation.isPending ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => {
-                            setEditingMonth(null);
-                            setTargetAmount("");
-                          }}
-                          data-testid={`button-cancel-target-${month}-${year}`}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {targetAmt > 0 ? (
-                        <>
-                          <div className="flex items-baseline justify-between">
-                            <div>
-                              <span className="text-2xl font-bold">${actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                              <span className="text-muted-foreground text-sm"> / ${targetAmt.toLocaleString()}</span>
-                            </div>
-                            <span className={`text-sm font-medium ${
-                              progress >= 100 ? 'text-green-600 dark:text-green-400' :
-                              progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
-                              progress >= 50 ? 'text-amber-600 dark:text-amber-400' :
-                              'text-red-600 dark:text-red-400'
-                            }`}>
-                              {Math.round(progress)}%
-                            </span>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full transition-all ${
-                                progress >= 100 ? 'bg-green-600' :
-                                progress >= 75 ? 'bg-blue-600' :
-                                progress >= 50 ? 'bg-amber-600' :
-                                'bg-red-600'
-                              }`}
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-medium ${
+                            progress >= 100 ? 'text-green-600 dark:text-green-400' :
+                            progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
+                            progress >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                            'text-red-600 dark:text-red-400'
+                          }`}>
+                            {Math.round(progress)}%
+                          </span>
                           <Button 
                             size="sm" 
                             variant="ghost" 
-                            className="w-full"
+                            className="h-6 text-xs px-2"
                             onClick={() => {
                               setEditingMonth({ month, year });
                               setTargetAmount(targetAmt.toString());
                             }}
                             data-testid={`button-edit-target-${month}-${year}`}
                           >
-                            Edit Target
-                          </Button>
-                        </>
-                      ) : (
-                        <div className="text-center py-2">
-                          <p className="text-sm text-muted-foreground mb-2">No target set</p>
-                          <Button 
-                            size="sm"
-                            onClick={() => {
-                              setEditingMonth({ month, year });
-                              setTargetAmount("");
-                            }}
-                            data-testid={`button-set-target-${month}-${year}`}
-                          >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Set Target
+                            Edit
                           </Button>
                         </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                      </div>
+                    ) : (
+                      <div className="text-center py-1">
+                        <p className="text-xs text-muted-foreground mb-1">No target</p>
+                        <Button 
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setEditingMonth({ month, year });
+                            setTargetAmount("");
+                          }}
+                          data-testid={`button-set-target-${month}-${year}`}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Set
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             );
           })}
         </div>
