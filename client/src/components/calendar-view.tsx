@@ -37,6 +37,7 @@ interface CalendarEvent {
     interactionType?: string;
     customerId?: string;
     customerName?: string;
+    scheduledTime?: string | null;
   };
 }
 
@@ -115,22 +116,25 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
       }
     });
 
-    // Add interactions as events
+    // Add scheduled interactions as events (only show those with scheduledDate)
     interactions.forEach(interaction => {
-      if (interaction.date) {
-        // Parse date as local date to avoid UTC shift issues
-        const interactionDate = startOfDay(parseISO(interaction.date.toString()));
+      if (interaction.scheduledDate) {
+        // Parse scheduled date as local date to avoid UTC shift issues
+        const scheduledDate = startOfDay(parseISO(interaction.scheduledDate.toString()));
         const customerName = customerMap.get(interaction.customerId);
+        // Include time in title if available
+        const timePrefix = interaction.scheduledTime ? `${interaction.scheduledTime} - ` : '';
         calendarEvents.push({
           id: `interaction-${interaction.id}`,
-          title: `${interaction.type}: ${customerName || 'Unknown'}`,
-          start: interactionDate,
-          end: interactionDate,
+          title: `${timePrefix}${interaction.type}: ${customerName || 'Unknown'}`,
+          start: scheduledDate,
+          end: scheduledDate,
           resource: {
             type: 'interaction',
             interactionType: interaction.type,
             customerId: interaction.customerId,
             customerName,
+            scheduledTime: interaction.scheduledTime,
           },
         });
       }
@@ -215,7 +219,7 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8b5cf6' }}></div>
-            <span className="text-muted-foreground">Interactions</span>
+            <span className="text-muted-foreground">Scheduled Meetings</span>
           </div>
         </div>
       </CardContent>
@@ -342,12 +346,13 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
                 <span className="font-medium">{selectedEvent?.resource.customerName}</span>
               </div>
 
-              {selectedInteraction.date && (
+              {selectedInteraction.scheduledDate && (
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Date:</span>
+                  <span className="text-muted-foreground">Scheduled:</span>
                   <span className="font-medium">
-                    {format(parseISO(selectedInteraction.date.toString()), 'PPP')}
+                    {format(parseISO(selectedInteraction.scheduledDate.toString()), 'PPP')}
+                    {selectedInteraction.scheduledTime && ` at ${selectedInteraction.scheduledTime}`}
                   </span>
                 </div>
               )}
