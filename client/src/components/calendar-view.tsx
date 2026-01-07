@@ -99,8 +99,11 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
     // Add action items as events
     actionItems.forEach(item => {
       if (item.dueDate) {
-        // Parse date string as local date to avoid UTC shift issues
-        const dueDate = startOfDay(parseISO(item.dueDate.toString()));
+        // Handle both Date objects and ISO strings from database
+        const dateValue = item.dueDate instanceof Date 
+          ? item.dueDate 
+          : parseISO(String(item.dueDate));
+        const dueDate = startOfDay(dateValue);
         calendarEvents.push({
           id: `action-${item.id}`,
           title: item.description,
@@ -119,8 +122,11 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
     // Add scheduled interactions as events (only show those with scheduledDate)
     interactions.forEach(interaction => {
       if (interaction.scheduledDate) {
-        // Parse scheduled date as local date to avoid UTC shift issues
-        const scheduledDate = startOfDay(parseISO(interaction.scheduledDate.toString()));
+        // Handle both Date objects and ISO strings from database
+        const dateValue = interaction.scheduledDate instanceof Date 
+          ? interaction.scheduledDate 
+          : parseISO(String(interaction.scheduledDate));
+        const scheduledDate = startOfDay(dateValue);
         const customerName = customerMap.get(interaction.customerId);
         // Include time in title if available
         const timePrefix = interaction.scheduledTime ? `${interaction.scheduledTime} - ` : '';
@@ -351,7 +357,12 @@ export function CalendarView({ actionItems, interactions, customers }: CalendarV
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Scheduled:</span>
                   <span className="font-medium">
-                    {format(parseISO(selectedInteraction.scheduledDate.toString()), 'PPP')}
+                    {format(
+                      selectedInteraction.scheduledDate instanceof Date 
+                        ? selectedInteraction.scheduledDate 
+                        : parseISO(String(selectedInteraction.scheduledDate)),
+                      'PPP'
+                    )}
                     {selectedInteraction.scheduledTime && ` at ${selectedInteraction.scheduledTime}`}
                   </span>
                 </div>
