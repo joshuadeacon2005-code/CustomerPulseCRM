@@ -6,6 +6,11 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as DbUser, insertUserSchema } from "@shared/schema";
+import {
+  authRateLimiter,
+  registrationRateLimiter,
+  logSecurityEvent,
+} from "./security";
 
 declare global {
   namespace Express {
@@ -73,12 +78,19 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  // Apply rate limiting to registration endpoint (3 attempts per hour per IP)
+  app.post("/api/register", registrationRateLimiter, async (req, res, next) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       
       const existingUser = await storage.getUserByUsername(validatedData.username);
       if (existingUser) {
+        // Log potential enumeration attempt
+        logSecurityEvent("auth_failure", {
+          type: "registration_username_exists",
+          username: validatedData.username,
+          ip: req.ip,
+        });
         return res.status(400).send("Username already exists");
       }
 
@@ -170,10 +182,18 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
+  // Apply strict rate limiting to login endpoint (5 attempts per minute)
+  app.post("/api/login", authRateLimiter, (req, res, next) => {
     passport.authenticate("local", (err: any, user: DbUser | false, info: any) => {
       if (err) return next(err);
       if (!user) {
+        // Log failed login attempt for security monitoring
+        logSecurityEvent("auth_failure", {
+          type: "login_failed",
+          username: req.body?.username,
+          ip: req.ip,
+          reason: info?.message || "Unknown",
+        });
         return res.status(401).send(info?.message || "Authentication failed");
       }
       

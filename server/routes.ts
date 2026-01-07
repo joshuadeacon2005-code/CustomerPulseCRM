@@ -8,6 +8,7 @@ import { z } from "zod";
 import * as XLSX from "xlsx";
 import multer from "multer";
 import OpenAI from "openai";
+import { aiRateLimiter, uploadRateLimiter, validateUuidParam, apiRateLimiter } from "./security";
 
 // Initialize OpenAI client with Replit AI Integrations
 const openai = new OpenAI({
@@ -76,7 +77,12 @@ function validateBaseCurrencyAmount(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication first (session, passport)
   setupAuth(app);
+  
+  // Apply general rate limiting AFTER auth so user-based limiting works
+  // This ensures req.user is populated for authenticated requests
+  app.use("/api", apiRateLimiter);
   
   app.get("/api/customers", isAuthenticated, async (req, res) => {
     try {
@@ -1767,8 +1773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Excel customer import endpoint
-  app.post("/api/customers/import", isAuthenticated, upload.single('file'), async (req, res) => {
+  // Excel customer import endpoint (rate limited: 10 uploads per hour)
+  app.post("/api/customers/import", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -2054,10 +2060,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Analysis Endpoints
+  // AI Analysis Endpoints (rate limited: 20 requests per minute)
   
   // Customer AI Insights
-  app.post("/api/ai/customer-insights/:customerId", isAuthenticated, async (req, res) => {
+  app.post("/api/ai/customer-insights/:customerId", isAuthenticated, aiRateLimiter, validateUuidParam("customerId"), async (req, res) => {
     try {
       const customerId = req.params.customerId;
       const customer = await storage.getCustomerWithDetails(customerId);
@@ -2155,8 +2161,8 @@ Be specific, data-driven, and focus on actionable insights.`;
     }
   });
 
-  // User Performance AI Summary
-  app.post("/api/ai/user-performance/:userId", isAuthenticated, async (req, res) => {
+  // User Performance AI Summary (rate limited)
+  app.post("/api/ai/user-performance/:userId", isAuthenticated, aiRateLimiter, validateUuidParam("userId"), async (req, res) => {
     try {
       const userId = req.params.userId;
       const currentUserRole = req.user!.role as UserRole;
@@ -2323,8 +2329,8 @@ Be professional, constructive, and data-driven.`;
     }
   });
 
-  // Sales Forecasting
-  app.get("/api/ai/sales-forecast", isAuthenticated, async (req, res) => {
+  // Sales Forecasting (rate limited)
+  app.get("/api/ai/sales-forecast", isAuthenticated, aiRateLimiter, async (req, res) => {
     try {
       const userId = req.user!.id;
       const role = req.user!.role as UserRole;
@@ -2419,8 +2425,8 @@ Format your response as a structured analysis that's easy to parse for display.`
     }
   });
 
-  // Interaction Note Summarization
-  app.post("/api/ai/summarize-note", isAuthenticated, async (req, res) => {
+  // Interaction Note Summarization (rate limited)
+  app.post("/api/ai/summarize-note", isAuthenticated, aiRateLimiter, async (req, res) => {
     try {
       const { notes, note } = req.body;
       const noteText = notes || note; // Accept both 'notes' and 'note'
@@ -2454,8 +2460,8 @@ Format your response as a structured analysis that's easy to parse for display.`
     }
   });
 
-  // AI Next Best Action - Which customers should I contact today?
-  app.get("/api/ai/next-best-action", isAuthenticated, async (req, res) => {
+  // AI Next Best Action - Which customers should I contact today? (rate limited)
+  app.get("/api/ai/next-best-action", isAuthenticated, aiRateLimiter, async (req, res) => {
     try {
       const userId = req.user!.id;
       const userRole = req.user!.role as UserRole;
@@ -2558,8 +2564,8 @@ Format your response as a structured analysis that's easy to parse for display.`
     }
   });
 
-  // AI Churn Risk Scoring
-  app.get("/api/ai/churn-risk/:customerId", isAuthenticated, async (req, res) => {
+  // AI Churn Risk Scoring (rate limited)
+  app.get("/api/ai/churn-risk/:customerId", isAuthenticated, aiRateLimiter, validateUuidParam("customerId"), async (req, res) => {
     try {
       const customerId = req.params.customerId;
       const customer = await storage.getCustomerWithDetails(customerId);
@@ -2706,8 +2712,8 @@ Provide 2-3 specific, actionable recommendations to reduce churn risk and re-eng
     }
   });
 
-  // Bulk churn risk for dashboard
-  app.get("/api/ai/churn-risk-summary", isAuthenticated, async (req, res) => {
+  // Bulk churn risk for dashboard (rate limited)
+  app.get("/api/ai/churn-risk-summary", isAuthenticated, aiRateLimiter, async (req, res) => {
     try {
       const userId = req.user!.id;
       const userRole = req.user!.role as UserRole;

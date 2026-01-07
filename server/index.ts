@@ -1,10 +1,33 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import {
+  securityHeaders,
+  sanitizeRequestBody,
+  validateEnvironment,
+} from "./security";
+
+// Validate required environment variables at startup
+validateEnvironment();
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Apply security headers first (OWASP recommendation)
+// Helmet adds various HTTP headers for security
+app.use(securityHeaders);
+
+// Trust proxy for accurate IP detection behind reverse proxies
+app.set("trust proxy", 1);
+
+// Parse JSON with size limit (1MB max) to prevent DoS
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+
+// Sanitize all incoming request bodies to prevent injection attacks
+app.use(sanitizeRequestBody);
+
+// Note: Rate limiting is applied in routes.ts AFTER session/passport middleware
+// so that user-based rate limiting can properly identify authenticated users
 
 app.use((req, res, next) => {
   const start = Date.now();
