@@ -401,17 +401,26 @@ export default function Customers() {
 
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
-  // Calculate stats
-  const stats = {
-    total: customers?.length || 0,
-    leads: customers?.filter(c => c.stage === 'lead').length || 0,
-    prospects: customers?.filter(c => c.stage === 'prospect').length || 0,
-    customers: customers?.filter(c => c.stage === 'customer').length || 0,
-    needsAttention: customers?.filter(c => {
+  // Calculate stats helper function (accepts any customer-like object with stage and lastContactDate)
+  const calculateStats = (customerList: Array<{ stage: string; lastContactDate: Date | null }>) => ({
+    total: customerList.length,
+    leads: customerList.filter(c => c.stage === 'lead').length,
+    prospects: customerList.filter(c => c.stage === 'prospect').length,
+    customers: customerList.filter(c => c.stage === 'customer').length,
+    needsAttention: customerList.filter(c => {
       const status = getContactStatus(c.lastContactDate);
       return status.status === 'critical' || status.status === 'warning' || status.status === 'never';
-    }).length || 0,
-  };
+    }).length,
+  });
+
+  // Global stats
+  const stats = calculateStats(customers || []);
+  
+  // Country-specific stats (when a country is selected)
+  const countryCustomers = countryFilter !== "all" 
+    ? (customers || []).filter(c => (c.country || "").toLowerCase() === countryFilter.toLowerCase())
+    : [];
+  const countryStats = calculateStats(countryCustomers);
 
   return (
     <div className="space-y-6 p-6">
@@ -608,6 +617,77 @@ export default function Customers() {
           </Button>
         ))}
       </div>
+
+      {/* Country Analytics (shown when a country is selected and has data) */}
+      {countryFilter !== "all" && countryCustomers.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <Card className="hover-elevate" data-testid="card-country-total">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <UsersIcon className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{countryStats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover-elevate" data-testid="card-country-leads">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-500/10">
+                  <TrendingUp className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{countryStats.leads}</p>
+                  <p className="text-xs text-muted-foreground">Leads</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover-elevate" data-testid="card-country-prospects">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10">
+                  <TrendingUp className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{countryStats.prospects}</p>
+                  <p className="text-xs text-muted-foreground">Prospects</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover-elevate" data-testid="card-country-customers">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-green-500/10">
+                  <Award className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400">{countryStats.customers}</p>
+                  <p className="text-xs text-muted-foreground">Customers</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="hover-elevate" data-testid="card-country-attention">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-red-500/10">
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{countryStats.needsAttention}</p>
+                  <p className="text-xs text-muted-foreground">Need Attention</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-3">
