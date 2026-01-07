@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award } from "lucide-react";
-import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer } from "@shared/schema";
+import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -77,6 +77,7 @@ export default function Customers() {
   const [retailerTypeFilter, setRetailerTypeFilter] = useState<string>("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [attentionFilter, setAttentionFilter] = useState<string>("all");
+  const [salesmanFilter, setSalesmanFilter] = useState<string>("all");
   const [isBrandSelectOpen, setIsBrandSelectOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDetails | null>(null);
@@ -174,6 +175,23 @@ export default function Customers() {
   const { data: brands, isLoading: isLoadingBrands } = useQuery<Brand[]>({
     queryKey: ["/api/brands"],
   });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Get list of sales representatives (salesmen, managers, sales directors, regional managers)
+  const salesReps = users.filter(u => 
+    u.role === "salesman" || u.role === "manager" || 
+    u.role === "sales_director" || u.role === "regional_manager"
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  // Helper to get user name by ID
+  const getUserName = (userId: string | null) => {
+    if (!userId) return null;
+    const foundUser = users.find(u => u.id === userId);
+    return foundUser?.name || null;
+  };
 
   // Set default country filter based on user's regional office
   useEffect(() => {
@@ -339,7 +357,12 @@ export default function Customers() {
       (attentionFilter === "needs_attention" && needsAttention) ||
       (attentionFilter === "ok" && !needsAttention);
     
-    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry && matchesAttention;
+    // Salesman filter
+    const matchesSalesman = salesmanFilter === "all" || 
+      (salesmanFilter === "unassigned" && !customer.assignedTo) ||
+      customer.assignedTo === salesmanFilter;
+    
+    return matchesSearch && matchesStage && matchesBrand && matchesRetailerType && matchesCountry && matchesAttention && matchesSalesman;
   });
   
   // Get unique countries from customers (excluding Unknown) with custom order
@@ -389,6 +412,7 @@ export default function Customers() {
     setRetailerTypeFilter("all");
     setCountryFilter("all");
     setAttentionFilter("all");
+    setSalesmanFilter("all");
   };
 
   const activeFilterCount = 
@@ -397,7 +421,8 @@ export default function Customers() {
     (brandFilter.length > 0 ? 1 : 0) +
     (retailerTypeFilter !== "all" ? 1 : 0) +
     (countryFilter !== "all" ? 1 : 0) +
-    (attentionFilter !== "all" ? 1 : 0);
+    (attentionFilter !== "all" ? 1 : 0) +
+    (salesmanFilter !== "all" ? 1 : 0);
 
   const selectedBrandNames = brands?.filter(b => brandFilter.includes(b.id)).map(b => b.name) || [];
 
@@ -762,6 +787,19 @@ export default function Customers() {
               </SelectContent>
             </Select>
 
+            <Select value={salesmanFilter} onValueChange={setSalesmanFilter}>
+              <SelectTrigger className="w-auto min-w-[140px]" data-testid="select-salesman-filter">
+                <SelectValue placeholder="Salesperson" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Salespeople</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {salesReps.map(rep => (
+                  <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {activeFilterCount > 0 && (
               <Button
                 variant="ghost"
@@ -778,7 +816,7 @@ export default function Customers() {
         </div>
 
         {/* Active filter badges */}
-        {(selectedBrandNames.length > 0 || countryFilter !== "all" || stageFilterLocal !== "all" || attentionFilter !== "all") && (
+        {(selectedBrandNames.length > 0 || countryFilter !== "all" || stageFilterLocal !== "all" || attentionFilter !== "all" || salesmanFilter !== "all") && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs text-muted-foreground">Active:</span>
             {countryFilter !== "all" && (
@@ -797,6 +835,12 @@ export default function Customers() {
               <Badge variant="secondary" className="gap-1 no-default-hover-elevate">
                 {attentionFilter === "needs_attention" ? "Needs Attention" : "Recently Contacted"}
                 <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setAttentionFilter("all")} />
+              </Badge>
+            )}
+            {salesmanFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1 no-default-hover-elevate">
+                {salesmanFilter === "unassigned" ? "Unassigned" : getUserName(salesmanFilter) || "Salesperson"}
+                <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setSalesmanFilter("all")} />
               </Badge>
             )}
             {selectedBrandNames.map((name) => (
