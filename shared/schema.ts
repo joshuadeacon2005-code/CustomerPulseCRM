@@ -109,6 +109,8 @@ export const interactions = pgTable("interactions", {
   description: text("description").notNull(),
   attendees: text("attendees").array(),
   country: text("country"),
+  scheduledDate: timestamp("scheduled_date"),
+  scheduledTime: text("scheduled_time"),
   date: timestamp("date").notNull().defaultNow(),
 });
 
@@ -372,6 +374,8 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
   category: z.enum(["marketing", "sales", "support"]),
   type: z.enum(INTERACTION_TYPES),
   meetingType: z.enum(MEETING_TYPES).optional(),
+  scheduledDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  scheduledTime: z.string().optional().nullable(),
 });
 
 export const insertBrandSchema = createInsertSchema(brands).omit({
