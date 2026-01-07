@@ -91,7 +91,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { format, isToday, isPast, parseISO } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -282,6 +282,7 @@ export function CustomerDetailModal({
   const [isAddingActionItem, setIsAddingActionItem] = useState(false);
   const [isAddingSales, setIsAddingSales] = useState(false);
   const setIsAddingSale = setIsAddingSales; // Alias for quick actions
+  const [activeTab, setActiveTab] = useState("overview");
   const [editingSalesId, setEditingSalesId] = useState<string | null>(null);
   const [isAddingAdditionalContact, setIsAddingAdditionalContact] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -290,6 +291,17 @@ export function CustomerDetailModal({
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Reset tab and form states when modal opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab("overview");
+      setIsAddingNewInteraction(false);
+      setQuickInteractionType(null);
+      setIsAddingSales(false);
+      setIsAddingActionItem(false);
+    }
+  }, [open]);
 
   // Fetch user's office assignments to get their regional currency
   const { data: userOfficeAssignments } = useQuery<Array<{ officeName?: string; officeCurrency?: string }>>({
@@ -591,6 +603,7 @@ export function CustomerDetailModal({
                       onClick={() => {
                         setIsAddingNewInteraction(true);
                         setQuickInteractionType("Call");
+                        setActiveTab("interactions");
                       }}
                       data-testid="quick-action-log-call"
                     >
@@ -601,6 +614,7 @@ export function CustomerDetailModal({
                       onClick={() => {
                         setIsAddingNewInteraction(true);
                         setQuickInteractionType("Store Visit");
+                        setActiveTab("interactions");
                       }}
                       data-testid="quick-action-log-visit"
                     >
@@ -611,6 +625,7 @@ export function CustomerDetailModal({
                       onClick={() => {
                         setIsAddingNewInteraction(true);
                         setQuickInteractionType("Email");
+                        setActiveTab("interactions");
                       }}
                       data-testid="quick-action-log-email"
                     >
@@ -619,14 +634,20 @@ export function CustomerDetailModal({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
-                      onClick={() => setIsAddingSale(true)}
+                      onClick={() => {
+                        setIsAddingSale(true);
+                        setActiveTab("sales");
+                      }}
                       data-testid="quick-action-log-sale"
                     >
                       <DollarSign className="h-4 w-4 mr-2" />
                       Log Sale
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      onClick={() => setIsAddingActionItem(true)}
+                      onClick={() => {
+                        setIsAddingActionItem(true);
+                        setActiveTab("actions");
+                      }}
                       data-testid="quick-action-add-task"
                     >
                       <Target className="h-4 w-4 mr-2" />
@@ -700,7 +721,7 @@ export function CustomerDetailModal({
           </div>
         )}
 
-        <Tabs defaultValue="overview" className="mt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="actions" data-testid="tab-actions">
@@ -1132,9 +1153,9 @@ export function CustomerDetailModal({
             </div>
 
             {isAddingActionItem && (
-              <Card>
+              <Card data-testid="card-new-action-item">
                 <CardHeader>
-                  <CardTitle className="text-base">New Action Item</CardTitle>
+                  <CardTitle className="text-base" data-testid="title-new-action-item">New Action Item</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ActionItemForm
@@ -1226,9 +1247,9 @@ export function CustomerDetailModal({
             </div>
 
             {isAddingSales && (
-              <Card>
+              <Card data-testid="card-new-sales">
                 <CardHeader>
-                  <CardTitle className="text-base">New Sales Record</CardTitle>
+                  <CardTitle className="text-base" data-testid="title-new-sales">New Sales Record</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <MonthlySalesForm
@@ -1396,9 +1417,9 @@ export function CustomerDetailModal({
             </div>
 
             {isAddingNewInteraction && (
-              <Card>
+              <Card data-testid="card-new-interaction">
                 <CardHeader>
-                  <CardTitle className="text-base">New Interaction</CardTitle>
+                  <CardTitle className="text-base" data-testid="title-new-interaction">New Interaction</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <InteractionForm
