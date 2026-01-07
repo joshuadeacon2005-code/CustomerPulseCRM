@@ -1700,7 +1700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "info@littleangels.com.au",
           "+61 2 9876 5432",
           "456 George Street",
-          "Australia/New Zealand",
+          "Australia",
           "Baby & Nursery Independent/Boutique",
           "Yes",
           "No",

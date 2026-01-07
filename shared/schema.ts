@@ -7,7 +7,8 @@ export const REGIONAL_OFFICES = [
   "Hong Kong",
   "Singapore", 
   "Shanghai",
-  "Australia/New Zealand",
+  "Australia",
+  "New Zealand",
   "Indonesia",
   "Malaysia",
   "Guangzhou",
@@ -22,6 +23,7 @@ export const CURRENCIES = [
   "SGD",
   "CNY",
   "AUD",
+  "NZD",
   "IDR",
   "MYR",
 ] as const;

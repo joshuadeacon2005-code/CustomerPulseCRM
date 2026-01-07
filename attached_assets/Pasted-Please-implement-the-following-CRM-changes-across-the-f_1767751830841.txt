@@ -1,0 +1,114 @@
+Please implement the following CRM changes across the full product (CustomerPulse). The focus is on improving login/roles clarity, fixing country filtering and assignment visibility, and adding better filtering + drill-down across dashboards/analytics/pipeline.
+
+## 1) Login, Roles, and User Access (Clarity + Correctness)
+
+* Audit authentication and role handling to eliminate confusion between CEO/admin vs other users.
+* Ensure the UI clearly reflects the logged-in user’s role (CEO/Admin/Manager/Sales/Sales Director) and permissions.
+* Ensure role-based access is consistent across:
+
+  * Admin dashboard
+  * Customers page
+  * Pipeline
+  * Analytics/Dashboards
+* Add clear error messaging for login issues (wrong password vs no account vs permission denied).
+* Confirm the correct default landing page per role (e.g., CEO/Admin → admin/dashboard; sales → customers/pipeline relevant views).
+
+## 2) Admin Dashboard: Country Selection + Assignments
+
+* Verify the Admin dashboard country selector works reliably.
+* Ensure assignments are shown accurately:
+
+  * Which customers are assigned to which salesperson
+  * Which leads/prospects are assigned (if applicable)
+* Fix gaps where certain users do not appear in assignment displays or dropdown filters.
+
+  * Example: Jamie Quinn (Sales Director) must appear in relevant “salesperson/user” dropdowns where assignment/filtering is expected.
+
+## 3) Fix Country Filtering: Separate Australia and New Zealand
+
+* Implement Australia and New Zealand as distinct countries everywhere:
+
+  * Customer records (country field values)
+  * Lead/prospect records
+  * Filters, dropdowns, admin assignment views
+  * Analytics rollups and dashboards
+* Fix any existing filtering bug where AU/NZ results are incorrect, missing, or merged.
+* Add migration/normalization logic to clean existing data if needed (e.g., records stored as “ANZ” or inconsistent country values).
+
+## 4) Ensure All Relevant Users Appear in Filters and Assignment Dropdowns
+
+* Audit how “salesperson” lists are generated (role-based inclusion/exclusion).
+* Ensure Sales Directors and other relevant roles appear where appropriate:
+
+  * Admin assignment dropdowns
+  * Filtering controls for dashboards/analytics/pipeline (when the view expects user-based breakdowns)
+* Only exclude roles where it is explicitly intended (e.g., do not hide Sales Directors if they should be selectable as owners/filters).
+
+## 5) More Intuitive Filtering + Stats (Country Level and Individual Level)
+
+Across Customers, Pipeline, Analytics, and Dashboards:
+
+* Add consistent filtering controls:
+
+  * Country (including separate AU and NZ)
+  * Individual salesperson/user (including Sales Director where applicable)
+  * Optionally region/office if supported by your data model
+* Ensure statistics update correctly based on filters:
+
+  * Country-level totals (customers/leads/prospects, pipeline stage counts, revenue/sales totals if applicable)
+  * Individual-level totals (per salesperson/user)
+* Improve the UI so filters are easy to understand and consistent across pages (same control patterns and labels).
+
+## 6) Pipeline Improvements
+
+* Allow filtering pipeline views by:
+
+  * Country
+  * Individual salesperson/user
+* Enable easy drill-down:
+
+  * From pipeline cards/rows directly into the customer profile (one click).
+  * Ensure returning back to pipeline preserves filters and scroll position if possible.
+* Add ability to associate leads and prospects with specific salespeople:
+
+  * Ownership assignment on lead/prospect creation
+  * Ability to reassign owner later
+  * Ensure owner affects visibility, filtering, and performance stats
+
+## 7) Import/Export Streamlining
+
+* Review the current export/import flows and remove friction:
+
+  * Ensure exported data respects active filters (country/user) when appropriate
+  * Provide clear options: “Export all” vs “Export filtered”
+* Improve import validation:
+
+  * Normalize country values (especially AU vs NZ)
+  * Prevent duplicates or provide merge behavior where appropriate
+  * Show a clear summary of what was imported/updated/skipped
+
+## 8) Verification and Tests (Required)
+
+After implementation:
+
+* Add/expand automated tests for:
+
+  * Country filtering (including AU and NZ separation)
+  * Dropdown user inclusion (Jamie Quinn / Sales Director visibility)
+  * Assignment correctness in Admin dashboard
+  * Pipeline filtering + drill-down navigation
+* Manually verify end-to-end flows:
+
+  * Login as CEO/Admin vs sales roles
+  * Admin assignments by country
+  * Filter dashboards by country and salesperson and confirm stats match
+  * Assign leads/prospects to a salesperson and confirm pipeline + analytics reflect it
+
+## Deliverable
+
+Implement the changes, then provide a concise summary:
+
+* What files/routes/components were changed
+* What bugs were fixed (AU/NZ filtering, missing users in dropdowns)
+* What new filters/UX changes were added
+* How to test each change in the UI

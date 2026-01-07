@@ -1,7 +1,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Customer } from "@shared/schema";
+import { Customer, User, COUNTRIES, CustomerWithDetails, InsertInteraction, UpdateCustomer } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,8 +10,11 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, DollarSign, Clock, Target } from "lucide-react";
+import { TrendingUp, DollarSign, Clock, Target, Filter, X } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { CustomerDetailModal } from "@/components/customer-detail-modal";
 
 const STAGES = [
   { id: "lead", name: "Leads", color: "bg-blue-500" },
@@ -27,7 +30,7 @@ function getInitials(name: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function PipelineCard({ customer }: { customer: Customer }) {
+function PipelineCard({ customer, onClick, assignedUserName }: { customer: Customer; onClick?: () => void; assignedUserName?: string }) {
   const {
     attributes,
     listeners,
@@ -47,9 +50,20 @@ function PipelineCard({ customer }: { customer: Customer }) {
     ? differenceInDays(new Date(), new Date(customer.lastContactDate))
     : null;
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      e.stopPropagation();
+      onClick();
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="mb-3 cursor-move hover-elevate" data-testid={`pipeline-card-${customer.id}`}>
+      <Card 
+        className="mb-3 cursor-move hover-elevate" 
+        data-testid={`pipeline-card-${customer.id}`}
+        onClick={handleClick}
+      >
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <Avatar className="h-10 w-10 shrink-0">
@@ -59,6 +73,9 @@ function PipelineCard({ customer }: { customer: Customer }) {
             </Avatar>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-sm truncate">{customer.name}</h4>
+              {customer.country && (
+                <div className="text-xs text-muted-foreground">{customer.country}</div>
+              )}
               {customer.quarterlySoftTargetBaseCurrency && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
                   <DollarSign className="h-3 w-3" />
@@ -71,6 +88,11 @@ function PipelineCard({ customer }: { customer: Customer }) {
                   <span className={daysSinceContact > 30 ? "text-red-500" : ""}>
                     {daysSinceContact}d ago
                   </span>
+                </div>
+              )}
+              {assignedUserName && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Assigned: {assignedUserName}
                 </div>
               )}
             </div>
@@ -97,10 +119,115 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
 export default function Pipeline() {
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = useState<string>("all");
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const salesReps = useMemo(() => {
+    return users.filter(u => 
+      u.role === "salesman" || u.role === "manager" || 
+      u.role === "sales_director" || u.role === "regional_manager"
+    ).sort((a, b) => a.name.localeCompare(b.name));
+  }, [users]);
+
+  const getUserName = (userId: string | null) => {
+    if (!userId) return undefined;
+    const user = users.find(u => u.id === userId);
+    return user?.name;
+  };
+
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(customer => {
+      if (countryFilter !== "all" && customer.country !== countryFilter) {
+        return false;
+      }
+      if (salesPersonFilter !== "all") {
+        if (salesPersonFilter === "unassigned") {
+          if (customer.assignedTo) return false;
+        } else if (customer.assignedTo !== salesPersonFilter) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [customers, countryFilter, salesPersonFilter]);
+
+  const handleCustomerClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+  };
+  
+  // Query for detailed customer data when one is selected
+  const { data: selectedCustomerDetail } = useQuery<CustomerWithDetails>({
+    queryKey: ["/api/customers", selectedCustomer?.id],
+    enabled: !!selectedCustomer?.id,
+  });
+  
+  // Mutation for updating customer
+  const updateDetailMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateCustomer }) =>
+      apiRequest("PATCH", `/api/customers/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({
+        title: "Customer updated",
+        description: "The customer has been successfully updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update customer. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for adding interaction
+  const addInteractionMutation = useMutation({
+    mutationFn: (data: InsertInteraction) => apiRequest("POST", "/api/interactions", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/interactions"] });
+      toast({
+        title: "Interaction added",
+        description: "The interaction has been successfully logged.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add interaction. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpdateCustomer = (data: UpdateCustomer) => {
+    if (selectedCustomer) {
+      updateDetailMutation.mutate({ id: selectedCustomer.id, data });
+    }
+  };
+
+  const handleAddInteraction = (data: InsertInteraction) => {
+    if (selectedCustomer) {
+      addInteractionMutation.mutate({ ...data, customerId: selectedCustomer.id });
+    }
+  };
+
+  const clearFilters = () => {
+    setCountryFilter("all");
+    setSalesPersonFilter("all");
+  };
+
+  const hasFilters = countryFilter !== "all" || salesPersonFilter !== "all";
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -132,10 +259,10 @@ export default function Pipeline() {
 
   const customersByStage = useMemo(() => {
     return STAGES.reduce((acc, stage) => {
-      acc[stage.id] = customers.filter(c => c.stage === stage.id);
+      acc[stage.id] = filteredCustomers.filter(c => c.stage === stage.id);
       return acc;
     }, {} as Record<string, Customer[]>);
-  }, [customers]);
+  }, [filteredCustomers]);
 
   const stageMetrics = useMemo(() => {
     return STAGES.map(stage => {
@@ -215,10 +342,56 @@ export default function Pipeline() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-pipeline-title">Sales Pipeline</h1>
-        <p className="text-muted-foreground mt-1">Drag and drop customers to move them through stages</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-pipeline-title">Sales Pipeline</h1>
+          <p className="text-muted-foreground mt-1">Drag and drop customers to move them through stages. Click a card to view details.</p>
+        </div>
       </div>
+
+      {/* Filter Controls */}
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters:</span>
+          </div>
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="select-pipeline-country">
+              <SelectValue placeholder="All Countries" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {COUNTRIES.map(country => (
+                <SelectItem key={country} value={country}>{country}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+            <SelectTrigger className="w-[200px]" data-testid="select-pipeline-salesperson">
+              <SelectValue placeholder="All Salespeople" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Salespeople</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {salesReps.map(rep => (
+                <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters">
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          )}
+          {hasFilters && (
+            <span className="text-sm text-muted-foreground">
+              Showing {filteredCustomers.length} of {customers.length} customers
+            </span>
+          )}
+        </div>
+      </Card>
 
       {/* Pipeline Metrics */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -315,7 +488,12 @@ export default function Pipeline() {
                         </div>
                       ) : (
                         stageCustomers.map(customer => (
-                          <PipelineCard key={customer.id} customer={customer} />
+                          <PipelineCard 
+                            key={customer.id} 
+                            customer={customer} 
+                            onClick={() => handleCustomerClick(customer)}
+                            assignedUserName={getUserName(customer.assignedTo)}
+                          />
                         ))
                       )}
                     </DroppableColumn>
@@ -330,6 +508,17 @@ export default function Pipeline() {
           {activeCustomer ? <PipelineCard customer={activeCustomer} /> : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Customer Detail Modal */}
+      <CustomerDetailModal
+        customer={selectedCustomerDetail || (selectedCustomer as CustomerWithDetails | null)}
+        open={!!selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        onUpdate={handleUpdateCustomer}
+        onAddInteraction={handleAddInteraction}
+        isUpdating={updateDetailMutation.isPending}
+        isAddingInteraction={addInteractionMutation.isPending}
+      />
     </div>
   );
 }

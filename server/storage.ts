@@ -408,10 +408,11 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Add region-based filtering: managers can see ALL customers in their region
-      // Handle compound regions (e.g., "Australia/New Zealand") and city-to-country mapping
+      // Handle city-to-country mapping for regional offices
       if (managerRegion) {
         const regionToCountries: Record<string, string[]> = {
-          "Australia/New Zealand": ["Australia", "New Zealand"],
+          "Australia": ["Australia"],
+          "New Zealand": ["New Zealand"],
           "Guangzhou": ["China", "Guangzhou"],
           "Shanghai": ["China", "Shanghai"],
           "Hong Kong": ["Hong Kong", "Macau"],

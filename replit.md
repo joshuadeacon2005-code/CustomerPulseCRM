@@ -41,8 +41,14 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
     - `isCEO`: CEO, Sales Director, Marketing Director, Admin
     - `isManager`: CEO, Sales Director, Marketing Director, Admin, Regional Manager, Manager
   - **Note**: Role comparisons are case-insensitive (e.g., "CEO" and "ceo" are treated the same)
+- **Pipeline Page**: Visual drag-and-drop kanban board for managing customer stages with:
+    - **Filter Controls**: Country and salesperson dropdown filters with clear button
+    - **Customer Cards**: Display customer name, country, and assigned salesperson
+    - **Drill-down Modal**: Click any card to open full CustomerDetailModal with all customer info
+    - **Drag-and-Drop**: Move customers between stages (Lead, Prospect, Qualified, Negotiation, Closed Won, Closed Lost)
+    - **Pipeline Metrics**: Summary cards showing total customers, value, and conversion rates
 - **Regional Office Management**: Users can be assigned to specific regional offices with the following features:
-    - **Offices**: 7 pre-seeded regional offices (Hong Kong, Singapore, Shanghai, Australia/New Zealand, Indonesia, Malaysia, Guangzhou)
+    - **Offices**: 8 pre-seeded regional offices (Hong Kong, Singapore, Shanghai, Australia, New Zealand, Indonesia, Malaysia, Guangzhou)
     - **Office Assignments**: Supports three role types (salesman, manager, viewer) for different access levels
     - **Single-Office Restriction**: Salesmen can only be assigned to one office at a time (enforced at storage layer)
     - **Multi-Office Access**: Managers can be assigned to multiple offices to oversee multiple regions

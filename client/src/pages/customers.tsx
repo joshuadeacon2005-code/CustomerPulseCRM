@@ -179,7 +179,8 @@ export default function Customers() {
   useEffect(() => {
     if (user && user.regionalOffice) {
       const regionalOfficeToCountry: Record<string, string> = {
-        "Australia/New Zealand": "Australia",
+        "Australia": "Australia",
+        "New Zealand": "New Zealand",
         "Hong Kong": "Hong Kong",
         "Singapore": "Singapore",
         "Shanghai": "China",

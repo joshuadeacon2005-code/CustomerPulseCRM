@@ -10,6 +10,7 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   SGD: "S$",
   CNY: "¥",
   AUD: "A$",
+  NZD: "NZ$",
   IDR: "Rp",
   MYR: "RM",
 };
@@ -21,6 +22,7 @@ export const CURRENCY_NAMES: Record<Currency, string> = {
   SGD: "Singapore Dollar",
   CNY: "Chinese Yuan",
   AUD: "Australian Dollar",
+  NZD: "New Zealand Dollar",
   IDR: "Indonesian Rupiah",
   MYR: "Malaysian Ringgit",
 };
@@ -31,7 +33,8 @@ export const REGIONAL_OFFICE_CURRENCIES: Record<string, Currency> = {
   "Singapore": "SGD",
   "Shanghai": "CNY",
   "Guangzhou": "CNY",
-  "Australia/New Zealand": "AUD",
+  "Australia": "AUD",
+  "New Zealand": "NZD",
   "Indonesia": "IDR",
   "Malaysia": "MYR",
 };
