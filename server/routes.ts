@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, updateInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin, getEffectiveRole } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -405,6 +405,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid interaction data", details: error });
       }
       res.status(500).json({ error: "Failed to create interaction" });
+    }
+  });
+
+  app.patch("/api/interactions/:id", isAuthenticated, validateUuidParam("id"), async (req, res) => {
+    try {
+      const existingInteraction = await storage.getInteractionById(req.params.id);
+      if (!existingInteraction) {
+        return res.status(404).json({ error: "Interaction not found" });
+      }
+      const validatedData = updateInteractionSchema.parse(req.body);
+      const interaction = await storage.updateInteraction(req.params.id, validatedData);
+      if (!interaction) {
+        return res.status(404).json({ error: "Interaction not found" });
+      }
+      res.json(interaction);
+    } catch (error) {
+      if (error instanceof Error && 'issues' in error) {
+        return res.status(400).json({ error: "Invalid interaction data", details: error });
+      }
+      res.status(500).json({ error: "Failed to update interaction" });
+    }
+  });
+
+  app.delete("/api/interactions/:id", isAuthenticated, validateUuidParam("id"), async (req, res) => {
+    try {
+      const deleted = await storage.deleteInteraction(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Interaction not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete interaction" });
     }
   });
 

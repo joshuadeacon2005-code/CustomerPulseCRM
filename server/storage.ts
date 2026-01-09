@@ -9,6 +9,7 @@ import {
   type UpdateCustomer,
   type Interaction,
   type InsertInteraction,
+  type UpdateInteraction,
   type Segment,
   type DashboardStats,
   type CustomerWithInteractions,
@@ -102,7 +103,10 @@ export interface IStorage {
   getInteractions(): Promise<Interaction[]>;
   getInteractionsByCustomer(customerId: string): Promise<Interaction[]>;
   getRecentInteractions(limit?: number): Promise<Interaction[]>;
+  getInteractionById(id: string): Promise<Interaction | undefined>;
   createInteraction(interaction: InsertInteraction): Promise<Interaction>;
+  updateInteraction(id: string, interaction: UpdateInteraction): Promise<Interaction | undefined>;
+  deleteInteraction(id: string): Promise<boolean>;
 
   getBrands(): Promise<Brand[]>;
   getBrand(id: string): Promise<Brand | undefined>;
@@ -532,6 +536,32 @@ export class DatabaseStorage implements IStorage {
   async createInteraction(interactionData: InsertInteraction): Promise<Interaction> {
     const [interaction] = await db.insert(interactions).values(interactionData).returning();
     return interaction;
+  }
+
+  async getInteractionById(id: string): Promise<Interaction | undefined> {
+    const [interaction] = await db.select().from(interactions).where(eq(interactions.id, id));
+    return interaction;
+  }
+
+  async updateInteraction(id: string, updateData: UpdateInteraction): Promise<Interaction | undefined> {
+    // Filter out null values and convert date properly for database update
+    const cleanedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== null && value !== undefined) {
+        cleanedData[key] = value;
+      }
+    }
+    const [interaction] = await db
+      .update(interactions)
+      .set(cleanedData)
+      .where(eq(interactions.id, id))
+      .returning();
+    return interaction;
+  }
+
+  async deleteInteraction(id: string): Promise<boolean> {
+    const result = await db.delete(interactions).where(eq(interactions.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined> {

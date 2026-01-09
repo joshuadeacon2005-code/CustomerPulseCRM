@@ -43,6 +43,8 @@ import {
   CustomerWithDetails, 
   UpdateCustomer, 
   InsertInteraction,
+  Interaction,
+  UpdateInteraction,
   Brand,
   InsertBrand,
   insertBrandSchema,
@@ -276,6 +278,7 @@ export function CustomerDetailModal({
 }: CustomerDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingNewInteraction, setIsAddingNewInteraction] = useState(false);
+  const [editingInteractionId, setEditingInteractionId] = useState<string | null>(null);
   const [quickInteractionType, setQuickInteractionType] = useState<string | null>(null);
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
@@ -297,6 +300,7 @@ export function CustomerDetailModal({
     if (open) {
       setActiveTab("overview");
       setIsAddingNewInteraction(false);
+      setEditingInteractionId(null);
       setQuickInteractionType(null);
       setIsAddingSales(false);
       setIsAddingActionItem(false);
@@ -511,6 +515,33 @@ export function CustomerDetailModal({
     },
   });
 
+  const updateInteractionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateInteraction }) => {
+      return await apiRequest('PATCH', `/api/interactions/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      setEditingInteractionId(null);
+      toast({ title: "Interaction updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update interaction", variant: "destructive" });
+    },
+  });
+
+  const deleteInteractionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/interactions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      toast({ title: "Interaction deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete interaction", variant: "destructive" });
+    },
+  });
+
   if (!customer) return null;
 
   const handleUpdate = (data: any, _additionalContacts?: any, _initialAddress?: any) => {
@@ -521,6 +552,10 @@ export function CustomerDetailModal({
   const handleAddInteraction = (data: InsertInteraction) => {
     onAddInteraction(data);
     setIsAddingNewInteraction(false);
+  };
+
+  const handleUpdateInteraction = (id: string, data: UpdateInteraction) => {
+    updateInteractionMutation.mutate({ id, data });
   };
 
   const getActionItemStatus = (item: any) => {
@@ -1443,6 +1478,28 @@ export function CustomerDetailModal({
               <div className="space-y-3">
                 {customer.interactions.map((interaction) => {
                   const Icon = categoryIcons[interaction.category as keyof typeof categoryIcons];
+                  const isEditingThisInteraction = editingInteractionId === interaction.id;
+                  
+                  if (isEditingThisInteraction) {
+                    return (
+                      <Card key={interaction.id} data-testid={`card-edit-interaction-${interaction.id}`}>
+                        <CardHeader>
+                          <CardTitle className="text-base">Edit Interaction</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <InteractionForm
+                            customerId={customer.id}
+                            interaction={interaction}
+                            isEditing={true}
+                            onSubmit={(data) => handleUpdateInteraction(interaction.id, data as UpdateInteraction)}
+                            onCancel={() => setEditingInteractionId(null)}
+                            isLoading={updateInteractionMutation.isPending}
+                          />
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                  
                   return (
                     <Card key={interaction.id} data-testid={`card-interaction-${interaction.id}`}>
                       <CardContent className="p-4">
@@ -1458,9 +1515,63 @@ export function CustomerDetailModal({
                                   {interaction.category}
                                 </Badge>
                               </div>
-                              <span className="text-xs text-muted-foreground font-mono shrink-0">
-                                {format(new Date(interaction.date), "MMM d, h:mm a")}
-                              </span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {format(new Date(interaction.date), "MMM d, h:mm a")}
+                                </span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6"
+                                      data-testid={`button-interaction-menu-${interaction.id}`}
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      onClick={() => setEditingInteractionId(interaction.id)}
+                                      data-testid={`button-edit-interaction-${interaction.id}`}
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem
+                                          onSelect={(e) => e.preventDefault()}
+                                          className="text-destructive focus:text-destructive"
+                                          data-testid={`button-delete-interaction-${interaction.id}`}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Interaction</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Are you sure you want to delete this interaction? This action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteInteractionMutation.mutate(interaction.id)}
+                                            className="bg-destructive text-destructive-foreground hover-elevate"
+                                            data-testid={`button-confirm-delete-interaction-${interaction.id}`}
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                               {interaction.description}

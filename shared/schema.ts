@@ -380,6 +380,19 @@ export const insertInteractionSchema = createInsertSchema(interactions).omit({
   scheduledTime: z.string().optional().nullable(),
 });
 
+export const updateInteractionSchema = createInsertSchema(interactions).omit({
+  id: true,
+}).partial().extend({
+  category: z.enum(["marketing", "sales", "support"]).optional(),
+  type: z.enum(INTERACTION_TYPES).optional(),
+  meetingType: z.enum(MEETING_TYPES).optional(),
+  date: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  scheduledDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  scheduledTime: z.string().optional().nullable(),
+});
+
+export type UpdateInteraction = z.infer<typeof updateInteractionSchema>;
+
 export const insertBrandSchema = createInsertSchema(brands).omit({
   id: true,
   createdAt: true,

@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertInteractionSchema, type InsertInteraction, INTERACTION_TYPES } from "@shared/schema";
+import { insertInteractionSchema, updateInteractionSchema, type InsertInteraction, type Interaction, INTERACTION_TYPES } from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -29,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Loader2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
 
 interface InteractionFormProps {
   customerId: string;
@@ -36,14 +36,26 @@ interface InteractionFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   defaultType?: typeof INTERACTION_TYPES[number];
+  interaction?: Interaction;
+  isEditing?: boolean;
 }
 
-export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, defaultType }: InteractionFormProps) {
+type InteractionFormData = z.infer<typeof insertInteractionSchema> & { date?: Date | string | null };
+
+export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, defaultType, interaction, isEditing }: InteractionFormProps) {
   const { toast } = useToast();
 
-  const form = useForm<InsertInteraction>({
-    resolver: zodResolver(insertInteractionSchema),
-    defaultValues: {
+  const form = useForm<InteractionFormData>({
+    resolver: zodResolver(isEditing ? updateInteractionSchema : insertInteractionSchema),
+    defaultValues: isEditing && interaction ? {
+      customerId: interaction.customerId,
+      category: interaction.category as "marketing" | "sales" | "support",
+      type: interaction.type as typeof INTERACTION_TYPES[number],
+      description: interaction.description || "",
+      scheduledDate: interaction.scheduledDate || null,
+      scheduledTime: interaction.scheduledTime || null,
+      date: interaction.date || null,
+    } : {
       customerId,
       category: "sales",
       type: defaultType || "Call",
@@ -60,7 +72,6 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, def
       return { ...data, originalNotes: payload.originalNotes } as { summary: string; originalNotes: string };
     },
     onSuccess: (data) => {
-      // Capture the original notes in the closure for the undo action
       const savedOriginalNotes = data.originalNotes;
       form.setValue('description', data.summary);
       toast({
@@ -102,20 +113,19 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, def
       });
       return;
     }
-    // Pass both the notes to summarize and the original for undo
     summarizeMutation.mutate({ notes: currentDescription, originalNotes: currentDescription });
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger data-testid="select-interaction-category">
                     <SelectValue placeholder="Select category" />
@@ -156,6 +166,51 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, def
             </FormItem>
           )}
         />
+
+        {isEditing && (
+          <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Interaction Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                        data-testid="button-interaction-date"
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => field.onChange(date?.toISOString() || null)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription className="text-xs">
+                  When this interaction occurred
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -282,7 +337,7 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, def
             disabled={isLoading}
             data-testid="button-submit-interaction"
           >
-            {isLoading ? "Adding..." : "Add Interaction"}
+            {isLoading ? (isEditing ? "Saving..." : "Adding...") : (isEditing ? "Save Changes" : "Add Interaction")}
           </Button>
         </div>
       </form>
