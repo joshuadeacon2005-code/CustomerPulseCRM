@@ -472,17 +472,19 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
 });
 
 // Base schema without refinements for client-side use
+// Note: Budget field is now optional (defaults to 0) since monthly budgets are tracked at customer level
+// Actual is required as it's the primary purpose of logging a sale
 const insertMonthlySalesTrackingBaseSchema = createInsertSchema(monthlySalesTracking).omit({
   id: true,
   createdAt: true,
 }).extend({
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
-  budget: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  budget: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional().default("0"),
   budgetCurrency: z.enum(CURRENCIES).optional().default("USD"),
-  budgetBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
-  actual: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
-  actualCurrency: z.enum(CURRENCIES).optional(),
+  budgetBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional().default("0"),
+  actual: z.string().min(1, "Sale amount is required").regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  actualCurrency: z.enum(CURRENCIES).optional().default("USD"),
   actualBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
 });
 

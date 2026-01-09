@@ -1832,7 +1832,7 @@ function MonthlySalesForm({
       customerId,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      budget: '',
+      budget: '0',
       actual: '',
       budgetCurrency: defaultCurrency as "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR",
       actualCurrency: defaultCurrency as "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR",
@@ -1895,7 +1895,13 @@ function MonthlySalesForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Currency</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select 
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  form.setValue('actualCurrency', value as any);
+                }} 
+                value={field.value}
+              >
                 <FormControl>
                   <SelectTrigger data-testid="select-currency">
                     <SelectValue />
@@ -1915,47 +1921,26 @@ function MonthlySalesForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="budget"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Budget</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...field}
-                    data-testid="input-budget"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="actual"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Actual (Optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...field}
-                    value={field.value || ''}
-                    data-testid="input-actual"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="actual"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sale Amount</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  {...field}
+                  value={field.value || ''}
+                  data-testid="input-actual"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="flex gap-2 justify-end">
           <Button
             type="button"

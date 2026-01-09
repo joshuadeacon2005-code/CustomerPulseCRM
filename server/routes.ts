@@ -816,17 +816,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Always calculate base amount for budget (required field)
-      if (validatedData.budget) {
-        const budgetCurrency = validatedData.budgetCurrency || "USD";
-        const calculatedBaseBudget = await validateAndConvertToBase(
-          Number(validatedData.budget),
-          budgetCurrency
-        );
-        
+      // Calculate base amount for budget (now optional, defaults to 0)
+      // Budget is no longer required on the form since monthly targets are tracked separately
+      const budgetValue = Number(validatedData.budget || 0);
+      const budgetCurrency = validatedData.budgetCurrency || "USD";
+      if (budgetValue > 0) {
+        const calculatedBaseBudget = await validateAndConvertToBase(budgetValue, budgetCurrency);
         if (validatedData.budgetBaseCurrencyAmount !== undefined) {
           validateBaseCurrencyAmount(
-            Number(validatedData.budget),
+            budgetValue,
             budgetCurrency,
             Number(validatedData.budgetBaseCurrencyAmount),
             calculatedBaseBudget
@@ -834,6 +832,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           validatedData = { ...validatedData, budgetBaseCurrencyAmount: calculatedBaseBudget.toString() };
         }
+      } else {
+        // Budget is 0 or not provided, set defaults
+        validatedData = { 
+          ...validatedData, 
+          budget: "0",
+          budgetBaseCurrencyAmount: "0",
+          budgetCurrency: budgetCurrency
+        };
       }
       
       const monthlySales = await storage.createMonthlySales(validatedData);
