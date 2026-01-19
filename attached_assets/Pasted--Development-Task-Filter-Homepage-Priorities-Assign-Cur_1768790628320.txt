@@ -1,0 +1,321 @@
+# Development Task: Filter Homepage Priorities & Assign Currency by Region/Salesperson
+
+## Context
+This is a B2B CRM system for sales teams across multiple regional offices (Hong Kong, Singapore, Shanghai, Australia, New Zealand, Indonesia, Malaysia, Guangzhou). The app currently shows all action items and has a currency selector that users can manually change.
+
+---
+
+## Feature 1: Filter Homepage Priorities to Show Only User's Own Tasks
+
+### Current Problem
+The dashboard at `/client/src/pages/dashboard.tsx` currently displays action items from ALL customers. Lines 152-155 show:
+```typescript
+const userActionItems = actionItems.filter(item => 
+  userCustomerIds.includes(item.customerId)
+);
+```
+This filters by customers assigned to the user, but the action items themselves may have been created by other team members for those customers.
+
+### Required Changes
+
+#### Backend Changes
+No backend changes needed - the filtering logic is already set up to use `createdBy` field from the `actionItems` table (line 152 in schema.ts).
+
+#### Frontend Changes (`/client/src/pages/dashboard.tsx`)
+
+**Location: Lines 152-155**
+
+**Current Code:**
+```typescript
+const userActionItems = actionItems.filter(item => 
+  userCustomerIds.includes(item.customerId)
+);
+```
+
+**Updated Code:**
+```typescript
+// Filter to show ONLY the logged-in user's own action items
+const userActionItems = actionItems.filter(item => 
+  item.createdBy === effectiveUserId
+);
+```
+
+**Impact:**
+- This ensures that `overdueTasks`, `todayTasks`, and `upcomingTasks` (lines 158-160) only show action items created BY the logged-in user
+- Removes customer action items and other team members' to-dos from the priorities section
+- The filtering applies to:
+  - Priority Alerts section (lines 271-344)
+  - Upcoming Tasks section (lines 469-580)
+  - Calendar view events
+
+**Testing Checklist:**
+1. Login as User A who has created action items
+2. Verify only User A's created tasks appear in "Priority Alerts"
+3. Login as User B (manager) and verify they see only their own tasks
+4. Verify that when viewing another team member's dashboard (managers only), the filter still applies correctly to show that team member's tasks
+
+---
+
+## Feature 2: Remove Currency Selector & Assign Currency by Salesperson/Regional Office
+
+### Current Problem
+- Users can manually select currency via the `<CurrencySelector>` component
+- This creates confusion as salespeople should automatically use their regional currency
+- Currency selector appears in the app sidebar
+
+### Database Schema
+The `users` table already has:
+- `preferredCurrency` field (line 59 in schema.ts)
+- `regionalOffice` field (line 58 in schema.ts)
+
+### Required Changes
+
+#### Step 1: Define Regional Office to Currency Mapping
+
+**Create new file: `/shared/currency-mapping.ts`**
+
+```typescript
+import type { Currency } from "./schema";
+
+export const REGIONAL_OFFICE_CURRENCY_MAP: Record<string, Currency> = {
+  "Hong Kong": "HKD",
+  "Singapore": "SGD",
+  "Shanghai": "CNY",
+  "Australia": "AUD",
+  "New Zealand": "NZD",
+  "Indonesia": "IDR",
+  "Malaysia": "MYR",
+  "Guangzhou": "CNY",
+} as const;
+
+/**
+ * Get the default currency for a regional office
+ */
+export function getCurrencyForRegionalOffice(regionalOffice: string | null | undefined): Currency {
+  if (!regionalOffice) return "USD";
+  return REGIONAL_OFFICE_CURRENCY_MAP[regionalOffice] || "USD";
+}
+```
+
+#### Step 2: Backend - Auto-assign Currency on User Creation/Update
+
+**File: `/server/routes.ts`**
+
+**Location: Find the user creation/update endpoints (likely around where users are created or profile is updated)**
+
+**Add logic:**
+```typescript
+import { getCurrencyForRegionalOffice } from "@shared/currency-mapping";
+
+// When creating a new user:
+const preferredCurrency = getCurrencyForRegionalOffice(userData.regionalOffice);
+
+// When updating user's regional office:
+if (updateData.regionalOffice) {
+  updateData.preferredCurrency = getCurrencyForRegionalOffice(updateData.regionalOffice);
+}
+```
+
+#### Step 3: Backend - Remove Currency Update Endpoint
+
+**File: `/server/routes.ts`**
+
+**Find and remove the endpoint:**
+```typescript
+// REMOVE THIS ENDPOINT:
+app.patch("/api/user/currency", async (req, res) => {
+  // ... endpoint code
+});
+```
+
+Or if you want to keep it for admin purposes only, add role restriction:
+```typescript
+app.patch("/api/user/currency", async (req, res) => {
+  if (req.user?.role !== "ceo" && req.user?.role !== "admin") {
+    return res.status(403).send("Only admins can change currency");
+  }
+  // ... rest of endpoint
+});
+```
+
+#### Step 4: Frontend - Remove Currency Selector from UI
+
+**File: `/client/src/components/app-sidebar.tsx`**
+
+**Find and remove:**
+```typescript
+import { CurrencySelector } from "./currency-selector";
+
+// Remove the <CurrencySelector /> component from the JSX
+```
+
+**Alternative: Comment it out for reference**
+```typescript
+{/* <CurrencySelector /> - Currency is now auto-assigned by regional office */}
+```
+
+#### Step 5: Frontend - Display Currency Info (Read-only)
+
+**Option A: Add currency display to user profile/settings page**
+
+**File: `/client/src/pages/user-details.tsx` or similar**
+
+```typescript
+<div className="space-y-2">
+  <Label>Currency</Label>
+  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+    <DollarSign className="h-4 w-4 text-muted-foreground" />
+    <span className="font-medium">{user.preferredCurrency}</span>
+    <span className="text-sm text-muted-foreground">
+      (Based on regional office: {user.regionalOffice})
+    </span>
+  </div>
+  <p className="text-xs text-muted-foreground">
+    Currency is automatically set based on your regional office
+  </p>
+</div>
+```
+
+**Option B: Add to sidebar as read-only indicator**
+
+Replace the `<CurrencySelector />` component with:
+```typescript
+import { DollarSign } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+
+// In the sidebar component:
+const { user } = useAuth();
+
+<div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+  <DollarSign className="h-4 w-4" />
+  <span>{user?.preferredCurrency || 'USD'}</span>
+</div>
+```
+
+#### Step 6: Admin Interface - Allow Admins to Override Currency
+
+**File: `/client/src/pages/admin.tsx` or user management page**
+
+Add currency override for admin/CEO roles only:
+```typescript
+{(user?.role === "ceo" || user?.role === "admin") && (
+  <div className="space-y-2">
+    <Label>Override Currency (Admin Only)</Label>
+    <Select 
+      value={editingUser.preferredCurrency} 
+      onValueChange={(value) => handleCurrencyUpdate(editingUser.id, value)}
+    >
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {CURRENCIES.map((curr) => (
+          <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+    <p className="text-xs text-muted-foreground">
+      Overrides automatic assignment from regional office
+    </p>
+  </div>
+)}
+```
+
+---
+
+## Migration Strategy (Important!)
+
+### For Existing Users Without regionalOffice Set
+
+**Create migration script: `/server/migrate-user-currencies.ts`**
+
+```typescript
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { getCurrencyForRegionalOffice } from "@shared/currency-mapping";
+import { eq } from "drizzle-orm";
+
+async function migrateUserCurrencies() {
+  const allUsers = await db.select().from(users);
+  
+  for (const user of allUsers) {
+    const newCurrency = getCurrencyForRegionalOffice(user.regionalOffice);
+    
+    // Only update if different from current
+    if (user.preferredCurrency !== newCurrency) {
+      await db
+        .update(users)
+        .set({ preferredCurrency: newCurrency })
+        .where(eq(users.id, user.id));
+      
+      console.log(`Updated ${user.username}: ${user.preferredCurrency} -> ${newCurrency}`);
+    }
+  }
+  
+  console.log("Migration complete!");
+}
+
+migrateUserCurrencies();
+```
+
+**Run this once after deploying:**
+```bash
+npx tsx server/migrate-user-currencies.ts
+```
+
+---
+
+## Summary of Files to Modify
+
+### New Files:
+1. `/shared/currency-mapping.ts` - Regional office to currency mapping
+2. `/server/migrate-user-currencies.ts` - One-time migration script
+
+### Modified Files:
+1. `/client/src/pages/dashboard.tsx` - Update line 152-155 for action item filtering
+2. `/server/routes.ts` - Auto-assign currency on user creation/update, remove/restrict currency update endpoint
+3. `/client/src/components/app-sidebar.tsx` - Remove `<CurrencySelector />` component
+4. `/client/src/pages/user-details.tsx` - Add read-only currency display
+5. `/client/src/pages/admin.tsx` - Add admin-only currency override (optional)
+
+### Files to Delete (optional):
+1. `/client/src/components/currency-selector.tsx` - No longer needed
+
+---
+
+## Testing Checklist
+
+### Feature 1 - Priority Filtering:
+- [ ] Login as salesperson, create action items, verify they appear
+- [ ] Verify other salespeople's action items don't appear
+- [ ] Manager viewing team member dashboard sees correct filtered items
+- [ ] Calendar view shows only user's own action items
+- [ ] Priority alerts section shows only user's tasks
+
+### Feature 2 - Auto Currency:
+- [ ] New user created with Hong Kong office → currency is HKD
+- [ ] User's regional office changed from HK to Singapore → currency updates to SGD
+- [ ] Currency selector is not visible in sidebar
+- [ ] All monetary values display in user's assigned currency
+- [ ] Admin can override currency if needed
+- [ ] Run migration script on existing users
+- [ ] Verify all existing users have correct currency based on their office
+
+---
+
+## Additional Notes
+
+1. **Backwards Compatibility**: Users without a `regionalOffice` will default to USD
+2. **Exchange Rates**: The app already has exchange rate functionality (schema line 226-231), so currency conversion will continue to work
+3. **Admin Override**: Consider whether admins should be able to manually override a user's currency or if it should ALWAYS be determined by regional office
+4. **User Communication**: Notify users that currency is now automatically set and they cannot change it manually
+5. **Edge Cases**: Consider what happens when an office doesn't have a defined currency mapping (defaults to USD)
+
+---
+
+## Rollback Plan
+
+If issues occur:
+1. Re-enable `<CurrencySelector />` in app-sidebar.tsx
+2. Restore `/api/user/currency` endpoint
+3. Users can manually select currency again

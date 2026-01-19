@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as DbUser, insertUserSchema } from "@shared/schema";
+import { getCurrencyForRegionalOffice } from "@shared/currency-mapping";
 import {
   authRateLimiter,
   registrationRateLimiter,
@@ -96,9 +97,12 @@ export function setupAuth(app: Express) {
 
       // Security: Public registration is restricted to salesman role only
       // CEO, Sales Director, and Regional Manager accounts must be created by Sales Directors via /api/admin/users
+      // Auto-assign currency based on regional office
+      const preferredCurrency = getCurrencyForRegionalOffice(validatedData.regionalOffice);
       const user = await storage.createUser({
         ...validatedData,
         role: "salesman",
+        preferredCurrency,
         password: await hashPassword(validatedData.password),
       });
 
@@ -123,8 +127,12 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Auto-assign currency based on regional office (ignore client-supplied value)
+      delete (validatedData as any).preferredCurrency;
+      const preferredCurrency = getCurrencyForRegionalOffice(validatedData.regionalOffice);
       const user = await storage.createUser({
         ...validatedData,
+        preferredCurrency,
         password: await hashPassword(validatedData.password),
       });
 
@@ -163,6 +171,12 @@ export function setupAuth(app: Express) {
       // Hash password if it's being updated
       if (validatedData.password) {
         validatedData.password = await hashPassword(validatedData.password);
+      }
+
+      // Auto-update currency when regional office changes (ignore client-supplied preferredCurrency)
+      delete (validatedData as any).preferredCurrency;
+      if (validatedData.regionalOffice !== undefined) {
+        (validatedData as any).preferredCurrency = getCurrencyForRegionalOffice(validatedData.regionalOffice);
       }
 
       const updatedUser = await storage.updateUser(id, validatedData);

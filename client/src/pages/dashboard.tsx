@@ -149,9 +149,9 @@ export default function Dashboard() {
   // Filter leads for the effective user
   const userLeads = userCustomers.filter(c => c.stage === "lead");
 
-  // Filter action items for the effective user's customers
+  // Filter to show ONLY the logged-in user's own action items (created by them)
   const userActionItems = actionItems.filter(item => 
-    userCustomerIds.includes(item.customerId)
+    item.createdBy === effectiveUserId
   );
 
   // Categorize action items
