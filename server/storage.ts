@@ -92,6 +92,7 @@ export interface IStorage {
   deleteSale(id: string): Promise<boolean>;
   getSalesmanStats(userId: string, userRole: UserRole): Promise<SalesmanStats[]>;
   getAdminStats(userId: string, userRole: UserRole): Promise<AdminDashboardStats>;
+  getRevenueBreakdownByCountry(userId: string, userRole: UserRole, userCurrency: string): Promise<{ breakdown: Array<{ country: string; salesCount: number; localCurrency: string; localAmount: string; baseCurrencyAmount: string; userCurrencyAmount: string; userCurrency: string }>; totalBaseCurrency: string; totalUserCurrency: string; userCurrency: string; conversionAvailable: boolean }>;
 
   getCustomers(userId: string, userRole: UserRole): Promise<CustomerWithBrands[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
@@ -377,6 +378,103 @@ export class DatabaseStorage implements IStorage {
       totalSales: relevantSales.length,
       totalRevenue: totalRevenue.toFixed(2),
       salesmenStats,
+    };
+  }
+
+  async getRevenueBreakdownByCountry(userId: string, userRole: UserRole, userCurrency: string): Promise<{ breakdown: Array<{ country: string; salesCount: number; localCurrency: string; localAmount: string; baseCurrencyAmount: string; userCurrencyAmount: string; userCurrency: string }>; totalBaseCurrency: string; totalUserCurrency: string; userCurrency: string; conversionAvailable: boolean }> {
+    let relevantSales: Sale[];
+
+    const effectiveRole = (userRole === "sales_director" || userRole === "marketing_director") ? "ceo" : userRole;
+    if (effectiveRole === "ceo") {
+      relevantSales = await db.select().from(sales);
+    } else if (effectiveRole === "manager") {
+      const teamMembers = await this.getTeamMembers(userId);
+      const teamMemberIds = teamMembers.map(member => member.id);
+
+      if (teamMemberIds.length === 0) {
+        relevantSales = [];
+      } else {
+        relevantSales = await db.select().from(sales).where(inArray(sales.salesmanId, teamMemberIds));
+      }
+    } else {
+      relevantSales = await db.select().from(sales).where(eq(sales.salesmanId, userId));
+    }
+
+    // Get exchange rate from USD to user's preferred currency
+    let conversionRate = 1;
+    let conversionAvailable = true;
+    if (userCurrency !== "USD") {
+      const rateData = await this.getExchangeRate("USD", userCurrency);
+      if (rateData) {
+        conversionRate = parseFloat(rateData.rate);
+      } else {
+        conversionAvailable = false;
+      }
+    }
+
+    // Group sales by country
+    const countryMap = new Map<string, { salesCount: number; localAmounts: Map<string, number>; baseCurrencyTotal: number }>();
+    
+    for (const sale of relevantSales) {
+      const country = sale.country || "Unknown";
+      const currency = sale.currency || "USD";
+      const localAmount = parseFloat(sale.amount);
+      const baseAmount = parseFloat(sale.baseCurrencyAmount);
+      
+      if (!countryMap.has(country)) {
+        countryMap.set(country, { salesCount: 0, localAmounts: new Map(), baseCurrencyTotal: 0 });
+      }
+      
+      const countryData = countryMap.get(country)!;
+      countryData.salesCount++;
+      countryData.baseCurrencyTotal += baseAmount;
+      
+      // Track local amounts by currency for this country
+      const currentLocalAmount = countryData.localAmounts.get(currency) || 0;
+      countryData.localAmounts.set(currency, currentLocalAmount + localAmount);
+    }
+
+    // Build breakdown array
+    const breakdown: Array<{ country: string; salesCount: number; localCurrency: string; localAmount: string; baseCurrencyAmount: string; userCurrencyAmount: string; userCurrency: string }> = [];
+    let totalBaseCurrency = 0;
+    let totalUserCurrency = 0;
+
+    for (const [country, data] of Array.from(countryMap.entries())) {
+      // Get the primary local currency (the one with most sales or highest amount)
+      let primaryCurrency = "USD";
+      let primaryLocalAmount = 0;
+      for (const [currency, amount] of Array.from(data.localAmounts.entries())) {
+        if (amount > primaryLocalAmount) {
+          primaryCurrency = currency;
+          primaryLocalAmount = amount;
+        }
+      }
+
+      const userCurrencyAmount = conversionAvailable ? data.baseCurrencyTotal * conversionRate : data.baseCurrencyTotal;
+      
+      breakdown.push({
+        country,
+        salesCount: data.salesCount,
+        localCurrency: primaryCurrency,
+        localAmount: primaryLocalAmount.toFixed(2),
+        baseCurrencyAmount: data.baseCurrencyTotal.toFixed(2),
+        userCurrencyAmount: userCurrencyAmount.toFixed(2),
+        userCurrency: conversionAvailable ? userCurrency : "USD",
+      });
+
+      totalBaseCurrency += data.baseCurrencyTotal;
+      totalUserCurrency += userCurrencyAmount;
+    }
+
+    // Sort by base currency amount descending
+    breakdown.sort((a, b) => parseFloat(b.baseCurrencyAmount) - parseFloat(a.baseCurrencyAmount));
+
+    return {
+      breakdown,
+      totalBaseCurrency: totalBaseCurrency.toFixed(2),
+      totalUserCurrency: totalUserCurrency.toFixed(2),
+      userCurrency: conversionAvailable ? userCurrency : "USD",
+      conversionAvailable,
     };
   }
 

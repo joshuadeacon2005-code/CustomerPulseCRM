@@ -1022,6 +1022,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/revenue-breakdown", isAdmin, async (req, res) => {
+    try {
+      const userCurrency = req.user?.preferredCurrency || "USD";
+      const breakdown = await storage.getRevenueBreakdownByCountry(
+        req.user!.id, 
+        req.user!.role as UserRole,
+        userCurrency
+      );
+      res.json(breakdown);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch revenue breakdown" });
+    }
+  });
+
   app.get("/api/users", isAuthenticated, async (req, res) => {
     try {
       const users = await storage.getUsers(req.user!.id, req.user!.role as UserRole);

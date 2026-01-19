@@ -722,3 +722,21 @@ export type UserDetails = {
     completedActionItems: number;
   };
 };
+
+export type CountryRevenueBreakdown = {
+  country: string;
+  salesCount: number;
+  localCurrency: string;
+  localAmount: string;
+  baseCurrencyAmount: string;
+  userCurrencyAmount: string;
+  userCurrency: string;
+};
+
+export type RevenueBreakdownResponse = {
+  breakdown: CountryRevenueBreakdown[];
+  totalBaseCurrency: string;
+  totalUserCurrency: string;
+  userCurrency: string;
+  conversionAvailable: boolean;
+};

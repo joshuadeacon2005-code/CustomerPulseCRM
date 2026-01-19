@@ -40,9 +40,9 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer, Office, OfficeAssignment } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer, Office, OfficeAssignment, RevenueBreakdownResponse } from "@shared/schema";
 import { format } from "date-fns";
-import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp, Building2, Plus, X } from "lucide-react";
+import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp, Building2, Plus, X, Globe, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -107,6 +107,9 @@ export default function AdminPage() {
   const [assignmentUserId, setAssignmentUserId] = useState<string>("");
   const [assignmentRoleType, setAssignmentRoleType] = useState<string>("salesman");
 
+  // Revenue breakdown dialog state
+  const [revenueBreakdownOpen, setRevenueBreakdownOpen] = useState(false);
+
   const { data: stats, isLoading: isLoadingStats } = useQuery<AdminDashboardStats>({
     queryKey: ["/api/admin/stats"],
   });
@@ -140,6 +143,12 @@ export default function AdminPage() {
 
   const { data: allAssignments = [] } = useQuery<(OfficeAssignment & { userName?: string; officeName?: string })[]>({
     queryKey: ["/api/office-assignments"],
+  });
+
+  // Revenue breakdown query
+  const { data: revenueBreakdown, isLoading: isLoadingRevenueBreakdown } = useQuery<RevenueBreakdownResponse>({
+    queryKey: ["/api/admin/revenue-breakdown"],
+    enabled: revenueBreakdownOpen,
   });
 
   const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
@@ -704,15 +713,20 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card className="hover-elevate relative overflow-visible" data-testid="card-admin-total-revenue">
+        <Card 
+          className="hover-elevate relative overflow-visible cursor-pointer" 
+          data-testid="card-admin-total-revenue"
+          onClick={() => setRevenueBreakdownOpen(true)}
+        >
           <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl pointer-events-none" />
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-secondary" />
               Total Revenue
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="flex items-center gap-1">
               {currentUser?.role === "sales_director" || currentUser?.role === "ceo" ? "Total revenue across all team members" : "Revenue from your team"}
+              <span className="text-xs text-muted-foreground ml-1">(Click to see breakdown)</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="relative">
@@ -722,6 +736,78 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Revenue Breakdown Dialog */}
+      <Dialog open={revenueBreakdownOpen} onOpenChange={setRevenueBreakdownOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" data-testid="dialog-revenue-breakdown">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Revenue Breakdown by Country
+            </DialogTitle>
+            <DialogDescription>
+              View revenue across different countries with currency conversions
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingRevenueBreakdown ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : revenueBreakdown ? (
+            <div className="space-y-4">
+              {!revenueBreakdown.conversionAvailable && (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm text-amber-700 dark:text-amber-300">
+                    Exchange rate not available for your currency. Showing values in USD.
+                  </span>
+                </div>
+              )}
+              
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Country</TableHead>
+                    <TableHead className="text-right">Sales</TableHead>
+                    <TableHead className="text-right">Local Currency</TableHead>
+                    <TableHead className="text-right">Your Currency ({revenueBreakdown.userCurrency})</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {revenueBreakdown.breakdown.map((item) => (
+                    <TableRow key={item.country} data-testid={`row-revenue-${item.country}`}>
+                      <TableCell className="font-medium">{item.country}</TableCell>
+                      <TableCell className="text-right">{item.salesCount}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-muted-foreground">{item.localCurrency}</span>{" "}
+                        {parseFloat(item.localAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        <span className="text-muted-foreground">{item.userCurrency}</span>{" "}
+                        {parseFloat(item.userCurrencyAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              <div className="flex justify-end pt-4 border-t">
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Total ({revenueBreakdown.userCurrency})</p>
+                  <p className="text-2xl font-bold" data-testid="text-revenue-breakdown-total">
+                    {revenueBreakdown.userCurrency} {parseFloat(revenueBreakdown.totalUserCurrency).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No revenue data available
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Collapsible open={allUsersOpen} onOpenChange={setAllUsersOpen}>
         <Card>
