@@ -54,9 +54,9 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
+        const user = await storage.getUserByUsernameOrEmail(username);
         if (!user) {
-          return done(null, false, { message: "No account found with this username. Please check your username or register a new account." });
+          return done(null, false, { message: "No account found with this username or email. Please check your credentials or register a new account." });
         }
         if (!(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Incorrect password. Please try again." });
