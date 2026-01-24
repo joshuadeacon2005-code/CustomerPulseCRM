@@ -57,8 +57,8 @@ export default function TargetsPage() {
   );
 
   const personalTargets = useMemo(() => 
-    currentYearTargets.filter(t => t.targetType === "personal"),
-    [currentYearTargets]
+    currentYearTargets.filter(t => t.targetType === "personal" && t.salesmanId === user?.id),
+    [currentYearTargets, user?.id]
   );
 
   const generalTargets = useMemo(() => 
