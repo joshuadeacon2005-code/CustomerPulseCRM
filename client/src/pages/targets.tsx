@@ -66,14 +66,13 @@ export default function TargetsPage() {
     [currentYearTargets]
   );
 
-  const selectedMonthTarget = useMemo(() => 
-    currentYearTargets.find(t => 
+  const selectedMonthTarget = useMemo(() => {
+    const targetsToSearch = targetView === "personal" ? personalTargets : generalTargets;
+    return targetsToSearch.find(t => 
       t.month === selectedMonth && 
-      t.year === currentYear && 
-      t.targetType === targetView
-    ),
-    [currentYearTargets, selectedMonth, currentYear, targetView]
-  );
+      t.year === currentYear
+    );
+  }, [personalTargets, generalTargets, selectedMonth, currentYear, targetView]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

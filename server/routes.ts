@@ -984,6 +984,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const sale = await storage.createSale(validatedData);
+      
+      // Auto-sync to monthly_sales_tracking if a matching customer exists
+      try {
+        // Try to find customer by name (case-insensitive match)
+        const allCustomers = await storage.getCustomers(req.user!.id, req.user!.role as UserRole);
+        const matchedCustomer = allCustomers.find(c => 
+          c.name.toLowerCase() === validatedData.customerName.toLowerCase()
+        );
+        
+        if (matchedCustomer) {
+          // Use current date for the sale (date is auto-generated on insert)
+          const saleDate = new Date();
+          const saleMonth = saleDate.getMonth() + 1;
+          const saleYear = saleDate.getFullYear();
+          
+          // Always use baseCurrencyAmount (USD) for consistency
+          // The conversion was already done earlier in this route, so baseCurrencyAmount should be set
+          // If for some reason it's not set, convert the amount now
+          let saleAmountUSD: number;
+          if (validatedData.baseCurrencyAmount) {
+            saleAmountUSD = Number(validatedData.baseCurrencyAmount);
+          } else if (validatedData.currency && validatedData.currency !== "USD") {
+            // Convert to USD if currency is provided but base amount wasn't calculated
+            saleAmountUSD = await validateAndConvertToBase(Number(validatedData.amount), validatedData.currency);
+          } else {
+            // Assume USD if no currency specified
+            saleAmountUSD = Number(validatedData.amount);
+          }
+          
+          // Find existing monthly tracking record
+          const existingTracking = await storage.getMonthlySalesTrackingByCustomerMonthYear(
+            matchedCustomer.id,
+            saleMonth,
+            saleYear
+          );
+          
+          if (existingTracking) {
+            // Calculate existing actual in USD
+            // If actualBaseCurrencyAmount is missing, derive it from actual + actualCurrency
+            let currentActualUSD = 0;
+            if (existingTracking.actualBaseCurrencyAmount) {
+              currentActualUSD = Number(existingTracking.actualBaseCurrencyAmount);
+            } else if (existingTracking.actual && existingTracking.actualCurrency) {
+              // Convert existing actual to USD
+              if (existingTracking.actualCurrency === "USD") {
+                currentActualUSD = Number(existingTracking.actual);
+              } else {
+                try {
+                  currentActualUSD = await validateAndConvertToBase(
+                    Number(existingTracking.actual), 
+                    existingTracking.actualCurrency
+                  );
+                } catch {
+                  currentActualUSD = Number(existingTracking.actual);
+                }
+              }
+            }
+            
+            const newActualUSD = currentActualUSD + saleAmountUSD;
+            
+            // Try to preserve existing currency, but fallback to USD if no exchange rate
+            const existingCurrency = existingTracking.actualCurrency || "USD";
+            let newActualInCurrency = newActualUSD;
+            let finalCurrency = "USD";
+            
+            if (existingCurrency !== "USD") {
+              const rateRecord = await storage.getExchangeRate("USD", existingCurrency);
+              if (rateRecord) {
+                newActualInCurrency = newActualUSD * Number(rateRecord.rate);
+                finalCurrency = existingCurrency;
+              }
+              // If no rate found, keep as USD (finalCurrency already "USD")
+            }
+            
+            await storage.updateMonthlySales(existingTracking.id, {
+              actual: newActualInCurrency.toFixed(2),
+              actualBaseCurrencyAmount: newActualUSD.toFixed(2),
+              actualCurrency: finalCurrency
+            });
+          } else {
+            // Create a new monthly tracking record with budget=0 and actual=sale amount (in USD)
+            await storage.createMonthlySales({
+              customerId: matchedCustomer.id,
+              month: saleMonth,
+              year: saleYear,
+              budget: "0",
+              budgetCurrency: "USD",
+              budgetBaseCurrencyAmount: "0",
+              actual: saleAmountUSD.toFixed(2),
+              actualCurrency: "USD",
+              actualBaseCurrencyAmount: saleAmountUSD.toFixed(2)
+            });
+          }
+        }
+      } catch (syncError) {
+        // Log but don't fail the sale creation
+        console.error("Failed to auto-sync sale to monthly tracking:", syncError);
+      }
+      
       res.status(201).json(sale);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {

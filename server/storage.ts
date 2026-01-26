@@ -136,6 +136,7 @@ export interface IStorage {
   deleteCustomerMonthlyTarget(id: string, customerId: string): Promise<boolean>;
 
   getMonthlySales(userId: string, userRole: UserRole, customerId?: string): Promise<MonthlySalesTracking[]>;
+  getMonthlySalesTrackingByCustomerMonthYear(customerId: string, month: number, year: number): Promise<MonthlySalesTracking | undefined>;
   createMonthlySales(sales: InsertMonthlySalesTracking): Promise<MonthlySalesTracking>;
   updateMonthlySales(id: string, sales: UpdateMonthlySalesTracking): Promise<MonthlySalesTracking | undefined>;
   deleteMonthlySales(id: string): Promise<boolean>;
@@ -1054,6 +1055,18 @@ export class DatabaseStorage implements IStorage {
       .from(monthlySalesTracking)
       .where(inArray(monthlySalesTracking.customerId, allowedCustomerIds))
       .orderBy(desc(monthlySalesTracking.year), desc(monthlySalesTracking.month));
+  }
+
+  async getMonthlySalesTrackingByCustomerMonthYear(customerId: string, month: number, year: number): Promise<MonthlySalesTracking | undefined> {
+    const [tracking] = await db
+      .select()
+      .from(monthlySalesTracking)
+      .where(and(
+        eq(monthlySalesTracking.customerId, customerId),
+        eq(monthlySalesTracking.month, month),
+        eq(monthlySalesTracking.year, year)
+      ));
+    return tracking;
   }
 
   async createMonthlySales(salesData: InsertMonthlySalesTracking): Promise<MonthlySalesTracking> {
