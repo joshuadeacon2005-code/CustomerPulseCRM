@@ -399,6 +399,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertInteractionSchema.parse(req.body);
       const interaction = await storage.createInteraction(validatedData);
+      
+      // Update customer's lastContactDate when an interaction is logged
+      if (validatedData.customerId) {
+        const interactionDate = interaction.date || new Date();
+        await storage.updateCustomer(validatedData.customerId, {
+          lastContactDate: interactionDate
+        });
+      }
+      
       res.status(201).json(interaction);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
