@@ -35,15 +35,22 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // In Replit, we're always behind a proxy that handles HTTPS
+  // Use secure cookies when not in local development
+  const isProduction = process.env.NODE_ENV === "production";
+  const isReplit = !!process.env.REPL_ID || !!process.env.REPLIT_DEPLOYMENT;
+  const useSecureCookies = isProduction || isReplit;
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: useSecureCookies,
+      sameSite: useSecureCookies ? "none" : "lax", // Required for cross-site cookies in Replit
     },
   };
 
