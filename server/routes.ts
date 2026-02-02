@@ -559,9 +559,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/targets", isAuthenticated, async (req, res) => {
     try {
+      // For personal targets, always use the current user's ID
+      // For general targets, salesmanId should be null
+      const targetType = req.body.targetType || "personal";
+      const salesmanId = targetType === "general" ? null : (req.body.salesmanId || req.user!.id);
+      
       let validatedData = insertMonthlyTargetSchemaRefined.parse({
         ...req.body,
-        salesmanId: req.user!.role === "salesman" ? req.user!.id : req.body.salesmanId,
+        salesmanId,
       });
       
       // Validate and auto-calculate base amount if currency is provided
