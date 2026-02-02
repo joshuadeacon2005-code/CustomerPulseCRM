@@ -397,8 +397,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/interactions", isAuthenticated, async (req, res) => {
     try {
+      console.log('[Server] Creating interaction for customer:', req.body.customerId, 'Type:', req.body.type);
       const validatedData = insertInteractionSchema.parse(req.body);
       const interaction = await storage.createInteraction(validatedData);
+      console.log('[Server] Interaction created successfully, ID:', interaction.id);
       
       // Update customer's lastContactDate when an interaction is logged
       if (validatedData.customerId) {
@@ -406,10 +408,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateCustomer(validatedData.customerId, {
           lastContactDate: interactionDate
         });
+        console.log('[Server] Updated lastContactDate for customer:', validatedData.customerId);
       }
       
       res.status(201).json(interaction);
     } catch (error) {
+      console.error('[Server] Failed to create interaction:', error);
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid interaction data", details: error });
       }

@@ -311,21 +311,32 @@ export default function Customers() {
   });
 
   const addInteractionMutation = useMutation({
-    mutationFn: (data: InsertInteraction) => apiRequest("POST", "/api/interactions", data),
-    onSuccess: () => {
+    mutationFn: async (data: InsertInteraction) => {
+      console.log('[Interaction] Saving interaction for customer:', data.customerId, 'Type:', data.type);
+      const response = await apiRequest("POST", "/api/interactions", data);
+      const result = await response.json();
+      console.log('[Interaction] Server response:', result);
+      return { result, originalData: data };
+    },
+    onSuccess: ({ result, originalData }) => {
+      const customerName = selectedCustomer?.name || 'customer';
+      console.log('[Interaction] Successfully saved interaction ID:', result.id);
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/interactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({
-        title: "Interaction added",
-        description: "The interaction has been successfully logged.",
+        title: "Interaction Logged Successfully",
+        description: `${originalData.type} interaction for "${customerName}" has been saved.`,
+        duration: 5000,
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('[Interaction] Failed to save interaction:', error);
       toast({
-        title: "Error",
-        description: "Failed to add interaction. Please try again.",
+        title: "Failed to Save Interaction",
+        description: error.message || "Could not save the interaction. Please check your connection and try again.",
         variant: "destructive",
+        duration: 8000,
       });
     },
   });

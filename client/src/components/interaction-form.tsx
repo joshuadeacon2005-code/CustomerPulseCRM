@@ -336,10 +336,23 @@ export function InteractionForm({ customerId, onSubmit, onCancel, isLoading, def
             type="submit" 
             disabled={isLoading}
             data-testid="button-submit-interaction"
+            className={isLoading ? "opacity-80" : ""}
           >
-            {isLoading ? (isEditing ? "Saving..." : "Adding...") : (isEditing ? "Save Changes" : "Add Interaction")}
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {isEditing ? "Saving Changes..." : "Saving Interaction..."}
+              </>
+            ) : (
+              isEditing ? "Save Changes" : "Log Interaction"
+            )}
           </Button>
         </div>
+        {isLoading && (
+          <p className="text-xs text-muted-foreground text-center animate-pulse">
+            Please wait while your interaction is being saved...
+          </p>
+        )}
       </form>
     </Form>
   );
