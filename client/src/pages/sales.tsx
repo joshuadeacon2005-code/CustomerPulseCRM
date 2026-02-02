@@ -7,17 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertMonthlyTargetSchema } from "@shared/schema";
-import type { Sale, MonthlyTarget } from "@shared/schema";
+import type { Sale, MonthlyTarget, Customer } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
-import { Edit, TrendingUp, Target as TargetIcon, FileText, Download } from "lucide-react";
+import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, ChevronsUpDown } from "lucide-react";
 import { exportSalesReport } from "@/lib/export-utils";
 import { useLocation } from "wouter";
+import { cn } from "@/lib/utils";
 
 const months = [
   { value: 1, label: "Jan" },
@@ -46,10 +49,12 @@ export default function SalesPage() {
   
   const [saleData, setSaleData] = useState({
     customerName: "",
+    customerId: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
   });
 
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [editingTarget, setEditingTarget] = useState<MonthlyTarget | null>(null);
   const [targetView, setTargetView] = useState<"personal" | "general">("personal");
@@ -64,6 +69,10 @@ export default function SalesPage() {
     queryKey: ["/api/targets"],
   });
 
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
   const createSaleMutation = useMutation({
     mutationFn: async (data: typeof saleData) => {
       const response = await apiRequest("POST", "/api/sales", data);
@@ -73,6 +82,7 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       setSaleData({
         customerName: "",
+        customerId: "",
         amount: "",
         date: new Date().toISOString().split("T")[0],
       });
@@ -296,13 +306,58 @@ export default function SalesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="customerName">Customer Name</Label>
-                <Input
-                  id="customerName"
-                  data-testid="input-customer-name"
-                  value={saleData.customerName}
-                  onChange={(e) => setSaleData({ ...saleData, customerName: e.target.value })}
-                  required
-                />
+                <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={customerSearchOpen}
+                      className="w-full justify-between font-normal"
+                      data-testid="input-customer-name"
+                    >
+                      {saleData.customerName || "Search and select a customer..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type customer name..." />
+                      <CommandList>
+                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandGroup>
+                          {customers.map((customer) => (
+                            <CommandItem
+                              key={customer.id}
+                              value={customer.name}
+                              onSelect={() => {
+                                setSaleData({ 
+                                  ...saleData, 
+                                  customerName: customer.name,
+                                  customerId: customer.id 
+                                });
+                                setCustomerSearchOpen(false);
+                              }}
+                              data-testid={`option-customer-${customer.id}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  saleData.customerId === customer.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{customer.name}</span>
+                                {customer.country && (
+                                  <span className="text-xs text-muted-foreground">{customer.country}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount ($)</Label>
