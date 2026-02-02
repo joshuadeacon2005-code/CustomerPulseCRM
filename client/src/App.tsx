@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { QuickActionMenu } from "@/components/quick-action-menu";
+import { SessionExpirationHandler } from "@/components/session-expiration-handler";
 import { DollarSign } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
 import { useAuth } from "@/hooks/useAuth";
@@ -161,6 +162,7 @@ export default function App() {
         <TooltipProvider>
           <Router />
           <Toaster />
+          <SessionExpirationHandler />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
