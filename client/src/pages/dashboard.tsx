@@ -1123,15 +1123,18 @@ function PersonalTargetsWidget({
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
   const [targetAmount, setTargetAmount] = useState<string>("");
 
-  // Generate array of months to show (current month + next 5 months)
+  // Generate array of all 12 months for the current year (Jan-Dec)
   const today = new Date();
-  const monthsToShow = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const monthsToShow = Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1; // 1-12
     return {
-      month: date.getMonth() + 1,
-      year: date.getFullYear(),
-      label: format(date, 'MMM yyyy'),
-      isCurrentMonth: i === 0,
+      month,
+      year: currentYear,
+      label: format(new Date(currentYear, i, 1), 'MMM'),
+      isCurrentMonth: month === currentMonth,
+      isPastMonth: month < currentMonth,
     };
   });
 
@@ -1204,8 +1207,136 @@ function PersonalTargetsWidget({
         <CardDescription>Set and track your monthly sales goals</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
-          {monthsToShow.map(({ month, year, label, isCurrentMonth }) => {
+        <div className="space-y-4">
+          <div className="text-xs text-muted-foreground font-medium">Jan - Jun</div>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
+          {monthsToShow.slice(0, 6).map(({ month, year, label, isCurrentMonth, isPastMonth }) => {
+            const target = monthlyTargets.find(
+              t => t.month === month && t.year === year && 
+                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+            );
+            
+            const monthSales = monthlySales.filter(
+              s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
+            );
+            const actualSales = monthSales.reduce(
+              (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
+            );
+            
+            const targetAmt = target ? Number(target.targetAmount) : 0;
+            const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
+            const isEditing = editingMonth?.month === month && editingMonth?.year === year;
+            
+            return (
+              <div 
+                key={`${month}-${year}`} 
+                className={`rounded-lg border p-3 space-y-2 ${isCurrentMonth ? 'border-primary/50 bg-primary/5' : isPastMonth ? 'bg-muted/30' : 'bg-card'}`}
+                data-testid={`card-target-${month}-${year}`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <p className={`font-medium text-sm ${isPastMonth ? 'text-muted-foreground' : ''}`}>{label}</p>
+                  {isCurrentMonth && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Now</Badge>
+                  )}
+                </div>
+                
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                      <input
+                        type="number"
+                        value={targetAmount}
+                        onChange={(e) => setTargetAmount(e.target.value)}
+                        placeholder="0"
+                        className="w-full pl-5 pr-2 py-1.5 border rounded text-xs"
+                        autoFocus
+                        data-testid={`input-target-${month}-${year}`}
+                      />
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => handleSaveTarget(month, year)}
+                        disabled={saveTargetMutation.isPending}
+                        data-testid={`button-save-target-${month}-${year}`}
+                      >
+                        Save
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="h-7 text-xs px-2"
+                        onClick={() => {
+                          setEditingMonth(null);
+                          setTargetAmount("");
+                        }}
+                        data-testid={`button-cancel-target-${month}-${year}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {target ? (
+                      <div className="space-y-1">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-lg font-bold">${(targetAmt / 1000).toFixed(0)}k</span>
+                          <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${progress >= 100 ? 'bg-green-500' : progress >= 50 ? 'bg-yellow-500' : 'bg-primary'}`}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          ${actualSales.toLocaleString()} / ${targetAmt.toLocaleString()}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">No target set</p>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="w-full h-7 text-xs"
+                          onClick={() => {
+                            setEditingMonth({ month, year });
+                            setTargetAmount("");
+                          }}
+                          data-testid={`button-set-target-${month}-${year}`}
+                        >
+                          Set Target
+                        </Button>
+                      </div>
+                    )}
+                    {target && (
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        className="w-full h-6 text-[10px] mt-1"
+                        onClick={() => {
+                          setEditingMonth({ month, year });
+                          setTargetAmount(target.targetAmount);
+                        }}
+                        data-testid={`button-edit-target-${month}-${year}`}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+          </div>
+          
+          <div className="text-xs text-muted-foreground font-medium">Jul - Dec</div>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
+          {monthsToShow.slice(6, 12).map(({ month, year, label, isCurrentMonth, isPastMonth }) => {
             const target = monthlyTargets.find(
               t => t.month === month && t.year === year && 
                    (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
@@ -1338,6 +1469,7 @@ function PersonalTargetsWidget({
               </div>
             );
           })}
+          </div>
         </div>
       </CardContent>
     </Card>
