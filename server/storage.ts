@@ -66,7 +66,7 @@ import {
   type InsertExchangeRate,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
+import { eq, desc, gte, and, sql, or, inArray, ilike } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -87,6 +87,7 @@ export interface IStorage {
 
   getSales(userId: string, userRole: UserRole): Promise<Sale[]>;
   getSalesBySalesman(salesmanId: string): Promise<Sale[]>;
+  getSalesByCustomerName(customerName: string): Promise<Sale[]>;
   createSale(sale: InsertSale): Promise<Sale>;
   updateSale(id: string, sale: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteSale(id: string): Promise<boolean>;
@@ -287,6 +288,11 @@ export class DatabaseStorage implements IStorage {
 
   async getSalesBySalesman(salesmanId: string): Promise<Sale[]> {
     return await db.select().from(sales).where(eq(sales.salesmanId, salesmanId)).orderBy(desc(sales.date));
+  }
+
+  async getSalesByCustomerName(customerName: string): Promise<Sale[]> {
+    // Case-insensitive match on customer name
+    return await db.select().from(sales).where(ilike(sales.customerName, customerName)).orderBy(desc(sales.date));
   }
 
   async createSale(saleData: InsertSale): Promise<Sale> {
