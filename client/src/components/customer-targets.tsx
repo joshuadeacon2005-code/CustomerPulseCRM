@@ -7,12 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCustomerMonthlyTargetSchema, type CustomerMonthlyTarget } from "@shared/schema";
+import { insertCustomerMonthlyTargetSchema, type CustomerMonthlyTarget, type MonthlySalesTracking } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Target, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 const targetFormSchema = z.object({
@@ -40,6 +41,23 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     queryKey: ['/api/customers', customerId, 'targets'],
     enabled: !!customerId,
   });
+
+  // Fetch monthly sales tracking for this customer
+  const { data: monthlySales = [], isLoading: isLoadingSales } = useQuery<MonthlySalesTracking[]>({
+    queryKey: ['/api/monthly-sales', customerId],
+    queryFn: async () => {
+      const res = await fetch(`/api/monthly-sales?customerId=${customerId}`);
+      if (!res.ok) throw new Error('Failed to fetch sales');
+      return res.json();
+    },
+    enabled: !!customerId,
+  });
+
+  // Helper to get actual sales for a given month/year
+  const getActualSales = (month: number, year: number): number => {
+    const salesRecord = monthlySales.find(s => s.month === month && s.year === year);
+    return salesRecord ? parseFloat(salesRecord.actual || '0') : 0;
+  };
 
   const form = useForm<TargetFormValues>({
     resolver: zodResolver(targetFormSchema),
@@ -282,7 +300,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
         </Dialog>
       </div>
 
-      {isLoading ? (
+      {isLoading || isLoadingSales ? (
         <div className="text-center py-8 text-muted-foreground">Loading targets...</div>
       ) : sortedTargets.length === 0 ? (
         <Card>
@@ -296,50 +314,89 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {sortedTargets.map((target) => (
-            <Card key={target.id}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[100px]">
-                      <div className="text-sm text-muted-foreground">
-                        {monthNames[target.month - 1]}
+          {sortedTargets.map((target) => {
+            const targetAmount = parseFloat(target.targetAmount);
+            const actualAmount = getActualSales(target.month, target.year);
+            const progressPercent = targetAmount > 0 ? Math.min((actualAmount / targetAmount) * 100, 100) : 0;
+            const variance = actualAmount - targetAmount;
+            const isOnTrack = actualAmount >= targetAmount;
+            
+            return (
+              <Card key={target.id}>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="text-center min-w-[100px]">
+                        <div className="text-sm text-muted-foreground">
+                          {monthNames[target.month - 1]}
+                        </div>
+                        <div className="text-lg font-semibold">{target.year}</div>
                       </div>
-                      <div className="text-lg font-semibold">{target.year}</div>
+                      <div className="border-l pl-4 flex-1">
+                        <div className="flex items-center gap-6 mb-2">
+                          <div>
+                            <div className="text-sm text-muted-foreground">Target</div>
+                            <div className="text-lg font-bold" data-testid={`text-target-amount-${target.id}`}>
+                              ${targetAmount.toLocaleString('en-US', { 
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2 
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              Actual
+                            </div>
+                            <div className={`text-lg font-bold ${isOnTrack ? 'text-green-600' : actualAmount > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} data-testid={`text-actual-amount-${target.id}`}>
+                              ${actualAmount.toLocaleString('en-US', { 
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2 
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground">Variance</div>
+                            <div className={`text-lg font-bold ${variance >= 0 ? 'text-green-600' : 'text-red-500'}`} data-testid={`text-variance-${target.id}`}>
+                              {variance >= 0 ? '+' : ''}${variance.toLocaleString('en-US', { 
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2 
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progressPercent} className="flex-1 h-2" />
+                          <span className={`text-sm font-medium min-w-[50px] text-right ${isOnTrack ? 'text-green-600' : 'text-muted-foreground'}`}>
+                            {progressPercent.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="border-l pl-4">
-                      <div className="text-sm text-muted-foreground">Target</div>
-                      <div className="text-xl font-bold" data-testid={`text-target-amount-${target.id}`}>
-                        ${parseFloat(target.targetAmount).toLocaleString('en-US', { 
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2 
-                        })}
-                      </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEdit(target)}
+                        data-testid={`button-edit-target-${target.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(target.id)}
+                        disabled={deleteTargetMutation.isPending}
+                        data-testid={`button-delete-target-${target.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleEdit(target)}
-                      data-testid={`button-edit-target-${target.id}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(target.id)}
-                      disabled={deleteTargetMutation.isPending}
-                      data-testid={`button-delete-target-${target.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
