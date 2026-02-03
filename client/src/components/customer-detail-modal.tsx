@@ -1166,7 +1166,7 @@ export function CustomerDetailModal({
                   </Card>
                 )}
 
-                <CustomerTargets customerId={customer.id} />
+                <CustomerTargets customerId={customer.id} customerName={customer.name} />
               </>
             )}
           </TabsContent>
