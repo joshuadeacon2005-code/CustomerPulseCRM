@@ -46,8 +46,9 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    rolling: true, // Refresh session on every request - active users never get logged out
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
       httpOnly: true,
       secure: useSecureCookies,
       sameSite: useSecureCookies ? "none" : "lax", // Required for cross-site cookies in Replit
