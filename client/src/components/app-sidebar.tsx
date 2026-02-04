@@ -184,11 +184,6 @@ export function AppSidebar() {
       url: "/segments",
       icon: Target,
     },
-    {
-      title: "Sales Dashboard",
-      url: "/sales",
-      icon: DollarSign,
-    },
   ];
 
   const salesmanNav = [
