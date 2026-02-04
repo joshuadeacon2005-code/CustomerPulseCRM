@@ -1130,18 +1130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get sales by customer name (for breakdown in customer detail view)
-  app.get("/api/sales/by-customer/:customerName", isAuthenticated, async (req, res) => {
-    try {
-      const customerName = decodeURIComponent(req.params.customerName);
-      const sales = await storage.getSalesByCustomerName(customerName);
-      res.json(sales);
-    } catch (error) {
-      console.error("Error fetching sales by customer:", error);
-      res.status(500).json({ error: "Failed to fetch sales for customer" });
-    }
-  });
-
   app.get("/api/admin/stats", isAdmin, async (req, res) => {
     try {
       const stats = await storage.getAdminStats(req.user!.id, req.user!.role as UserRole);
