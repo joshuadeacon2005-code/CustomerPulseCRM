@@ -1,0 +1,38 @@
+id,username,email,name,role,manager_id,country,preferred_currency,created_at
+f1114db8-96d9-47a5-9fde-5f07ebe709b0,alex,,Alex,CEO,,,USD,2025-11-03 02:24:42.884144
+f44896c5-42d4-477d-8bc0-12fcef2eeef0,alexceo,,Alex CEO,ceo,,,AUD,2025-10-07 04:05:38.688386
+5c4c02ab-7602-4a27-a497-3615252878af,demo_sales1,,Alice Chen,salesman,49e5615d-cc13-489e-a41a-5d64dc031117,,HKD,2025-11-23 13:12:55.253864
+0f2bd7e8-3f8b-489e-8d33-d1e486302ecf,Ania,,Ania Rae,salesman,ce142a74-93be-4567-980e-23d0ddf7b7da,,AUD,2025-12-16 18:40:24.711334
+390f7cd0-1990-4177-9217-464321ae09be,ashley.zhang,,Ashley Zhang,regional_manager,,SH,USD,2025-11-03 02:00:02.937166
+978e62a1-6b8a-49f7-9b00-9a687c42ad36,BenCRM,,Ben Inglis,admin,,,USD,2025-10-08 06:34:42.500626
+cd8ea8af-96ca-4103-aaa0-8454a1a79baa,demo_sales2,,Bob Zhang,salesman,49e5615d-cc13-489e-a41a-5d64dc031117,,HKD,2025-11-23 13:12:55.253864
+fbc3a6db-ce56-4959-a616-53b6037bffaa,demo_sales3,,Carol Wu,salesman,49e5615d-cc13-489e-a41a-5d64dc031117,,HKD,2025-11-23 13:12:55.253864
+5a34f15c-150d-4f63-9e5f-88528acbfd03,demo_sales4,,David Liu,salesman,49e5615d-cc13-489e-a41a-5d64dc031117,,HKD,2025-11-23 13:12:55.253864
+4fa8314b-b002-479d-8109-0c7a3685563a,deden.ridwan,,Deden Ridwan (Putra),salesman,d5a72fc6-b634-40fa-9d80-416f859e1adf,ID,IDR,2025-11-03 02:00:01.774031
+658c8012-c7c0-4ce7-ba52-17613d06cc12,e2e-AztZRA,,E2E Tester,salesman,,,USD,2025-12-29 06:08:09.025936
+95306582-ed3b-4258-8c74-33fd27d3bc7f,ellen.hui,,Ellen,sales_director,,CN,HKD,2025-11-03 02:06:18.158463
+1ffba106-ffda-4ae1-ba43-5ca50c1df06a,helen.yan,,Helen Yan,salesman,49e5615d-cc13-489e-a41a-5d64dc031117,SH,USD,2025-11-03 02:00:03.039535
+97b8f982-4757-4da9-8012-d2a193527fec,Hollie,,Hollie Gale,manager,,NZ,NZD,2025-11-03 02:00:01.362022
+33a91cf8-dc38-4c04-91d8-aeb465b84690,idy,,Idy Kong,manager,630fddeb-d97e-47d7-826e-5b6cf30edef9,HK,HKD,2025-11-03 02:00:01.560837
+fd43cd6f-6c89-4c74-9f23-654868dafb2b,james,,James Metcalfe,salesman,ce142a74-93be-4567-980e-23d0ddf7b7da,AU,AUD,2025-11-03 02:00:00.90759
+ce142a74-93be-4567-980e-23d0ddf7b7da,jamie,,Jamie Quinn,sales_director,,AU,AUD,2025-11-03 02:00:00.768436
+d59a41cc-75ae-4d70-af9c-b75b110fcf86,janice.kong,,Janice,manager,f44896c5-42d4-477d-8bc0-12fcef2eeef0,MY,MYR,2025-11-03 02:00:01.98398
+e0f21ef5-7e1c-4643-9f0a-f503fe22653a,jeremy.low,,Jeremy Low,manager,06fcef93-b23b-4ff8-bc7d-92950ad1143b,SG,SGD,2025-11-03 02:00:02.418958
+a9582648-7077-4e64-bf3b-e1894d872212,jessicab,,Jessica Bolder,manager,ce142a74-93be-4567-980e-23d0ddf7b7da,AU,AUD,2025-11-03 02:00:01.028374
+3f516f90-4283-45b5-9bae-05d16116634a,JoshD,joshuadeacon888@gmail.com,Joshua Deacon,ceo,,,USD,2025-10-20 09:03:51.212752
+4706bf55-6267-4fae-8af5-e05175f4c3a4,kim,,Kimberley Clarke,manager,ce142a74-93be-4567-980e-23d0ddf7b7da,AU,AUD,2025-11-03 02:00:01.144231
+163ccb8f-eb06-4510-9e02-4c0ecdcf8497,laura,,Laura Luo,salesman,95306582-ed3b-4258-8c74-33fd27d3bc7f,GZ,CNY,2025-11-03 02:00:03.144011
+630fddeb-d97e-47d7-826e-5b6cf30edef9,lawrence.choi,,Lawrence Choi,manager,f44896c5-42d4-477d-8bc0-12fcef2eeef0,HK,HKD,2025-11-03 02:00:01.465894
+49e5615d-cc13-489e-a41a-5d64dc031117,lily,,Lily Fan,manager,95306582-ed3b-4258-8c74-33fd27d3bc7f,SH,CNY,2025-11-03 02:00:02.617055
+d5a72fc6-b634-40fa-9d80-416f859e1adf,lina,,Lina,salesman,f44896c5-42d4-477d-8bc0-12fcef2eeef0,SG,SGD,2025-11-03 02:00:02.218208
+aba6cfd3-95f1-4924-83cc-c57dc761bf5f,LindaJ,,Linda Jansezian,regional_manager,,,AUD,2025-12-02 12:49:41.164976
+d7732eba-dc1f-4b55-9169-d687d3f65632,megan.li,,Megan Li,manager,95306582-ed3b-4258-8c74-33fd27d3bc7f,SH,CNY,2025-11-03 02:00:02.721054
+c00ff391-f2ec-47d7-adc5-71247870c02b,mei.liew,,Mei Liew,salesman,d59a41cc-75ae-4d70-af9c-b75b110fcf86,MY,MYR,2025-11-03 02:00:02.08188
+bc99321a-28b5-4312-8208-3d0c7c303c1e,michelle,,Michelle Wu,salesman,ce142a74-93be-4567-980e-23d0ddf7b7da,HK,HKD,2025-11-03 02:00:01.670685
+d1c0460e-c31b-4981-9251-5b06262b2676,NaveenCMR,,Naveen,regional_manager,,,HKD,2025-10-08 06:35:07.592538
+ffd0126c-ddbc-40ba-beb1-055fcdeabbf3,Rebecca,Rebecca@bloomandgrowgroup.com,Rebecca McLeod,salesman,,,NZD,2026-02-02 23:26:01.999074
+527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Scott,,Scott Ang,sales_director,,,SGD,2025-10-23 06:42:18.052697
+f65d32aa-bab8-4db5-88e1-e324d61e8582,sharwind,,Sharwind Sarawanan,salesman,06fcef93-b23b-4ff8-bc7d-92950ad1143b,SG,SGD,2025-11-03 02:00:02.522124
+cc5d5ba3-73b8-4a51-8208-be55131dfa2d,sissi.li,,Sissi Li,salesman,95306582-ed3b-4258-8c74-33fd27d3bc7f,SH,USD,2025-11-03 02:00:02.830394
+bebf7c4e-fb16-4928-b0ae-0ef61d51f002,Vanessa,,Vanessa Foster,manager,ce142a74-93be-4567-980e-23d0ddf7b7da,,AUD,2025-12-07 22:02:27.299798
+59da8d6d-11f0-41cc-b629-b1b459e5ab81,yakub.prastawa,,Yakub Prastawa,salesman,d5a72fc6-b634-40fa-9d80-416f859e1adf,ID,IDR,2025-11-03 02:00:01.879709
