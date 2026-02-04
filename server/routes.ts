@@ -1012,8 +1012,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (matchedCustomer) {
-          // Use the sale's date (from user input or created record) for month/year extraction
-          const saleDate = sale.date ? new Date(sale.date) : new Date();
+          // Use current date for the sale (date is auto-generated on insert)
+          const saleDate = new Date();
           const saleMonth = saleDate.getMonth() + 1;
           const saleYear = saleDate.getFullYear();
           
