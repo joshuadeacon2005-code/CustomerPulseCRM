@@ -384,6 +384,7 @@ export default function Dashboard() {
           monthlySales={monthlySales}
           userCustomerIds={userCustomerIds}
           effectiveUserId={effectiveUserId}
+          user={user}
         />
       )}
 
@@ -480,7 +481,8 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold" data-testid="text-target-amount">
-                  ${currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
+                  {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                  {currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
                 </div>
                 {targetChange !== 0 && (
                   <div className={`flex items-center gap-1 text-xs ${targetChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -503,7 +505,8 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
-                  ${currentMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                  {currentMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
                 <div className={`flex items-center gap-1 text-xs ${salesChange > 0 ? 'text-green-600 dark:text-green-400' : salesChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} aria-label={`Trend: ${salesChange > 0 ? 'up' : salesChange < 0 ? 'down' : 'no change'} ${Math.abs(salesChange).toFixed(1)}%`}>
                   {salesChange > 0 ? <TrendingUp className="h-3 w-3" /> : salesChange < 0 ? <TrendingDown className="h-3 w-3" /> : <span className="h-3 w-3" />}
@@ -511,7 +514,8 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                vs ${previousMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} last month
+                vs {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                {previousMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} last month
               </p>
             </CardContent>
           </Card>
@@ -1113,11 +1117,13 @@ function PersonalTargetsWidget({
   monthlySales,
   userCustomerIds,
   effectiveUserId,
+  user,
 }: {
   monthlyTargets: MonthlyTarget[];
   monthlySales: MonthlySalesTracking[];
   userCustomerIds: string[];
   effectiveUserId: string | undefined;
+  user: User | null;
 }) {
   const { toast } = useToast();
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
@@ -1227,6 +1233,15 @@ function PersonalTargetsWidget({
             const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
+            // Format currency using user's preferred currency if available
+            const formatVal = (val: number) => {
+              return val.toLocaleString(undefined, { 
+                style: 'currency', 
+                currency: user?.preferredCurrency || 'USD',
+                maximumFractionDigits: 0 
+              });
+            };
+            
             return (
               <div 
                 key={`${month}-${year}`} 
@@ -1243,13 +1258,15 @@ function PersonalTargetsWidget({
                 {isEditing ? (
                   <div className="space-y-2">
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                        {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                      </span>
                       <input
                         type="number"
                         value={targetAmount}
                         onChange={(e) => setTargetAmount(e.target.value)}
                         placeholder="0"
-                        className="w-full pl-5 pr-2 py-1.5 border rounded text-xs"
+                        className="w-full pl-8 pr-2 py-1.5 border rounded text-xs"
                         autoFocus
                         data-testid={`input-target-${month}-${year}`}
                       />
@@ -1283,7 +1300,10 @@ function PersonalTargetsWidget({
                     {target ? (
                       <div className="space-y-1">
                         <div className="flex items-baseline justify-between">
-                          <span className="text-lg font-bold">${(targetAmt / 1000).toFixed(0)}k</span>
+                          <span className="text-lg font-bold">
+                            {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                            {(targetAmt / 1000).toFixed(0)}k
+                          </span>
                           <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1293,7 +1313,7 @@ function PersonalTargetsWidget({
                           />
                         </div>
                         <p className="text-[10px] text-muted-foreground">
-                          ${actualSales.toLocaleString()} / ${targetAmt.toLocaleString()}
+                          {formatVal(actualSales)} / {formatVal(targetAmt)}
                         </p>
                       </div>
                     ) : (
@@ -1370,13 +1390,15 @@ function PersonalTargetsWidget({
                 {isEditing ? (
                   <div className="space-y-2">
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                        {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                      </span>
                       <input
                         type="number"
                         value={targetAmount}
                         onChange={(e) => setTargetAmount(e.target.value)}
                         placeholder="0"
-                        className="w-full pl-5 pr-2 py-1.5 border rounded text-xs"
+                        className="w-full pl-8 pr-2 py-1.5 border rounded text-xs"
                         autoFocus
                         data-testid={`input-target-${month}-${year}`}
                       />
@@ -1410,8 +1432,14 @@ function PersonalTargetsWidget({
                     {targetAmt > 0 ? (
                       <div className="space-y-2">
                         <div className="text-center">
-                          <div className="text-lg font-bold">${actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                          <div className="text-xs text-muted-foreground">/ ${targetAmt.toLocaleString()}</div>
+                          <div className="text-lg font-bold">
+                            {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                            {actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            / {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                            {targetAmt.toLocaleString()}
+                          </div>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div 
