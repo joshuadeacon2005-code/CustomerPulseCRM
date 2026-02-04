@@ -22,12 +22,13 @@ import {
   Filter,
   X
 } from "lucide-react";
-import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction } from "@shared/schema";
+import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
 import { AiNextActionCard } from "@/components/ai-next-action-card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { CURRENCY_SYMBOLS } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -90,6 +91,20 @@ export default function Dashboard() {
     enabled: user?.role === "manager" || user?.role === "ceo" || user?.role === "sales_director" || user?.role === "regional_manager",
   });
 
+  // Fetch exchange rate for user's preferred currency
+  const userCurrency = (user?.preferredCurrency || 'USD') as Currency;
+  const { data: exchangeRateData } = useQuery<{ rate: string }>({
+    queryKey: ["/api/exchange-rates", "USD", userCurrency],
+    queryFn: async () => {
+      if (userCurrency === 'USD') return { rate: '1' };
+      const res = await fetch(`/api/exchange-rates?from=USD&to=${userCurrency}`);
+      if (!res.ok) return { rate: '1' };
+      return res.json();
+    },
+  });
+  const exchangeRate = exchangeRateData?.rate ? parseFloat(exchangeRateData.rate) : 1;
+  const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || '$';
+
   // Calculate current month stats
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -123,9 +138,10 @@ export default function Dashboard() {
          userCustomerIds.includes(s.customerId)
   );
 
-  const currentMonthSales = currentMonthSalesData.reduce((total, sale) => {
+  const currentMonthSalesUSD = currentMonthSalesData.reduce((total, sale) => {
     return total + (sale.actual ? Number(sale.actual) : 0);
   }, 0);
+  const currentMonthSales = currentMonthSalesUSD * exchangeRate;
 
   // Calculate previous month's sales
   const previousMonthSalesData = monthlySales.filter(
@@ -134,9 +150,10 @@ export default function Dashboard() {
          userCustomerIds.includes(s.customerId)
   );
 
-  const previousMonthSales = previousMonthSalesData.reduce((total, sale) => {
+  const previousMonthSalesUSD = previousMonthSalesData.reduce((total, sale) => {
     return total + (sale.actual ? Number(sale.actual) : 0);
   }, 0);
+  const previousMonthSales = previousMonthSalesUSD * exchangeRate;
 
   // Calculate month-over-month changes
   const salesChange = previousMonthSales > 0 
@@ -385,6 +402,8 @@ export default function Dashboard() {
           userCustomerIds={userCustomerIds}
           effectiveUserId={effectiveUserId}
           user={user}
+          exchangeRate={exchangeRate}
+          currencySymbol={currencySymbol}
         />
       )}
 
@@ -481,8 +500,8 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold" data-testid="text-target-amount">
-                  {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
-                  {currentMonthTarget?.targetAmount ? Number(currentMonthTarget.targetAmount).toLocaleString() : '0'}
+                  {currencySymbol}
+                  {currentMonthTarget?.targetAmount ? (Number(currentMonthTarget.targetAmount) * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
                 </div>
                 {targetChange !== 0 && (
                   <div className={`flex items-center gap-1 text-xs ${targetChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -505,7 +524,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
-                  {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                  {currencySymbol}
                   {currentMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
                 <div className={`flex items-center gap-1 text-xs ${salesChange > 0 ? 'text-green-600 dark:text-green-400' : salesChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} aria-label={`Trend: ${salesChange > 0 ? 'up' : salesChange < 0 ? 'down' : 'no change'} ${Math.abs(salesChange).toFixed(1)}%`}>
@@ -514,7 +533,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                vs {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                vs {currencySymbol}
                 {previousMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} last month
               </p>
             </CardContent>
@@ -1118,12 +1137,16 @@ function PersonalTargetsWidget({
   userCustomerIds,
   effectiveUserId,
   user,
+  exchangeRate,
+  currencySymbol,
 }: {
   monthlyTargets: MonthlyTarget[];
   monthlySales: MonthlySalesTracking[];
   userCustomerIds: string[];
   effectiveUserId: string | undefined;
   user: User | null;
+  exchangeRate: number;
+  currencySymbol: string;
 }) {
   const { toast } = useToast();
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
@@ -1225,21 +1248,19 @@ function PersonalTargetsWidget({
             const monthSales = monthlySales.filter(
               s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
             );
-            const actualSales = monthSales.reduce(
+            const actualSalesUSD = monthSales.reduce(
               (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
             );
+            const actualSales = actualSalesUSD * exchangeRate;
             
-            const targetAmt = target ? Number(target.targetAmount) : 0;
+            const targetAmtUSD = target ? Number(target.targetAmount) : 0;
+            const targetAmt = targetAmtUSD * exchangeRate;
             const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
             // Format currency using user's preferred currency if available
             const formatVal = (val: number) => {
-              return val.toLocaleString(undefined, { 
-                style: 'currency', 
-                currency: user?.preferredCurrency || 'USD',
-                maximumFractionDigits: 0 
-              });
+              return currencySymbol + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
             };
             
             return (
@@ -1259,7 +1280,7 @@ function PersonalTargetsWidget({
                   <div className="space-y-2">
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                        {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                        {currencySymbol}
                       </span>
                       <input
                         type="number"
@@ -1301,7 +1322,7 @@ function PersonalTargetsWidget({
                       <div className="space-y-1">
                         <div className="flex items-baseline justify-between">
                           <span className="text-lg font-bold">
-                            {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                            {currencySymbol}
                             {(targetAmt / 1000).toFixed(0)}k
                           </span>
                           <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
@@ -1366,13 +1387,20 @@ function PersonalTargetsWidget({
             const monthSales = monthlySales.filter(
               s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
             );
-            const actualSales = monthSales.reduce(
+            const actualSalesUSD = monthSales.reduce(
               (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
             );
+            const actualSales = actualSalesUSD * exchangeRate;
             
-            const targetAmt = target ? Number(target.targetAmount) : 0;
+            const targetAmtUSD = target ? Number(target.targetAmount) : 0;
+            const targetAmt = targetAmtUSD * exchangeRate;
             const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
+            
+            // Format currency using user's preferred currency
+            const formatVal = (val: number) => {
+              return currencySymbol + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            };
             
             return (
               <div 
@@ -1391,7 +1419,7 @@ function PersonalTargetsWidget({
                   <div className="space-y-2">
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                        {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
+                        {currencySymbol}
                       </span>
                       <input
                         type="number"
@@ -1433,12 +1461,10 @@ function PersonalTargetsWidget({
                       <div className="space-y-2">
                         <div className="text-center">
                           <div className="text-lg font-bold">
-                            {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
-                            {actualSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            {formatVal(actualSales)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            / {user?.preferredCurrency === 'SGD' ? 'S$' : '$'}
-                            {targetAmt.toLocaleString()}
+                            / {formatVal(targetAmt)}
                           </div>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
