@@ -59,6 +59,15 @@ export default function SalesPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [editingTarget, setEditingTarget] = useState<MonthlyTarget | null>(null);
   const [targetView, setTargetView] = useState<"personal" | "general">("personal");
+  
+  // Edit sale state
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editSaleData, setEditSaleData] = useState({
+    customerName: "",
+    amount: "",
+    date: "",
+  });
+  const [editCustomerSearchOpen, setEditCustomerSearchOpen] = useState(false);
 
   const canSetGeneralTargets = user?.role === "ceo" || user?.role === "regional_manager";
 
@@ -100,6 +109,76 @@ export default function SalesPage() {
       });
     },
   });
+
+  const updateSaleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { customerName: string; amount: string; date: string } }) => {
+      const response = await apiRequest("PATCH", `/api/sales/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-sales"] });
+      setEditingSale(null);
+      toast({
+        title: "Success",
+        description: "Sale updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/sales/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-sales"] });
+      toast({
+        title: "Success",
+        description: "Sale deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    const dateStr = typeof sale.date === 'string' ? sale.date : new Date(sale.date).toISOString();
+    setEditSaleData({
+      customerName: sale.customerName,
+      amount: sale.amount,
+      date: dateStr.split("T")[0],
+    });
+  };
+
+  const handleUpdateSale = () => {
+    if (editingSale) {
+      updateSaleMutation.mutate({
+        id: editingSale.id,
+        data: editSaleData,
+      });
+    }
+  };
+
+  const handleDeleteSale = (id: string) => {
+    if (confirm("Are you sure you want to delete this sale?")) {
+      deleteSaleMutation.mutate(id);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,24 +519,57 @@ export default function SalesPage() {
             <div className="text-center text-muted-foreground">No sales logged yet</div>
           ) : (
             <div className="space-y-2">
-              {sales.map((sale) => (
-                <div
-                  key={sale.id}
-                  className="flex justify-between items-center p-3 border rounded-md"
-                  data-testid={`sale-${sale.id}`}
-                >
-                  <div>
-                    <p className="font-medium" data-testid={`text-customer-${sale.id}`}>{sale.customerName}</p>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-product-${sale.id}`}>{sale.product}</p>
+              {sales.map((sale) => {
+                // Check if customer name matches a customer in the dropdown
+                const isMatched = customers.some(c => c.name.toLowerCase() === sale.customerName.toLowerCase());
+                return (
+                  <div
+                    key={sale.id}
+                    className={cn(
+                      "flex justify-between items-center p-3 border rounded-md gap-2",
+                      !isMatched && "border-orange-300 bg-orange-50/50 dark:bg-orange-950/20"
+                    )}
+                    data-testid={`sale-${sale.id}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate" data-testid={`text-customer-${sale.id}`}>{sale.customerName}</p>
+                        {!isMatched && (
+                          <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs shrink-0">
+                            Needs Assignment
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-product-${sale.id}`}>{sale.product}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold" data-testid={`text-amount-${sale.id}`}>${parseFloat(sale.amount).toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-date-${sale.id}`}>
+                        {format(new Date(sale.date), "MMM dd, yyyy")}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEditSale(sale)}
+                        data-testid={`button-edit-sale-${sale.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteSale(sale.id)}
+                        disabled={deleteSaleMutation.isPending}
+                        data-testid={`button-delete-sale-${sale.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold" data-testid={`text-amount-${sale.id}`}>${parseFloat(sale.amount).toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground" data-testid={`text-date-${sale.id}`}>
-                      {format(new Date(sale.date), "MMM dd, yyyy")}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -669,6 +781,106 @@ export default function SalesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={!!editingSale} onOpenChange={(open) => !open && setEditingSale(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Sale</DialogTitle>
+            <DialogDescription>
+              Update the sale details. Select the correct customer from the dropdown to fix assignments.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Customer Name</Label>
+              <Popover open={editCustomerSearchOpen} onOpenChange={setEditCustomerSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={editCustomerSearchOpen}
+                    className="w-full justify-between font-normal"
+                    data-testid="edit-input-customer-name"
+                  >
+                    {editSaleData.customerName || "Select a customer..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[350px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search customers..." />
+                    <CommandList>
+                      <CommandEmpty>No customer found.</CommandEmpty>
+                      <CommandGroup>
+                        {customers.map((customer) => (
+                          <CommandItem
+                            key={customer.id}
+                            value={customer.name}
+                            onSelect={() => {
+                              setEditSaleData({ ...editSaleData, customerName: customer.name });
+                              setEditCustomerSearchOpen(false);
+                            }}
+                            data-testid={`edit-option-customer-${customer.id}`}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                editSaleData.customerName === customer.name ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span>{customer.name}</span>
+                              {customer.country && (
+                                <span className="text-xs text-muted-foreground">{customer.country}</span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount ($)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editSaleData.amount}
+                onChange={(e) => setEditSaleData({ ...editSaleData, amount: e.target.value })}
+                data-testid="edit-input-amount"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={editSaleData.date}
+                onChange={(e) => setEditSaleData({ ...editSaleData, date: e.target.value })}
+                data-testid="edit-input-date"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setEditingSale(null)}
+                data-testid="button-cancel-edit-sale"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateSale}
+                disabled={updateSaleMutation.isPending}
+                data-testid="button-save-sale"
+              >
+                {updateSaleMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
