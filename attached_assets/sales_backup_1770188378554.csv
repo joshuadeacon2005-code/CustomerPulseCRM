@@ -1,0 +1,35 @@
+id,salesman_id,customer_name,product,amount,description,date,country,currency,base_currency_amount
+f306150b-33b9-4575-9b82-1ad0aab9fc17,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Toys'R'Us (Singapore) Pte Ltd,General Sale,4659.21,,2026-02-04 03:45:49.790174,,USD,4659.21
+2d3953a4-fca0-4770-beb8-7f783bb13600,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,COURTS SINGAPORE PTE LTD,General Sale,93.10,,2026-02-04 01:15:55.677941,,USD,93.10
+c34c0e3e-2eb9-433f-a67d-95cc4461f0a7,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Little Baby & Family Pte Ltd,General Sale,246.37,,2026-02-04 01:14:42.445308,,USD,246.37
+0a0f51b8-0832-40ea-bf79-af6459dba772,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,2731.18,,2026-02-04 01:13:47.618378,,USD,2731.18
+981729c3-da8b-4a0f-b768-271c46a88f7c,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Baby Kingdom Pte Ltd,General Sale,5159.40,,2026-02-04 01:12:12.008113,,USD,5159.40
+c1097f15-b577-4b5a-b46a-013bbbbc7761,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Decathlon Singapore Pte Ltd,General Sale,29.42,,2026-02-03 07:44:30.493162,,USD,29.42
+eb8f4e20-2b5d-4d2f-bd73-20b1396e5bbd,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Decathlon Singapore Pte Ltd,General Sale,25.00,,2026-02-03 07:44:19.977397,,USD,25.00
+0304bc2d-b554-4318-bd07-67ac70b7ce6a,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,The Great Eastern Life Assurance Company Limited,General Sale,83400.00,,2026-02-03 07:40:59.281684,,USD,83400.00
+0a2c73f6-fec1-4abc-a715-2c1b83da3f9f,f65d32aa-bab8-4db5-88e1-e324d61e8582,Vanillapup Pte Ltd,General Sale,348.18,,2026-01-29 05:03:25.196097,,USD,348.18
+287191e2-6fe5-4460-bdda-102098c57852,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Pupsik Pte Ltd,General Sale,7501.91,,2026-01-26 06:41:54.204401,,USD,7501.91
+60452630-e7ca-4bb6-9fe2-b8b5fb8a6f04,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Baby Kingdom,General Sale,393.35,,2026-01-26 01:49:15.028886,,USD,393.35
+3bfb557a-f4f5-479f-bfed-e2bb73cedcaa,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Robinson Department Stores Online Pte. Ltd.,General Sale,125.24,,2026-01-26 01:49:01.579951,,USD,125.24
+20c31177-0e35-47f4-8242-2142188b0a4b,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,179.17,,2026-01-26 01:48:56.111677,,USD,179.17
+96846cfd-d624-4a4c-95fc-7551c7489ba3,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Inlinex Pte Ltd,General Sale,281.28,,2026-01-26 01:48:48.775029,,USD,281.28
+8e4e6ce6-ee8d-4568-ad7e-c2139f4dba41,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,801.21,,2026-01-26 01:48:43.133283,,USD,801.21
+8a697a7a-31f7-4337-9056-eee7d56dfd25,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Mama Warehouse,General Sale,1366.95,,2026-01-26 01:48:15.266691,,USD,1366.95
+736e4c1f-6e23-40c9-9ce2-33d5ce07ee89,527da0a0-2b9a-47c8-92d5-a66be7a34c9c,Pupsik Pte Ltd,General Sale,964.58,,2026-01-23 08:25:30.780229,,USD,964.58
+d07112a7-721c-43d8-acec-97db3d741885,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kid On The Move Pte Ltd,General Sale,44.89,,2026-01-13 09:38:39.407169,,USD,44.89
+d1a4380d-2a38-4566-b0ef-44b598949f84,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,30.40,,2026-01-13 09:38:27.369457,,USD,30.40
+c932888c-b92a-4f7a-a40b-62594ffa57b7,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Hipvan Pte. Ltd,General Sale,12.32,,2026-01-13 09:38:09.870987,,USD,12.32
+ba06193a-2dad-4ecd-b632-1e39e5786a22,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Little Baby & Family Pte Ltd,General Sale,41.79,,2026-01-13 01:57:43.239698,,USD,41.79
+cf0f6e92-b633-4a3f-a744-8b65f6a53029,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Mama Warehouse,General Sale,164.59,,2026-01-12 08:41:55.699364,,USD,164.59
+c3798810-2907-422f-be3a-6e76cfe78141,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Robinson Department Stores Online Pte. Ltd.,General Sale,232.23,,2026-01-12 08:41:49.123404,,USD,232.23
+4aa089c9-31b2-46c5-83ac-4fcc8cdfcddc,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Growing Up Supplies Pte Ltd,General Sale,14.00,,2026-01-09 09:17:04.549325,,USD,14.00
+66ba794f-bb17-4051-915a-7b7521d08fc2,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,47.74,,2026-01-09 09:16:51.585149,,USD,47.74
+d5307d28-5fd8-42e9-98c8-b1b56860e186,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Robinson Department Stores Online Pte. Ltd.,General Sale,243.67,,2026-01-09 09:16:35.987316,,USD,243.67
+82d87eed-eb76-4cde-afae-78df04fd85ae,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Robinson Department Stores Online Pte. Ltd.,General Sale,31.08,,2026-01-09 09:16:22.819834,,USD,31.08
+c6b40ca3-4444-40b3-b2d7-94c9fad2c6b1,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Mothers Work Pte Ltd(SG),General Sale,1024.11,,2026-01-09 09:16:09.140333,,USD,1024.11
+0f77600a-baad-4a0f-8310-5d7aa15e6ce0,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Hipvan Pte. Ltd,General Sale,13.43,,2026-01-09 09:15:48.831664,,USD,13.43
+3b268bb7-0dba-45d1-86a5-3a4e9eee9f0e,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Robinson Department Stores Online Pte. Ltd.,General Sale,13.65,,2026-01-09 09:15:34.879842,,USD,13.65
+f591966a-e02e-45d5-8d6e-4a45b5588790,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Kulily Pte Ltd,General Sale,1113.89,,2026-01-09 09:15:14.255394,,USD,1113.89
+ecf9e066-c674-4c40-8f52-5c7befd12ef4,e0f21ef5-7e1c-4643-9f0a-f503fe22653a,Baby Kingdom Pte Ltd,General Sale,2381.32,,2026-01-09 09:14:46.823454,,USD,2381.32
+fa4b9009-3d58-4ca2-8afd-dc4e347dcd1d,0f2bd7e8-3f8b-489e-8d33-d1e486302ecf,Babyroad,General Sale,3017.28,,2025-12-18 06:44:18.76178,,USD,3017.28
+063a64d1-720f-4ece-aa32-3ff347c1c553,0f2bd7e8-3f8b-489e-8d33-d1e486302ecf,Babyland (M) Sdn. Bhd(MY),General Sale,1790.89,,2025-12-18 06:43:49.373686,,USD,1790.89
