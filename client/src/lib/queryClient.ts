@@ -46,7 +46,21 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  if (!res.ok) {
+    if (res.status === 401) {
+      const isAuthEndpoint = url === "/api/login" || url === "/api/register";
+      if (!isAuthEndpoint) {
+        dispatchSessionExpired();
+      }
+      if (isAuthEndpoint) {
+        const text = (await res.text()) || "Authentication failed";
+        throw new Error(text);
+      }
+      throw new SessionExpiredError();
+    }
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
+  }
   return res;
 }
 
