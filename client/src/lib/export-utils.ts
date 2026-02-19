@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx';
+import { formatCurrency } from "@/lib/currency";
+import type { Currency } from "@shared/schema";
 
 interface ExportColumn {
   header: string;
@@ -44,6 +46,7 @@ export function exportSalesReport(
     year: number;
     targetAmount: string;
     targetType: string;
+    currency?: string;
   }>,
   filename: string = 'sales-report'
 ) {
@@ -65,7 +68,7 @@ export function exportSalesReport(
   const targetsData = targets.map(target => ({
     'Month': monthNames[target.month - 1],
     'Year': target.year,
-    'Target Amount': `$${parseFloat(target.targetAmount).toLocaleString()}`,
+    'Target Amount': formatCurrency(target.targetAmount, (target.currency as Currency) || "USD"),
     'Type': target.targetType,
   }));
   

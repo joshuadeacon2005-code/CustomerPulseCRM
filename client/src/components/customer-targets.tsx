@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { formatCurrency } from "@/lib/currency";
+import type { Currency } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -242,7 +244,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                   name="targetAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Amount ($)</FormLabel>
+                      <FormLabel>Target Amount</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -310,10 +312,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                     <div className="border-l pl-4">
                       <div className="text-sm text-muted-foreground">Target</div>
                       <div className="text-xl font-bold" data-testid={`text-target-amount-${target.id}`}>
-                        ${parseFloat(target.targetAmount).toLocaleString('en-US', { 
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2 
-                        })}
+                        {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
                       </div>
                     </div>
                   </div>
@@ -412,7 +411,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                               name="targetAmount"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Target Amount ($)</FormLabel>
+                                  <FormLabel>Target Amount</FormLabel>
                                   <FormControl>
                                     <Input
                                       type="number"

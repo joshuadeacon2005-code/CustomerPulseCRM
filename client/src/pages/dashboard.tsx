@@ -28,7 +28,7 @@ import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
 import { AiNextActionCard } from "@/components/ai-next-action-card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { CURRENCY_SYMBOLS } from "@/lib/currency";
+import { CURRENCY_SYMBOLS, formatCompactCurrency, formatCurrency } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -159,8 +159,14 @@ export default function Dashboard() {
   const salesChange = previousMonthSales > 0 
     ? ((currentMonthSales - previousMonthSales) / previousMonthSales) * 100 
     : 0;
-  const targetChange = previousMonthTarget?.targetAmount && currentMonthTarget?.targetAmount
-    ? ((Number(currentMonthTarget.targetAmount) - Number(previousMonthTarget.targetAmount)) / Number(previousMonthTarget.targetAmount)) * 100
+  const currentTargetInUserCurrency = currentMonthTarget 
+    ? Number(currentMonthTarget.baseCurrencyAmount || currentMonthTarget.targetAmount) * exchangeRate 
+    : 0;
+  const previousTargetInUserCurrency = previousMonthTarget 
+    ? Number(previousMonthTarget.baseCurrencyAmount || previousMonthTarget.targetAmount) * exchangeRate 
+    : 0;
+  const targetChange = previousTargetInUserCurrency > 0 && currentTargetInUserCurrency > 0
+    ? ((currentTargetInUserCurrency - previousTargetInUserCurrency) / previousTargetInUserCurrency) * 100
     : 0;
 
   // Filter leads for the effective user
@@ -404,6 +410,7 @@ export default function Dashboard() {
           user={user}
           exchangeRate={exchangeRate}
           currencySymbol={currencySymbol}
+          userCurrency={userCurrency}
         />
       )}
 
@@ -500,8 +507,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold" data-testid="text-target-amount">
-                  {currencySymbol}
-                  {currentMonthTarget?.targetAmount ? (Number(currentMonthTarget.targetAmount) * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
+                  {formatCompactCurrency(currentTargetInUserCurrency, userCurrency)}
                 </div>
                 {targetChange !== 0 && (
                   <div className={`flex items-center gap-1 text-xs ${targetChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -546,36 +552,36 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold" data-testid="text-progress-percent">
-                {currentMonthTarget?.targetAmount
-                  ? Math.round((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100)
+                {currentTargetInUserCurrency > 0
+                  ? Math.round((currentMonthSales / currentTargetInUserCurrency) * 100)
                   : 0}%
               </div>
-              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={currentMonthTarget?.targetAmount ? Math.min((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100, 100) : 0} aria-valuemin={0} aria-valuemax={100}>
+              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={currentTargetInUserCurrency > 0 ? Math.min((currentMonthSales / currentTargetInUserCurrency) * 100, 100) : 0} aria-valuemin={0} aria-valuemax={100}>
                 <div 
                   className={`h-full rounded-full transition-all ${
-                    currentMonthTarget?.targetAmount
-                      ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 1.0
+                    currentTargetInUserCurrency > 0
+                      ? (currentMonthSales / currentTargetInUserCurrency) >= 1.0
                         ? 'bg-green-600'
-                        : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.75
+                        : (currentMonthSales / currentTargetInUserCurrency) >= 0.75
                         ? 'bg-blue-600'
-                        : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.5
+                        : (currentMonthSales / currentTargetInUserCurrency) >= 0.5
                         ? 'bg-amber-600'
                         : 'bg-red-600'
                       : 'bg-muted'
                   }`}
                   style={{ 
-                    width: `${currentMonthTarget?.targetAmount ? Math.min((currentMonthSales / Number(currentMonthTarget.targetAmount)) * 100, 100) : 0}%` 
+                    width: `${currentTargetInUserCurrency > 0 ? Math.min((currentMonthSales / currentTargetInUserCurrency) * 100, 100) : 0}%` 
                   }}
                   data-testid="progress-bar"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {currentMonthTarget?.targetAmount
-                  ? (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 1.0
+                {currentTargetInUserCurrency > 0
+                  ? (currentMonthSales / currentTargetInUserCurrency) >= 1.0
                     ? 'Target achieved!'
-                    : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.75
+                    : (currentMonthSales / currentTargetInUserCurrency) >= 0.75
                     ? 'On track'
-                    : (currentMonthSales / Number(currentMonthTarget.targetAmount)) >= 0.5
+                    : (currentMonthSales / currentTargetInUserCurrency) >= 0.5
                     ? 'Behind pace'
                     : 'Needs attention'
                   : 'No target set'}
@@ -767,8 +773,11 @@ export default function Dashboard() {
                          (t.salesmanId === member.id || (t.targetType === "general" && !t.salesmanId))
                   );
                   
-                  const progress = memberTarget?.targetAmount 
-                    ? Math.round((memberSales / Number(memberTarget.targetAmount)) * 100)
+                  const memberTargetInUserCurrency = memberTarget 
+                    ? Number(memberTarget.baseCurrencyAmount || memberTarget.targetAmount) * exchangeRate 
+                    : 0;
+                  const progress = memberTargetInUserCurrency > 0 
+                    ? Math.round((memberSales / memberTargetInUserCurrency) * 100)
                     : 0;
                   
                   return (
@@ -781,7 +790,7 @@ export default function Dashboard() {
                           <Badge variant="outline" className="text-xs capitalize">{member.role}</Badge>
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                          <span>${memberSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ${memberTarget?.targetAmount ? Number(memberTarget.targetAmount).toLocaleString() : '0'}</span>
+                          <span>{formatCompactCurrency(memberSales, userCurrency)} / {formatCompactCurrency(memberTargetInUserCurrency, userCurrency)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -1139,6 +1148,7 @@ function PersonalTargetsWidget({
   user,
   exchangeRate,
   currencySymbol,
+  userCurrency,
 }: {
   monthlyTargets: MonthlyTarget[];
   monthlySales: MonthlySalesTracking[];
@@ -1147,6 +1157,7 @@ function PersonalTargetsWidget({
   user: User | null;
   exchangeRate: number;
   currencySymbol: string;
+  userCurrency: Currency;
 }) {
   const { toast } = useToast();
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
@@ -1256,15 +1267,10 @@ function PersonalTargetsWidget({
             );
             const actualSales = actualSalesUSD * exchangeRate;
             
-            const targetAmtUSD = target ? Number(target.targetAmount) : 0;
-            const targetAmt = targetAmtUSD * exchangeRate;
+            const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
+            const targetAmt = targetBaseUSD * exchangeRate;
             const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
-            
-            // Format currency using user's preferred currency if available
-            const formatVal = (val: number) => {
-              return currencySymbol + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
-            };
             
             return (
               <div 
@@ -1325,8 +1331,7 @@ function PersonalTargetsWidget({
                       <div className="space-y-1">
                         <div className="flex items-baseline justify-between">
                           <span className="text-lg font-bold">
-                            {currencySymbol}
-                            {(targetAmt / 1000).toFixed(0)}k
+                            {formatCompactCurrency(targetAmt, userCurrency)}
                           </span>
                           <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
                         </div>
@@ -1337,7 +1342,7 @@ function PersonalTargetsWidget({
                           />
                         </div>
                         <p className="text-[10px] text-muted-foreground">
-                          {formatVal(actualSales)} / {formatVal(targetAmt)}
+                          {formatCompactCurrency(actualSales, userCurrency)} / {formatCompactCurrency(targetAmt, userCurrency)}
                         </p>
                       </div>
                     ) : (
@@ -1364,7 +1369,7 @@ function PersonalTargetsWidget({
                         className="w-full h-6 text-[10px] mt-1"
                         onClick={() => {
                           setEditingMonth({ month, year });
-                          setTargetAmount((Number(target.targetAmount) * exchangeRate).toFixed(2).replace(/\.00$/, ''));
+                          setTargetAmount(Math.round(Number(target.baseCurrencyAmount || target.targetAmount) * exchangeRate).toString());
                         }}
                         data-testid={`button-edit-target-${month}-${year}`}
                       >
@@ -1395,15 +1400,10 @@ function PersonalTargetsWidget({
             );
             const actualSales = actualSalesUSD * exchangeRate;
             
-            const targetAmtUSD = target ? Number(target.targetAmount) : 0;
-            const targetAmt = targetAmtUSD * exchangeRate;
+            const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
+            const targetAmt = targetBaseUSD * exchangeRate;
             const progress = targetAmt > 0 ? Math.min((actualSales / targetAmt) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
-            
-            // Format currency using user's preferred currency
-            const formatVal = (val: number) => {
-              return currencySymbol + val.toLocaleString(undefined, { maximumFractionDigits: 0 });
-            };
             
             return (
               <div 
@@ -1464,10 +1464,10 @@ function PersonalTargetsWidget({
                       <div className="space-y-2">
                         <div className="text-center">
                           <div className="text-lg font-bold">
-                            {formatVal(actualSales)}
+                            {formatCompactCurrency(actualSales, userCurrency)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            / {formatVal(targetAmt)}
+                            / {formatCompactCurrency(targetAmt, userCurrency)}
                           </div>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1496,7 +1496,7 @@ function PersonalTargetsWidget({
                             className="h-6 text-xs px-2"
                             onClick={() => {
                               setEditingMonth({ month, year });
-                              setTargetAmount(targetAmt.toFixed(2).replace(/\.00$/, ''));
+                              setTargetAmount(Math.round(targetAmt).toString());
                             }}
                             data-testid={`button-edit-target-${month}-${year}`}
                           >

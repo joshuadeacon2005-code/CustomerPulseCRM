@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer, Office, OfficeAssignment, RevenueBreakdownResponse } from "@shared/schema";
+import type { AdminDashboardStats, User, UserRole, Sale, UserDetails, Customer, Office, OfficeAssignment, RevenueBreakdownResponse, Currency } from "@shared/schema";
+import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 import { UserPlus, Users as UsersIcon, Trash2, Edit, DollarSign, Eye, Sparkles, Loader2, Award, Medal, Trophy, TrendingUp, Building2, Plus, X, Globe, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -2056,7 +2057,7 @@ export default function AdminPage() {
                             <p className="text-xs text-muted-foreground capitalize">{target.targetType}</p>
                           </div>
                           <p className="font-bold" data-testid={`text-target-amount-${target.id}`}>
-                            ${parseFloat(target.targetAmount).toFixed(2)}
+                            {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
                           </p>
                         </div>
                       ))}

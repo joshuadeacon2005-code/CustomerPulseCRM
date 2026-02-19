@@ -11,7 +11,7 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   CNY: "¥",
   AUD: "A$",
   NZD: "NZ$",
-  IDR: "Rp",
+  IDR: "IDR ",
   MYR: "RM",
 };
 
@@ -103,6 +103,39 @@ export function formatCurrency(
   });
 
   return showSymbol ? `${CURRENCY_SYMBOLS[currency]}${formatted}` : formatted;
+}
+
+/**
+ * Formats a number in compact form with M/B suffixes
+ */
+export function formatCompactCurrency(
+  amount: number | string,
+  currency: Currency,
+  options: { showSymbol?: boolean } = {}
+): string {
+  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+  const showSymbol = options.showSymbol ?? true;
+  const symbol = showSymbol ? CURRENCY_SYMBOLS[currency] : "";
+
+  if (isNaN(numAmount)) return `${symbol}0`;
+
+  const abs = Math.abs(numAmount);
+  const sign = numAmount < 0 ? "-" : "";
+
+  if (abs >= 1_000_000_000) {
+    const val = abs / 1_000_000_000;
+    return `${sign}${symbol}${val.toFixed(val >= 10 ? 1 : 2)}B`;
+  }
+  if (abs >= 1_000_000) {
+    const val = abs / 1_000_000;
+    return `${sign}${symbol}${val.toFixed(val >= 10 ? 1 : 2)}M`;
+  }
+  if (abs >= 1_000) {
+    const val = abs / 1_000;
+    return `${sign}${symbol}${val.toFixed(val >= 10 ? 0 : 1)}K`;
+  }
+
+  return `${sign}${symbol}${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
 /**
