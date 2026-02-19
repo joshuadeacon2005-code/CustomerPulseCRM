@@ -309,13 +309,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/customers/import-closure-list/sheets", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheets = workbook.SheetNames.map((name, index) => {
+        const ws = workbook.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+        return { index, name, rowCount: rows.length };
+      });
+      res.json({ sheets });
+    } catch (error) {
+      console.error("Error reading Excel sheets:", error);
+      res.status(500).json({ error: "Failed to read Excel file" });
+    }
+  });
+
   app.post("/api/customers/import-closure-list", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
       const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
+      const sheetIndex = req.body.sheetIndex ? parseInt(req.body.sheetIndex, 10) : 0;
+      if (sheetIndex < 0 || sheetIndex >= workbook.SheetNames.length) {
+        return res.status(400).json({ error: `Invalid sheet index ${sheetIndex}. File has ${workbook.SheetNames.length} sheet(s).` });
+      }
+      const sheetName = workbook.SheetNames[sheetIndex];
       const worksheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
       
@@ -323,11 +345,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         matched: [] as Array<{ id: string; name: string; country?: string; reason?: string }>,
         unmatched: [] as Array<{ name: string; country?: string; reason?: string }>,
       };
+
+      function findNameValue(row: Record<string, any>): string {
+        const nameKeys = ['Customer Name', 'customer name', 'Name', 'name', 'Company', 'company', 'Account', 'account', 'Company Name', 'company name'];
+        for (const key of nameKeys) {
+          if (row[key] !== undefined && row[key] !== null) {
+            return row[key].toString().trim();
+          }
+        }
+        const keys = Object.keys(row);
+        for (const key of keys) {
+          const val = row[key];
+          if (typeof val === 'string' && val.length > 2 && !['x', 'X', 'yes', 'no'].includes(val.toLowerCase())) {
+            return val.trim();
+          }
+        }
+        return '';
+      }
       
       for (const row of rows) {
-        const name = (row['Customer Name'] || row['Name'] || row['name'] || '').toString().trim();
-        const country = (row['Country'] || row['country'] || '').toString().trim();
-        const reason = (row['Reason'] || row['reason'] || row['Closure Reason'] || '').toString().trim();
+        const name = findNameValue(row);
+        const country = (row['Country'] || row['country'] || row['Region'] || row['region'] || '').toString().trim();
+        const reason = (row['Reason'] || row['reason'] || row['Closure Reason'] || row['Status'] || '').toString().trim();
         
         if (!name) continue;
         

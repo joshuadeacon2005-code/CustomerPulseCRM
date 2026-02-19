@@ -630,36 +630,58 @@ export class DatabaseStorage implements IStorage {
   async findCustomerByNameAndCountry(name: string, country?: string): Promise<Customer | undefined> {
     const normalizedName = name.toLowerCase().trim();
     const normalizedCountry = country?.toLowerCase().trim() || '';
+
+    const strippedName = normalizedName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const parenthetical = normalizedName.match(/\(([^)]+)\)$/);
+    const inferredCountry = parenthetical ? parenthetical[1].trim().toLowerCase() : '';
     
-    let results;
-    if (normalizedCountry) {
-      results = await db
+    const results = await db
+      .select()
+      .from(customers)
+      .where(sql`lower(trim(${customers.name})) = ${normalizedName}`)
+      .limit(1);
+    if (results[0]) return results[0];
+
+    if (strippedName !== normalizedName) {
+      const results2 = await db
         .select()
         .from(customers)
-        .where(
-          and(
-            sql`lower(trim(${customers.name})) = ${normalizedName}`,
-            sql`lower(trim(${customers.country})) = ${normalizedCountry}`
-          )
-        )
+        .where(sql`lower(trim(${customers.name})) = ${strippedName}`)
         .limit(1);
-    } else {
-      results = await db
-        .select()
-        .from(customers)
-        .where(
-          and(
-            sql`lower(trim(${customers.name})) = ${normalizedName}`,
-            or(
-              sql`${customers.country} IS NULL`,
-              sql`trim(${customers.country}) = ''`
-            )
-          )
-        )
-        .limit(1);
+      if (results2[0]) return results2[0];
     }
-    
-    return results[0];
+
+    const countryToMatch = normalizedCountry || inferredCountry;
+    if (countryToMatch && strippedName.length >= 4) {
+      const results3 = await db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            sql`lower(trim(${customers.name})) = ${strippedName}`,
+            sql`lower(trim(COALESCE(${customers.country}, ''))) LIKE ${'%' + countryToMatch + '%'}`
+          )
+        )
+        .limit(1);
+      if (results3[0]) return results3[0];
+    }
+
+    if (normalizedName.includes(' - ')) {
+      const nameParts = normalizedName.split(' - ');
+      for (const part of nameParts) {
+        const trimmedPart = part.trim();
+        if (trimmedPart.length >= 4) {
+          const results5 = await db
+            .select()
+            .from(customers)
+            .where(sql`lower(trim(${customers.name})) = ${trimmedPart}`)
+            .limit(1);
+          if (results5[0]) return results5[0];
+        }
+      }
+    }
+
+    return undefined;
   }
 
   async createCustomer(customerData: InsertCustomer): Promise<Customer> {

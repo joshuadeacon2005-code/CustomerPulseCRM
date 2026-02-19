@@ -93,6 +93,9 @@ export default function Customers() {
   const [isClosureImportOpen, setIsClosureImportOpen] = useState(false);
   const [closureFile, setClosureFile] = useState<File | null>(null);
   const [closureResult, setClosureResult] = useState<any | null>(null);
+  const [closureSheets, setClosureSheets] = useState<Array<{ index: number; name: string; rowCount: number }> | null>(null);
+  const [selectedSheetIndex, setSelectedSheetIndex] = useState<number>(0);
+  const [closureStep, setClosureStep] = useState<'upload' | 'select-sheet' | 'results'>('upload');
   const { toast } = useToast();
 
   // Persist view mode to localStorage
@@ -373,10 +376,41 @@ export default function Customers() {
     },
   });
 
-  const closureImportMutation = useMutation({
+  const closureSheetsMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      const response = await fetch('/api/customers/import-closure-list/sheets', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to read Excel file');
+      }
+      return { data: await response.json(), file };
+    },
+    onSuccess: ({ data, file }) => {
+      setClosureSheets(data.sheets);
+      if (data.sheets.length === 1) {
+        setSelectedSheetIndex(0);
+        closureImportMutation.mutate({ file, sheetIndex: 0 });
+      } else {
+        setSelectedSheetIndex(0);
+        setClosureStep('select-sheet');
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const closureImportMutation = useMutation({
+    mutationFn: async ({ file, sheetIndex }: { file: File; sheetIndex: number }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sheetIndex', sheetIndex.toString());
       const response = await fetch('/api/customers/import-closure-list', {
         method: 'POST',
         body: formData,
@@ -390,6 +424,7 @@ export default function Customers() {
     },
     onSuccess: (data) => {
       setClosureResult(data);
+      setClosureStep('results');
     },
     onError: (error: Error) => {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
@@ -1339,6 +1374,8 @@ export default function Customers() {
           setIsClosureImportOpen(false);
           setClosureFile(null);
           setClosureResult(null);
+          setClosureSheets(null);
+          setClosureStep('upload');
         }
       }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -1346,11 +1383,12 @@ export default function Customers() {
             <DialogTitle>Import Closure List</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {!closureResult ? (
+            {closureStep === 'upload' && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Upload an Excel file with columns: Customer Name, Country (optional), Reason (optional). 
-                  The system will match customers and let you review before applying changes.
+                  Upload an Excel file with customer names to mark as closed. 
+                  The system will match customers by name and let you review before applying changes.
+                  If the file has multiple sheets, you can choose which sheet to import from.
                 </p>
                 <Input
                   type="file"
@@ -1363,15 +1401,63 @@ export default function Customers() {
                     Cancel
                   </Button>
                   <Button
-                    onClick={() => closureFile && closureImportMutation.mutate(closureFile)}
-                    disabled={!closureFile || closureImportMutation.isPending}
+                    onClick={() => closureFile && closureSheetsMutation.mutate(closureFile)}
+                    disabled={!closureFile || closureSheetsMutation.isPending}
                     data-testid="button-upload-closure"
                   >
-                    {closureImportMutation.isPending ? "Processing..." : "Upload & Match"}
+                    {closureSheetsMutation.isPending ? "Reading file..." : "Upload & Match"}
                   </Button>
                 </div>
               </>
-            ) : (
+            )}
+
+            {closureStep === 'select-sheet' && closureSheets && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  This file has multiple sheets. Select which sheet contains the accounts to close:
+                </p>
+                <div className="space-y-2">
+                  {closureSheets.map((sheet) => (
+                    <div 
+                      key={sheet.index}
+                      className={`flex items-center justify-between gap-4 p-3 rounded-md border cursor-pointer transition-colors ${
+                        selectedSheetIndex === sheet.index 
+                          ? 'border-primary bg-primary/5' 
+                          : 'hover-elevate'
+                      }`}
+                      onClick={() => setSelectedSheetIndex(sheet.index)}
+                      data-testid={`sheet-option-${sheet.index}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                          selectedSheetIndex === sheet.index ? 'border-primary' : 'border-muted-foreground/40'
+                        }`}>
+                          {selectedSheetIndex === sheet.index && (
+                            <div className="w-2 h-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <span className="font-medium text-sm">{sheet.name}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-xs no-default-hover-elevate">{sheet.rowCount} rows</Badge>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setClosureStep('upload'); setClosureSheets(null); }} data-testid="button-back-sheets">
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => closureFile && closureImportMutation.mutate({ file: closureFile, sheetIndex: selectedSheetIndex })}
+                    disabled={closureImportMutation.isPending}
+                    data-testid="button-process-sheet"
+                  >
+                    {closureImportMutation.isPending ? "Processing..." : "Process Selected Sheet"}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {closureStep === 'results' && closureResult && (
               <>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -1422,6 +1508,8 @@ export default function Customers() {
                     setIsClosureImportOpen(false);
                     setClosureFile(null);
                     setClosureResult(null);
+                    setClosureSheets(null);
+                    setClosureStep('upload');
                   }} data-testid="button-cancel-closure-result">
                     Cancel
                   </Button>
@@ -1434,6 +1522,8 @@ export default function Customers() {
                             setIsClosureImportOpen(false);
                             setClosureFile(null);
                             setClosureResult(null);
+                            setClosureSheets(null);
+                            setClosureStep('upload');
                           },
                         });
                       }}
