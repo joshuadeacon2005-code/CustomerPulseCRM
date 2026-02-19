@@ -332,21 +332,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
-      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellStyles: true });
       const sheetIndex = req.body.sheetIndex ? parseInt(req.body.sheetIndex, 10) : 0;
+      const filterColor = req.body.filterColor || ''; // 'red', 'yellow', or '' for all
       if (sheetIndex < 0 || sheetIndex >= workbook.SheetNames.length) {
         return res.status(400).json({ error: `Invalid sheet index ${sheetIndex}. File has ${workbook.SheetNames.length} sheet(s).` });
       }
       const sheetName = workbook.SheetNames[sheetIndex];
       const worksheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+      const wsRange = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : null;
       
+      const rowColors: Map<number, string> = new Map();
+      if (wsRange) {
+        for (let r = wsRange.s.r; r <= wsRange.e.r; r++) {
+          for (let c = wsRange.s.c; c <= wsRange.e.c; c++) {
+            const cell = worksheet[XLSX.utils.encode_cell({ r, c })];
+            if (cell?.s?.fgColor?.rgb) {
+              const rgb = cell.s.fgColor.rgb.toUpperCase();
+              if (rgb === 'FF0000' || rgb === 'FFFF0000') rowColors.set(r, 'red');
+              else if (rgb === 'FFFF00' || rgb === 'FFFFFF00') rowColors.set(r, 'yellow');
+              break;
+            }
+          }
+        }
+      }
+      
+      const hasColoredRows = rowColors.size > 0;
+      
+      const colorValues = Array.from(rowColors.values());
       const results = {
-        matched: [] as Array<{ id: string; name: string; country?: string; reason?: string }>,
-        unmatched: [] as Array<{ name: string; country?: string; reason?: string }>,
+        matched: [] as Array<{ id: string; name: string; country?: string; reason?: string; color?: string }>,
+        unmatched: [] as Array<{ name: string; country?: string; reason?: string; color?: string }>,
+        hasColoredRows,
+        colorSummary: hasColoredRows ? {
+          red: colorValues.filter(c => c === 'red').length,
+          yellow: colorValues.filter(c => c === 'yellow').length,
+        } : undefined,
       };
 
-      function findNameValue(row: Record<string, any>): string {
+      const findNameValue = (row: Record<string, any>): string => {
         const nameKeys = ['Customer Name', 'customer name', 'Name', 'name', 'Company', 'company', 'Account', 'account', 'Company Name', 'company name'];
         for (const key of nameKeys) {
           if (row[key] !== undefined && row[key] !== null) {
@@ -363,7 +388,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return '';
       }
       
-      for (const row of rows) {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const dataRowIndex = i + 1; // +1 to skip header row
+        const color = rowColors.get(dataRowIndex) || '';
+        
+        if (filterColor && color !== filterColor) continue;
+        
         const name = findNameValue(row);
         const country = (row['Country'] || row['country'] || row['Region'] || row['region'] || '').toString().trim();
         const reason = (row['Reason'] || row['reason'] || row['Closure Reason'] || row['Status'] || '').toString().trim();
@@ -377,12 +408,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: customer.name,
             country: customer.country || undefined,
             reason: reason || undefined,
+            color: color || undefined,
           });
         } else {
           results.unmatched.push({
             name,
             country: country || undefined,
             reason: reason || undefined,
+            color: color || undefined,
           });
         }
       }

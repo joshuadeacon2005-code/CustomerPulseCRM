@@ -1475,13 +1475,35 @@ export default function Customers() {
                     </Card>
                   </div>
 
+                  {closureResult.hasColoredRows && closureResult.colorSummary && (
+                    <div className="flex items-center gap-3 p-2 rounded-md bg-muted/50 text-xs text-muted-foreground">
+                      <span>Color-coded rows detected:</span>
+                      {closureResult.colorSummary.red > 0 && (
+                        <span className="flex items-center gap-1">
+                          <span className="w-3 h-3 rounded-sm bg-red-500" />
+                          {closureResult.colorSummary.red} red
+                        </span>
+                      )}
+                      {closureResult.colorSummary.yellow > 0 && (
+                        <span className="flex items-center gap-1">
+                          <span className="w-3 h-3 rounded-sm bg-yellow-400" />
+                          {closureResult.colorSummary.yellow} yellow
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {closureResult.matched.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-semibold text-sm">Matched Customers (will be marked as closed)</h4>
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {closureResult.matched.map((m: any, i: number) => (
                           <div key={i} className="flex items-center justify-between gap-2 text-sm p-2 rounded bg-green-50 dark:bg-green-900/20">
-                            <span>{m.name} {m.country && `(${m.country})`}</span>
+                            <div className="flex items-center gap-2">
+                              {m.color === 'red' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                              {m.color === 'yellow' && <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />}
+                              <span>{m.name} {m.country && `(${m.country})`}</span>
+                            </div>
                             {m.reason && <Badge variant="secondary" className="text-xs no-default-hover-elevate">{m.reason}</Badge>}
                           </div>
                         ))}
@@ -1494,8 +1516,10 @@ export default function Customers() {
                       <h4 className="font-semibold text-sm">Unmatched (not found in system)</h4>
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {closureResult.unmatched.map((u: any, i: number) => (
-                          <div key={i} className="text-sm p-2 rounded bg-red-50 dark:bg-red-900/20 text-muted-foreground">
-                            {u.name} {u.country && `(${u.country})`}
+                          <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-red-50 dark:bg-red-900/20 text-muted-foreground">
+                            {u.color === 'red' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                            {u.color === 'yellow' && <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />}
+                            <span>{u.name} {u.country && `(${u.country})`}</span>
                           </div>
                         ))}
                       </div>
