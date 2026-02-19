@@ -1,0 +1,152 @@
+# CRM System Updates - Customer Management & Status Enhancements
+
+## CONTEXT
+You are working on an existing React/TypeScript CRM system with PostgreSQL backend on Replit. Users need ability to self-assign customers, manage closed/dormant accounts, and efficiently remove obsolete customer records.
+
+## OBJECTIVE
+Implement customer self-assignment, add "Dormant/Closed" status category, and create bulk customer removal functionality.
+
+## REQUIREMENTS - IMPLEMENT COMPLETELY
+
+### 1. CUSTOMER SELF-ASSIGNMENT
+
+**1.1 Add Customer to User Profile**
+- Create "Add Customer" button/action on user's customer list page
+- Implementation options:
+  - Quick add: Input field with autocomplete from existing customers
+  - Create new: Form to add brand new customer directly to user's portfolio
+- Search existing customers by name/company before creating duplicates
+- Assign customer to user upon confirmation
+- Show success notification: "Customer [Name] added to your accounts"
+
+**1.2 Business Logic**
+- Check if customer already assigned to another user → Show warning: "Customer assigned to [User Name]. Proceed to reassign?"
+- Allow admin override for reassignments
+- Log assignment history (who assigned, when, from whom)
+
+### 2. DORMANT/CLOSED CUSTOMER STATUS
+
+**2.1 Add New Status Category**
+- Extend customer status enum to include: "Lead" | "Prospect" | "Customer" | "Dormant" | "Closed"
+- **Dormant**: Inactive accounts that may reactivate (no longer exist, lost to competitor, moved location)
+- **Closed**: Permanently closed accounts (company shut down, partnership ended)
+
+**2.2 Status Management**
+- Add dropdown/button to change customer status on customer profile page
+- Require reason when marking as Dormant/Closed (dropdown: "Business closed", "Lost to competitor", "Relocated", "No longer stocking", "Other" + text field)
+- Store closure date and reason in database
+- Show "Closed on [Date] - Reason: [Text]" on customer profile
+
+**2.3 Filtering & Display**
+- Add "Dormant/Closed" tab on main customer list page (alongside active customers)
+- Filter customers by status in search/list views
+- Visual indicator: Grey out or add icon to Dormant/Closed customers in lists
+- Exclude Dormant/Closed from default customer counts and active pipeline views
+- Include toggle: "Show Dormant/Closed accounts" on dashboard
+
+### 3. EFFICIENT CUSTOMER REMOVAL
+
+**3.1 Single Customer Deletion**
+- Add "Remove Customer" button on customer profile page
+- Confirmation dialog: "Are you sure you want to delete [Customer Name]? This action cannot be undone."
+- Soft delete option (mark as deleted but retain data) vs hard delete (permanent removal)
+- Only admin users can permanently delete
+
+**3.2 Bulk Customer Removal**
+- Create bulk actions on customer list page
+- Checkbox selection for multiple customers
+- "Bulk Actions" dropdown: "Mark as Closed", "Mark as Dormant", "Delete Selected"
+- Excel import for bulk status updates:
+  - Upload spreadsheet with customer names/IDs and desired action
+  - Preview changes before applying
+  - Apply all changes with single confirmation
+
+**3.3 Remove Based on Excel List**
+- Add "Import Closure List" feature
+- Accept Excel file (like Old_Accounts_Nov_2025.xlsx)
+- Map columns: Customer Name → Match with CRM records
+- Highlight customers:
+  - Red: Mark as Closed (permanently defunct)
+  - Yellow: Mark as Dormant (may reactivate)
+- Preview screen showing all matches and actions
+- Button: "Apply Changes" → Batch update all customer statuses
+- Generate report: "Updated [X] customers to Closed, [Y] to Dormant"
+
+**3.4 Data Retention**
+- Dormant/Closed customers retain all historical data (sales, interactions, notes)
+- Accessible from "Archived Accounts" section
+- Can reactivate customer: Change status back to "Lead/Prospect/Customer"
+- Hard delete only available to admin with additional confirmation
+
+### 4. DATABASE CHANGES
+
+**4.1 Schema Updates**
+```sql
+-- Add status column if not exists
+ALTER TABLE customers ADD COLUMN status VARCHAR(20) DEFAULT 'Lead';
+ALTER TABLE customers ADD COLUMN closure_date TIMESTAMP;
+ALTER TABLE customers ADD COLUMN closure_reason TEXT;
+ALTER TABLE customers ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
+ALTER TABLE customers ADD COLUMN deleted_at TIMESTAMP;
+
+-- Add assignment history table
+CREATE TABLE customer_assignments (
+  id SERIAL PRIMARY KEY,
+  customer_id INT REFERENCES customers(id),
+  from_user_id INT REFERENCES users(id),
+  to_user_id INT REFERENCES users(id),
+  assigned_at TIMESTAMP DEFAULT NOW(),
+  assigned_by INT REFERENCES users(id)
+);
+```
+
+**4.2 Query Optimizations**
+- Index on status column for fast filtering
+- Default queries exclude is_deleted = TRUE
+- Separate query for archived accounts view
+
+### 5. UI/UX SPECIFICATIONS
+
+**5.1 Customer List Page**
+- Tabs: "Active Customers" | "Dormant" | "Closed" | "All"
+- Bulk action toolbar appears when customers selected
+- Status badge visible on each customer card/row
+
+**5.2 Customer Profile Page**
+- Status dropdown prominently displayed at top
+- "Change Status" triggers modal with reason field when selecting Dormant/Closed
+- "Remove Customer" button in danger zone at bottom (admin only)
+- Show closure information if status is Dormant/Closed
+
+**5.3 Excel Import Flow**
+- Drag-and-drop Excel file upload
+- Column mapping interface (if columns don't auto-match)
+- Preview table showing: Customer Name | Current Status | New Status | Reason
+- Color coding matches Excel highlighting (red/yellow)
+- Confirmation summary before applying
+
+## IMPLEMENTATION CHECKLIST
+
+- [ ] Add "Add Customer" functionality with search and create options
+- [ ] Extend customer status enum to include Dormant and Closed
+- [ ] Create status change modal with reason requirement
+- [ ] Add Dormant/Closed tabs to customer list page
+- [ ] Implement single customer deletion with confirmation
+- [ ] Build bulk selection and bulk action functionality
+- [ ] Create Excel import feature for bulk status updates
+- [ ] Add customer assignment history tracking
+- [ ] Update database schema with new columns
+- [ ] Implement soft delete vs hard delete logic
+- [ ] Add filtering to exclude Dormant/Closed from active views
+- [ ] Create "Archived Accounts" section
+- [ ] Test bulk operations with 100+ customer dataset
+- [ ] Add admin permission checks for deletions
+
+## SUCCESS CRITERIA
+- Users can add customers to their portfolio in under 30 seconds
+- Dormant/Closed status clearly distinguishes inactive accounts
+- Excel import processes 100+ customer status changes in single operation
+- Bulk removal prevents accidental deletions with clear confirmations
+- Historical data preserved even after marking customer as Closed
+- Admin can permanently remove obsolete records when necessary
+- UI clearly shows which customers are active vs archived
