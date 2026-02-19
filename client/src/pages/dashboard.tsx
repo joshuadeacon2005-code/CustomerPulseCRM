@@ -1170,21 +1170,24 @@ function PersonalTargetsWidget({
   // Create/update target mutation
   const saveTargetMutation = useMutation({
     mutationFn: async ({ month, year, amount }: { month: number; year: number; amount: number }) => {
+      const amountInUSD = exchangeRate > 0 ? Math.round((amount / exchangeRate) * 100) / 100 : amount;
       const existingTarget = monthlyTargets.find(
         t => t.month === month && t.year === year && t.salesmanId === effectiveUserId && t.targetType === 'personal'
       );
       
       if (existingTarget) {
         return apiRequest('PATCH', `/api/targets/${existingTarget.id}`, {
-          targetAmount: amount.toString(),
+          targetAmount: amountInUSD.toString(),
+          currency: 'USD',
         });
       } else {
         return apiRequest('POST', '/api/targets', {
           month,
           year,
-          targetAmount: amount.toString(),
+          targetAmount: amountInUSD.toString(),
           salesmanId: effectiveUserId,
           targetType: 'personal',
+          currency: 'USD',
         });
       }
     },
@@ -1361,7 +1364,7 @@ function PersonalTargetsWidget({
                         className="w-full h-6 text-[10px] mt-1"
                         onClick={() => {
                           setEditingMonth({ month, year });
-                          setTargetAmount(target.targetAmount);
+                          setTargetAmount((Number(target.targetAmount) * exchangeRate).toFixed(2).replace(/\.00$/, ''));
                         }}
                         data-testid={`button-edit-target-${month}-${year}`}
                       >
@@ -1493,7 +1496,7 @@ function PersonalTargetsWidget({
                             className="h-6 text-xs px-2"
                             onClick={() => {
                               setEditingMonth({ month, year });
-                              setTargetAmount(targetAmt.toString());
+                              setTargetAmount(targetAmt.toFixed(2).replace(/\.00$/, ''));
                             }}
                             data-testid={`button-edit-target-${month}-${year}`}
                           >

@@ -115,17 +115,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertCustomerSchema.parse(customerPayload);
       
-      // Check for duplicate customer (same name + region/country)
-      const allCustomers = await storage.getCustomers(req.user!.id, 'ceo');
-      const duplicate = allCustomers.find(c => 
-        c.name.toLowerCase().trim() === validatedData.name.toLowerCase().trim() &&
-        c.country?.toLowerCase().trim() === validatedData.country?.toLowerCase().trim()
+      // Check for duplicate customer using a lightweight direct query instead of loading all customers
+      const existingCustomers = await storage.findCustomerByNameAndCountry(
+        validatedData.name,
+        validatedData.country
       );
       
-      if (duplicate) {
+      if (existingCustomers) {
         return res.status(409).json({ 
           error: 'Customer with this name and region already exists',
-          existingCustomerId: duplicate.id
+          existingCustomerId: existingCustomers.id
         });
       }
       

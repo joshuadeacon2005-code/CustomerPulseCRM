@@ -98,6 +98,7 @@ export interface IStorage {
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerWithInteractions(id: string): Promise<CustomerWithInteractions | undefined>;
   getCustomerWithDetails(id: string): Promise<CustomerWithDetails | undefined>;
+  findCustomerByNameAndCountry(name: string, country?: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: UpdateCustomer): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
@@ -605,6 +606,41 @@ export class DatabaseStorage implements IStorage {
       ...customer,
       interactions: customerInteractions,
     };
+  }
+
+  async findCustomerByNameAndCountry(name: string, country?: string): Promise<Customer | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+    const normalizedCountry = country?.toLowerCase().trim() || '';
+    
+    let results;
+    if (normalizedCountry) {
+      results = await db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            sql`lower(trim(${customers.name})) = ${normalizedName}`,
+            sql`lower(trim(${customers.country})) = ${normalizedCountry}`
+          )
+        )
+        .limit(1);
+    } else {
+      results = await db
+        .select()
+        .from(customers)
+        .where(
+          and(
+            sql`lower(trim(${customers.name})) = ${normalizedName}`,
+            or(
+              sql`${customers.country} IS NULL`,
+              sql`trim(${customers.country}) = ''`
+            )
+          )
+        )
+        .limit(1);
+    }
+    
+    return results[0];
   }
 
   async createCustomer(customerData: InsertCustomer): Promise<Customer> {
