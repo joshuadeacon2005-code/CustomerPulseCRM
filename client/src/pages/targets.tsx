@@ -16,6 +16,8 @@ import type { MonthlyTarget, UserRole } from "@shared/schema";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Edit, TrendingUp, Target as TargetIcon } from "lucide-react";
+import { formatCurrency, CURRENCY_SYMBOLS } from "@/lib/currency";
+import type { Currency } from "@shared/schema";
 
 const months = [
   { value: 1, label: "Jan" },
@@ -209,7 +211,7 @@ export default function TargetsPage() {
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
           <span className="text-2xl font-bold" data-testid="text-year-total">
-            ${totalTargetAmount.toFixed(2)}
+            {formatCurrency(totalTargetAmount, (displayTargets[0]?.currency as Currency) || "USD")}
           </span>
         </div>
       </div>
@@ -262,7 +264,7 @@ export default function TargetsPage() {
           <CardContent className="relative">
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="targetAmount">Target Amount ($)</Label>
+                <Label htmlFor="targetAmount">Target Amount</Label>
                 <Input
                   id="targetAmount"
                   data-testid="input-target-amount"
@@ -325,7 +327,7 @@ export default function TargetsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Target Amount</span>
                   <span className="text-2xl font-bold text-primary" data-testid="text-selected-target">
-                    ${parseFloat(selectedMonthTarget.targetAmount).toFixed(2)}
+                    {formatCurrency(selectedMonthTarget.targetAmount, (selectedMonthTarget.currency as Currency) || "USD")}
                   </span>
                 </div>
               </div>
@@ -393,7 +395,7 @@ export default function TargetsPage() {
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-right font-semibold" data-testid={`text-amount-${target.id}`}>
-                            ${parseFloat(target.targetAmount).toFixed(2)}
+                            {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <Button

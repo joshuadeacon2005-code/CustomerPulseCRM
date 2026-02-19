@@ -73,6 +73,13 @@ export async function convertCurrency(
   return numAmount * rate;
 }
 
+const ZERO_DECIMAL_CURRENCIES: Currency[] = ["IDR"];
+
+function getDefaultDecimals(currency: Currency, _amount: number): number {
+  if (ZERO_DECIMAL_CURRENCIES.includes(currency)) return 0;
+  return 2;
+}
+
 /**
  * Formats a number as currency with proper symbol and formatting
  */
@@ -84,12 +91,12 @@ export function formatCurrency(
     decimals?: number;
   } = {}
 ): string {
-  const { showSymbol = true, decimals = 2 } = options;
   const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+  const showSymbol = options.showSymbol ?? true;
+  const decimals = options.decimals ?? getDefaultDecimals(currency, numAmount);
 
-  if (isNaN(numAmount)) return showSymbol ? `${CURRENCY_SYMBOLS[currency]}0.00` : "0.00";
+  if (isNaN(numAmount)) return showSymbol ? `${CURRENCY_SYMBOLS[currency]}0` : "0";
 
-  // Format number with commas and decimals
   const formatted = numAmount.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

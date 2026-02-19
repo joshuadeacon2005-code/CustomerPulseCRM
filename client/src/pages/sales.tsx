@@ -14,11 +14,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertMonthlyTargetSchema } from "@shared/schema";
-import type { Sale, MonthlyTarget, Customer } from "@shared/schema";
+import type { Sale, MonthlyTarget, Customer, Currency } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
 import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, ChevronsUpDown } from "lucide-react";
 import { exportSalesReport } from "@/lib/export-utils";
+import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -475,7 +476,7 @@ export default function SalesPage() {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
             <span className="text-2xl font-bold" data-testid="text-year-total">
-              ${totalTargetAmount.toFixed(2)}
+              {formatCurrency(totalTargetAmount, (displayTargets[0]?.currency as Currency) || "USD")}
             </span>
           </div>
         </div>
@@ -527,7 +528,7 @@ export default function SalesPage() {
             <CardContent>
               <form onSubmit={form.handleSubmit(handleTargetSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="targetAmount">Target Amount ($)</Label>
+                  <Label htmlFor="targetAmount">Target Amount</Label>
                   <Input
                     id="targetAmount"
                     data-testid="input-target-amount"
@@ -583,7 +584,7 @@ export default function SalesPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Target Amount</span>
                     <span className="text-2xl font-bold text-primary" data-testid="text-selected-target">
-                      ${parseFloat(selectedMonthTarget.targetAmount).toFixed(2)}
+                      {formatCurrency(selectedMonthTarget.targetAmount, (selectedMonthTarget.currency as Currency) || "USD")}
                     </span>
                   </div>
                 </div>
@@ -646,7 +647,7 @@ export default function SalesPage() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4 text-right font-semibold" data-testid={`text-amount-${target.id}`}>
-                              ${parseFloat(target.targetAmount).toFixed(2)}
+                              {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
                             </td>
                             <td className="py-3 px-4 text-right">
                               <Button
