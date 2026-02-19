@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award } from "lucide-react";
+import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award, Trash2, FileUp } from "lucide-react";
 import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -89,6 +89,10 @@ export default function Customers() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isClosureImportOpen, setIsClosureImportOpen] = useState(false);
+  const [closureFile, setClosureFile] = useState<File | null>(null);
+  const [closureResult, setClosureResult] = useState<any | null>(null);
   const { toast } = useToast();
 
   // Persist view mode to localStorage
@@ -341,6 +345,70 @@ export default function Customers() {
     },
   });
 
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, stage, closureReason, closureReasonOther }: { ids: string[]; stage: string; closureReason?: string; closureReasonOther?: string }) =>
+      apiRequest("POST", "/api/customers/bulk/status", { ids, stage, closureReason, closureReasonOther }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setSelectedIds([]);
+      toast({ title: "Bulk update complete", description: "Customer statuses have been updated." });
+    },
+    onError: () => {
+      toast({ title: "Bulk update failed", description: "Failed to update customer statuses.", variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) =>
+      apiRequest("POST", "/api/customers/bulk/delete", { ids }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setSelectedIds([]);
+      toast({ title: "Bulk delete complete", description: "Selected customers have been soft-deleted." });
+    },
+    onError: () => {
+      toast({ title: "Bulk delete failed", description: "Failed to delete customers.", variant: "destructive" });
+    },
+  });
+
+  const closureImportMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/customers/import-closure-list', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process closure list');
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setClosureResult(data);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = () => {
+    if (!filteredCustomers) return;
+    if (selectedIds.length === filteredCustomers.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredCustomers.map(c => c.id));
+    }
+  };
+
   const filteredCustomers = customers?.filter((customer) => {
     const matchesSearch = 
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -443,6 +511,8 @@ export default function Customers() {
     leads: customerList.filter(c => c.stage === 'lead').length,
     prospects: customerList.filter(c => c.stage === 'prospect').length,
     customers: customerList.filter(c => c.stage === 'customer').length,
+    dormant: customerList.filter(c => c.stage === 'dormant').length,
+    closed: customerList.filter(c => c.stage === 'closed').length,
     needsAttention: customerList.filter(c => {
       const status = getContactStatus(c.lastContactDate);
       return status.status === 'critical' || status.status === 'warning' || status.status === 'never';
@@ -536,6 +606,15 @@ export default function Customers() {
             Import
           </Button>
           <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setIsClosureImportOpen(true)}
+            data-testid="button-import-closure"
+          >
+            <FileUp className="h-4 w-4 mr-1.5" />
+            Closure List
+          </Button>
+          <Button 
             size="sm"
             onClick={() => setIsAddDialogOpen(true)}
             data-testid="button-add-customer"
@@ -547,7 +626,7 @@ export default function Customers() {
       </div>
 
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <Card className="hover-elevate relative overflow-visible" data-testid="card-total-stats">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
           <CardContent className="relative p-4">
@@ -622,6 +701,38 @@ export default function Customers() {
               <div>
                 <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.needsAttention}</p>
                 <p className="text-xs text-muted-foreground">Need Attention</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${stageFilterLocal === 'dormant' ? 'ring-2 ring-gray-400' : 'hover-elevate'}`}
+          onClick={() => setStageFilterLocal(stageFilterLocal === 'dormant' ? 'all' : 'dormant')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gray-400/10">
+                <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-500 dark:text-gray-400">{stats.dormant}</p>
+                <p className="text-xs text-muted-foreground">Dormant</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all ${stageFilterLocal === 'closed' ? 'ring-2 ring-red-400' : 'hover-elevate'}`}
+          onClick={() => setStageFilterLocal(stageFilterLocal === 'closed' ? 'all' : 'closed')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-400/10">
+                <X className="h-4 w-4 text-red-500 dark:text-red-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-500 dark:text-red-400">{stats.closed}</p>
+                <p className="text-xs text-muted-foreground">Closed</p>
               </div>
             </div>
           </CardContent>
@@ -864,12 +975,60 @@ export default function Customers() {
         )}
       </div>
 
-      {/* Results count */}
-      {filteredCustomers && (
-        <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredCustomers.length}</span> of {customers?.length} customers
-        </p>
-      )}
+      {/* Results count + Bulk Selection */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {filteredCustomers && (
+          <div className="flex items-center gap-3">
+            <Checkbox
+              checked={filteredCustomers.length > 0 && selectedIds.length === filteredCustomers.length}
+              onCheckedChange={handleSelectAll}
+              data-testid="checkbox-select-all"
+            />
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{filteredCustomers.length}</span> of {customers?.length} customers
+              {selectedIds.length > 0 && (
+                <span className="ml-2 font-medium text-foreground">({selectedIds.length} selected)</span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-2" data-testid="bulk-actions-toolbar">
+            <Select onValueChange={(stage) => bulkStatusMutation.mutate({ ids: selectedIds, stage })}>
+              <SelectTrigger className="w-auto min-w-[130px]" data-testid="select-bulk-stage">
+                <SelectValue placeholder="Set Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lead">Lead</SelectItem>
+                <SelectItem value="prospect">Prospect</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+                <SelectItem value="dormant">Dormant</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-bulk-delete"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              Delete ({selectedIds.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds([])}
+              data-testid="button-clear-selection"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Clear
+            </Button>
+          </div>
+        )}
+      </div>
 
       {isLoading ? (
         viewMode === "grid" ? (
@@ -889,11 +1048,23 @@ export default function Customers() {
         viewMode === "grid" ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-testid="grid-customers">
             {filteredCustomers.map((customer) => (
-              <CustomerCard
-                key={customer.id}
-                customer={customer}
-                onClick={() => handleCustomerClick(customer)}
-              />
+              <div key={customer.id} className="relative group/select">
+                <div
+                  className="absolute top-2 left-2 z-10"
+                  style={{ visibility: selectedIds.length > 0 || undefined ? 'visible' : 'hidden' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={selectedIds.includes(customer.id)}
+                    onCheckedChange={() => handleToggleSelect(customer.id)}
+                    data-testid={`checkbox-customer-${customer.id}`}
+                  />
+                </div>
+                <CustomerCard
+                  customer={customer}
+                  onClick={() => handleCustomerClick(customer)}
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -913,10 +1084,12 @@ export default function Customers() {
                 <tbody className="divide-y">
                   {filteredCustomers.map((customer) => {
                     const contactStatus = getContactStatus(customer.lastContactDate);
-                    const stageColors = {
+                    const stageColors: Record<string, string> = {
                       lead: "bg-blue-500",
                       prospect: "bg-amber-500", 
-                      customer: "bg-green-500"
+                      customer: "bg-green-500",
+                      dormant: "bg-gray-400",
+                      closed: "bg-red-500",
                     };
                     return (
                       <tr 
@@ -945,6 +1118,8 @@ export default function Customers() {
                             className={`text-[10px] uppercase font-semibold ${
                               customer.stage === "customer" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" :
                               customer.stage === "prospect" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30" :
+                              customer.stage === "dormant" ? "bg-gray-400/10 text-gray-600 dark:text-gray-400 border-gray-400/30" :
+                              customer.stage === "closed" ? "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30" :
                               "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30"
                             }`}
                           >
@@ -1151,6 +1326,123 @@ export default function Customers() {
                   <Button onClick={handleCloseImportDialog} data-testid="button-close-import-result">
                     Close
                   </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Closure List Import Dialog */}
+      <Dialog open={isClosureImportOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsClosureImportOpen(false);
+          setClosureFile(null);
+          setClosureResult(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Closure List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!closureResult ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Upload an Excel file with columns: Customer Name, Country (optional), Reason (optional). 
+                  The system will match customers and let you review before applying changes.
+                </p>
+                <Input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => setClosureFile(e.target.files?.[0] || null)}
+                  data-testid="input-closure-file"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsClosureImportOpen(false)} data-testid="button-cancel-closure">
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => closureFile && closureImportMutation.mutate(closureFile)}
+                    disabled={!closureFile || closureImportMutation.isPending}
+                    data-testid="button-upload-closure"
+                  >
+                    {closureImportMutation.isPending ? "Processing..." : "Upload & Match"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <p className="text-sm text-green-600 dark:text-green-400">Matched</p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{closureResult.matched.length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <p className="text-sm text-red-600 dark:text-red-400">Unmatched</p>
+                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">{closureResult.unmatched.length}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {closureResult.matched.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm">Matched Customers (will be marked as closed)</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {closureResult.matched.map((m: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between gap-2 text-sm p-2 rounded bg-green-50 dark:bg-green-900/20">
+                            <span>{m.name} {m.country && `(${m.country})`}</span>
+                            {m.reason && <Badge variant="secondary" className="text-xs no-default-hover-elevate">{m.reason}</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {closureResult.unmatched.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm">Unmatched (not found in system)</h4>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {closureResult.unmatched.map((u: any, i: number) => (
+                          <div key={i} className="text-sm p-2 rounded bg-red-50 dark:bg-red-900/20 text-muted-foreground">
+                            {u.name} {u.country && `(${u.country})`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => {
+                    setIsClosureImportOpen(false);
+                    setClosureFile(null);
+                    setClosureResult(null);
+                  }} data-testid="button-cancel-closure-result">
+                    Cancel
+                  </Button>
+                  {closureResult.matched.length > 0 && (
+                    <Button
+                      onClick={() => {
+                        const ids = closureResult.matched.map((m: any) => m.id);
+                        bulkStatusMutation.mutate({ ids, stage: 'closed' }, {
+                          onSuccess: () => {
+                            setIsClosureImportOpen(false);
+                            setClosureFile(null);
+                            setClosureResult(null);
+                          },
+                        });
+                      }}
+                      disabled={bulkStatusMutation.isPending}
+                      data-testid="button-apply-closure"
+                    >
+                      {bulkStatusMutation.isPending ? "Applying..." : `Mark ${closureResult.matched.length} as Closed`}
+                    </Button>
+                  )}
                 </div>
               </>
             )}

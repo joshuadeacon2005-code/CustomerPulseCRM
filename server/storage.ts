@@ -45,6 +45,8 @@ import {
   type InsertOffice,
   type OfficeAssignment,
   type InsertOfficeAssignment,
+  type CustomerAssignment,
+  type InsertCustomerAssignment,
   users,
   sales,
   customers,
@@ -62,6 +64,7 @@ import {
   exchangeRates,
   offices,
   officeAssignments,
+  customerAssignments,
   type ExchangeRate,
   type InsertExchangeRate,
 } from "@shared/schema";
@@ -193,6 +196,18 @@ export interface IStorage {
   assignUserToOffice(assignment: InsertOfficeAssignment): Promise<OfficeAssignment>;
   removeUserFromOffice(userId: string, officeId: string): Promise<boolean>;
   getUserAssignedOfficeIds(userId: string): Promise<string[]>;
+
+  // Customer assignment tracking
+  assignCustomer(assignment: InsertCustomerAssignment): Promise<CustomerAssignment>;
+  getCustomerAssignmentHistory(customerId: string): Promise<(CustomerAssignment & { fromUserName?: string; toUserName?: string; assignedByName?: string })[]>;
+
+  // Soft/hard delete
+  softDeleteCustomer(id: string, deletedBy: string): Promise<Customer | undefined>;
+  hardDeleteCustomer(id: string): Promise<boolean>;
+  
+  // Bulk operations
+  bulkUpdateCustomerStatus(ids: string[], stage: string, closureReason?: string, closureReasonOther?: string): Promise<number>;
+  bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -486,8 +501,10 @@ export class DatabaseStorage implements IStorage {
     // Treat 'sales_director' role as 'ceo' for data visibility
     const effectiveRole = (userRole === "sales_director" || userRole === "marketing_director") ? "ceo" : userRole;
 
+    const notDeleted = eq(customers.isDeleted, false);
+
     if (effectiveRole === "ceo") {
-      allCustomers = await db.select().from(customers).orderBy(desc(customers.createdAt));
+      allCustomers = await db.select().from(customers).where(notDeleted).orderBy(desc(customers.createdAt));
     } else if (effectiveRole === "manager" || effectiveRole === "regional_manager") {
       // Get team members assigned to this manager
       const teamMembers = await this.getTeamMembers(userId);
@@ -543,11 +560,10 @@ export class DatabaseStorage implements IStorage {
         allCustomers = await db
           .select()
           .from(customers)
-          .where(or(...conditions))
+          .where(and(notDeleted, or(...conditions)))
           .orderBy(desc(customers.createdAt));
       }
     } else {
-      // Salesman - see their own customers and customers in their assigned office
       const salesmanOfficeIds = await this.getUserAssignedOfficeIds(userId);
       
       if (salesmanOfficeIds.length > 0) {
@@ -555,9 +571,12 @@ export class DatabaseStorage implements IStorage {
           .select()
           .from(customers)
           .where(
-            or(
-              eq(customers.assignedTo, userId),
-              inArray(customers.officeId, salesmanOfficeIds)
+            and(
+              notDeleted,
+              or(
+                eq(customers.assignedTo, userId),
+                inArray(customers.officeId, salesmanOfficeIds)
+              )
             )
           )
           .orderBy(desc(customers.createdAt));
@@ -565,7 +584,7 @@ export class DatabaseStorage implements IStorage {
         allCustomers = await db
           .select()
           .from(customers)
-          .where(eq(customers.assignedTo, userId))
+          .where(and(notDeleted, eq(customers.assignedTo, userId)))
           .orderBy(desc(customers.createdAt));
       }
     }
@@ -1641,6 +1660,117 @@ export class DatabaseStorage implements IStorage {
       .where(eq(officeAssignments.userId, userId));
     
     return assignments.map(a => a.officeId);
+  }
+
+  async assignCustomer(assignment: InsertCustomerAssignment): Promise<CustomerAssignment> {
+    const [created] = await db
+      .insert(customerAssignments)
+      .values(assignment)
+      .returning();
+
+    await db
+      .update(customers)
+      .set({ assignedTo: assignment.toUserId })
+      .where(eq(customers.id, assignment.customerId));
+
+    return created;
+  }
+
+  async getCustomerAssignmentHistory(customerId: string): Promise<(CustomerAssignment & { fromUserName?: string; toUserName?: string; assignedByName?: string })[]> {
+    const history = await db
+      .select()
+      .from(customerAssignments)
+      .where(eq(customerAssignments.customerId, customerId))
+      .orderBy(desc(customerAssignments.assignedAt));
+
+    const enriched = await Promise.all(
+      history.map(async (record) => {
+        let fromUserName: string | undefined;
+        let toUserName: string | undefined;
+        let assignedByName: string | undefined;
+
+        if (record.fromUserId) {
+          const [fromUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, record.fromUserId));
+          fromUserName = fromUser?.name;
+        }
+        if (record.toUserId) {
+          const [toUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, record.toUserId));
+          toUserName = toUser?.name;
+        }
+        if (record.assignedBy) {
+          const [byUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, record.assignedBy));
+          assignedByName = byUser?.name;
+        }
+
+        return { ...record, fromUserName, toUserName, assignedByName };
+      })
+    );
+
+    return enriched;
+  }
+
+  async softDeleteCustomer(id: string, deletedBy: string): Promise<Customer | undefined> {
+    const [customer] = await db
+      .update(customers)
+      .set({
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy,
+      })
+      .where(eq(customers.id, id))
+      .returning();
+    return customer;
+  }
+
+  async hardDeleteCustomer(id: string): Promise<boolean> {
+    await db.delete(interactions).where(eq(interactions.customerId, id));
+    await db.delete(customerBrands).where(eq(customerBrands.customerId, id));
+    await db.delete(customerContacts).where(eq(customerContacts.customerId, id));
+    await db.delete(customerAddresses).where(eq(customerAddresses.customerId, id));
+    await db.delete(monthlySalesTracking).where(eq(monthlySalesTracking.customerId, id));
+    await db.delete(customerMonthlyTargets).where(eq(customerMonthlyTargets.customerId, id));
+    await db.delete(actionItems).where(eq(actionItems.customerId, id));
+    await db.delete(customerAssignments).where(eq(customerAssignments.customerId, id));
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async bulkUpdateCustomerStatus(ids: string[], stage: string, closureReason?: string, closureReasonOther?: string): Promise<number> {
+    if (ids.length === 0) return 0;
+    
+    const updateData: Record<string, any> = { stage };
+    
+    if (stage === "dormant" || stage === "closed") {
+      updateData.closureDate = new Date();
+      if (closureReason) updateData.closureReason = closureReason;
+      if (closureReasonOther) updateData.closureReasonOther = closureReasonOther;
+    } else {
+      updateData.closureDate = null;
+      updateData.closureReason = null;
+      updateData.closureReasonOther = null;
+    }
+    
+    const result = await db
+      .update(customers)
+      .set(updateData)
+      .where(inArray(customers.id, ids));
+    
+    return result.rowCount || 0;
+  }
+
+  async bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number> {
+    if (ids.length === 0) return 0;
+    
+    const result = await db
+      .update(customers)
+      .set({
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy,
+      })
+      .where(inArray(customers.id, ids));
+    
+    return result.rowCount || 0;
   }
 }
 

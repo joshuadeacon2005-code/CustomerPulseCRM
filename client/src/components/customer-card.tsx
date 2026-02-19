@@ -10,7 +10,7 @@ interface CustomerCardProps {
   onClick: () => void;
 }
 
-const stageConfig = {
+const stageConfig: Record<string, { bg: string; text: string; badgeBg: string }> = {
   lead: { 
     bg: "bg-blue-500", 
     text: "text-blue-700 dark:text-blue-400",
@@ -25,6 +25,16 @@ const stageConfig = {
     bg: "bg-green-500", 
     text: "text-green-700 dark:text-green-400",
     badgeBg: "bg-green-500/10 border-green-500/30"
+  },
+  dormant: {
+    bg: "bg-gray-400",
+    text: "text-gray-600 dark:text-gray-400",
+    badgeBg: "bg-gray-400/10 border-gray-400/30"
+  },
+  closed: {
+    bg: "bg-red-500",
+    text: "text-red-700 dark:text-red-400",
+    badgeBg: "bg-red-500/10 border-red-500/30"
   },
 };
 
@@ -57,8 +67,7 @@ function formatCurrency(value: number | string | null | undefined): string {
 }
 
 export function CustomerCard({ customer, onClick }: CustomerCardProps) {
-  const stage = customer.stage as keyof typeof stageConfig;
-  const config = stageConfig[stage] || stageConfig.lead;
+  const config = stageConfig[customer.stage] || stageConfig.lead;
   const contactStatus = getContactStatus(customer.lastContactDate);
   const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
   const brands = 'brands' in customer ? customer.brands : [];

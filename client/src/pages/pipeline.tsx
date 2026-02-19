@@ -20,6 +20,8 @@ const STAGES = [
   { id: "lead", name: "Leads", color: "bg-blue-500" },
   { id: "prospect", name: "Prospects", color: "bg-amber-500" },
   { id: "customer", name: "Customers", color: "bg-green-500" },
+  { id: "dormant", name: "Dormant", color: "bg-gray-400" },
+  { id: "closed", name: "Closed", color: "bg-red-500" },
 ];
 
 function getInitials(name: string) {

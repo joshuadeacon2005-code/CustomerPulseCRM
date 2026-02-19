@@ -196,13 +196,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteCustomer(req.params.id);
-      if (!deleted) {
+      const customer = await storage.softDeleteCustomer(req.params.id, req.user!.id);
+      if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
       }
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete customer" });
+    }
+  });
+
+  app.delete("/api/customers/:id/hard", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.hardDeleteCustomer(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to permanently delete customer" });
+    }
+  });
+
+  app.post("/api/customers/:id/assign", isAuthenticated, async (req, res) => {
+    try {
+      const { toUserId, reason } = req.body;
+      if (!toUserId) {
+        return res.status(400).json({ error: "toUserId is required" });
+      }
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      const assignment = await storage.assignCustomer({
+        customerId: req.params.id,
+        fromUserId: customer.assignedTo || null,
+        toUserId,
+        assignedBy: req.user!.id,
+        reason: reason || null,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error assigning customer:", error);
+      res.status(500).json({ error: "Failed to assign customer" });
+    }
+  });
+
+  app.get("/api/customers/:id/assignment-history", isAuthenticated, async (req, res) => {
+    try {
+      const history = await storage.getCustomerAssignmentHistory(req.params.id);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch assignment history" });
+    }
+  });
+
+  app.patch("/api/customers/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const { stage, closureReason, closureReasonOther } = req.body;
+      if (!stage) {
+        return res.status(400).json({ error: "stage is required" });
+      }
+      const updateData: Record<string, any> = { stage };
+      if (stage === "dormant" || stage === "closed") {
+        updateData.closureDate = new Date();
+        if (closureReason) updateData.closureReason = closureReason;
+        if (closureReasonOther) updateData.closureReasonOther = closureReasonOther;
+      } else {
+        updateData.closureDate = null;
+        updateData.closureReason = null;
+        updateData.closureReasonOther = null;
+      }
+      const customer = await storage.updateCustomer(req.params.id, updateData);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Error updating customer status:", error);
+      res.status(500).json({ error: "Failed to update customer status" });
+    }
+  });
+
+  app.post("/api/customers/bulk/status", isAuthenticated, async (req, res) => {
+    try {
+      const { ids, stage, closureReason, closureReasonOther } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      if (!stage) {
+        return res.status(400).json({ error: "stage is required" });
+      }
+      const count = await storage.bulkUpdateCustomerStatus(ids, stage, closureReason, closureReasonOther);
+      res.json({ updated: count });
+    } catch (error) {
+      console.error("Error bulk updating customers:", error);
+      res.status(500).json({ error: "Failed to bulk update customer status" });
+    }
+  });
+
+  app.post("/api/customers/bulk/delete", isAuthenticated, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      const count = await storage.bulkSoftDeleteCustomers(ids, req.user!.id);
+      res.json({ deleted: count });
+    } catch (error) {
+      console.error("Error bulk deleting customers:", error);
+      res.status(500).json({ error: "Failed to bulk delete customers" });
+    }
+  });
+
+  app.post("/api/customers/import-closure-list", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
+      
+      const results = {
+        matched: [] as Array<{ id: string; name: string; country?: string; reason?: string }>,
+        unmatched: [] as Array<{ name: string; country?: string; reason?: string }>,
+      };
+      
+      for (const row of rows) {
+        const name = (row['Customer Name'] || row['Name'] || row['name'] || '').toString().trim();
+        const country = (row['Country'] || row['country'] || '').toString().trim();
+        const reason = (row['Reason'] || row['reason'] || row['Closure Reason'] || '').toString().trim();
+        
+        if (!name) continue;
+        
+        const customer = await storage.findCustomerByNameAndCountry(name, country || undefined);
+        if (customer) {
+          results.matched.push({
+            id: customer.id,
+            name: customer.name,
+            country: customer.country || undefined,
+            reason: reason || undefined,
+          });
+        } else {
+          results.unmatched.push({
+            name,
+            country: country || undefined,
+            reason: reason || undefined,
+          });
+        }
+      }
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Error processing closure list:", error);
+      res.status(500).json({ error: "Failed to process closure list" });
     }
   });
 

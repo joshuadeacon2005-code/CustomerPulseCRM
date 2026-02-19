@@ -57,6 +57,7 @@ import {
   InsertCustomerAddress,
   insertCustomerAddressSchema,
   COUNTRIES,
+  CLOSURE_REASONS,
 } from "@shared/schema";
 import { 
   Mail, 
@@ -154,18 +155,20 @@ interface CustomerDetailModalProps {
   isAddingInteraction?: boolean;
 }
 
-const stageColors = {
+const stageColors: Record<string, string> = {
   lead: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
-  at_risk: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+  dormant: "bg-gray-400/10 text-gray-600 dark:text-gray-400 border-gray-400/20",
+  closed: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
 
 const CUSTOMER_STAGES = [
   { value: "lead", label: "Lead", color: "bg-blue-500", lightColor: "bg-blue-100 dark:bg-blue-900/30" },
   { value: "prospect", label: "Prospect", color: "bg-amber-500", lightColor: "bg-amber-100 dark:bg-amber-900/30" },
   { value: "customer", label: "Customer", color: "bg-green-500", lightColor: "bg-green-100 dark:bg-green-900/30" },
-  { value: "at_risk", label: "At Risk", color: "bg-red-500", lightColor: "bg-red-100 dark:bg-red-900/30" },
+  { value: "dormant", label: "Dormant", color: "bg-gray-400", lightColor: "bg-gray-100 dark:bg-gray-900/30" },
+  { value: "closed", label: "Closed", color: "bg-red-500", lightColor: "bg-red-100 dark:bg-red-900/30" },
 ] as const;
 
 interface StageSliderProps {
@@ -187,14 +190,14 @@ function StageSlider({ currentStage, onStageChange, isUpdating }: StageSliderPro
         <div 
           className="absolute top-1/2 left-0 h-1 rounded-full -translate-y-1/2 transition-all duration-300"
           style={{ 
-            width: `${(currentIndex / (CUSTOMER_STAGES.length - 1)) * 100}%`,
-            background: currentIndex === 3 
-              ? 'linear-gradient(to right, #3b82f6, #f59e0b, #22c55e, #ef4444)' 
-              : currentIndex === 2 
-                ? 'linear-gradient(to right, #3b82f6, #f59e0b, #22c55e)'
-                : currentIndex === 1
-                  ? 'linear-gradient(to right, #3b82f6, #f59e0b)'
-                  : '#3b82f6'
+            width: currentIndex >= 0 ? `${(currentIndex / (CUSTOMER_STAGES.length - 1)) * 100}%` : '0%',
+            background: (() => {
+              const stageGradients = ['#3b82f6', '#f59e0b', '#22c55e', '#9ca3af', '#ef4444'];
+              const colors = stageGradients.slice(0, currentIndex + 1);
+              return colors.length > 1 
+                ? `linear-gradient(to right, ${colors.join(', ')})` 
+                : colors[0] || '#3b82f6';
+            })()
           }}
         />
         
@@ -831,12 +834,53 @@ export function CustomerDetailModal({
                         </div>
                       </>
                     )}
-                    {customer.assignedTo && (
-                      <div className="flex items-center gap-2 pt-2 border-t">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-customer-assigned">
-                          Assigned to: {(customer as any).assignedToName || customer.assignedTo}
-                        </span>
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm flex-1" data-testid="text-customer-assigned">
+                        {customer.assignedTo 
+                          ? `Assigned to: ${(customer as any).assignedToName || customer.assignedTo}`
+                          : 'Unassigned'}
+                      </span>
+                      {user && customer.assignedTo !== user.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            apiRequest("POST", `/api/customers/${customer.id}/assign`, {
+                              toUserId: user.id,
+                              reason: "Self-assignment",
+                            }).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/customers", customer.id, "assignment-history"] });
+                              toast({ title: "Customer assigned to you" });
+                            }).catch(() => {
+                              toast({ title: "Failed to assign", variant: "destructive" });
+                            });
+                          }}
+                          data-testid="button-assign-to-me"
+                        >
+                          Assign to Me
+                        </Button>
+                      )}
+                    </div>
+                    {(customer.stage === 'dormant' || customer.stage === 'closed') && (
+                      <div className="space-y-1 pt-2 border-t">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium capitalize">{customer.stage}</span>
+                        </div>
+                        {customer.closureReason && (
+                          <p className="text-xs text-muted-foreground ml-6">
+                            Reason: {customer.closureReason}
+                            {customer.closureReasonOther && ` - ${customer.closureReasonOther}`}
+                          </p>
+                        )}
+                        {customer.closureDate && (
+                          <p className="text-xs text-muted-foreground ml-6">
+                            Since: {format(new Date(customer.closureDate), "MMM d, yyyy")}
+                          </p>
+                        )}
                       </div>
                     )}
                     <div className="text-sm text-muted-foreground pt-2 border-t">

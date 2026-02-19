@@ -100,6 +100,12 @@ export const customers = pgTable("customers", {
   country: text("country"),
   netsuiteUrl: text("netsuite_url"),
   bloomconnectUrl: text("bloomconnect_url"),
+  closureDate: timestamp("closure_date"),
+  closureReason: text("closure_reason"),
+  closureReasonOther: text("closure_reason_other"),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: varchar("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -265,6 +271,16 @@ export const officeAssignments = pgTable("office_assignments", {
 });
 
 
+export const customerAssignments = pgTable("customer_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  fromUserId: varchar("from_user_id"),
+  toUserId: varchar("to_user_id").notNull(),
+  assignedBy: varchar("assigned_by").notNull(),
+  reason: text("reason"),
+  assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+});
+
 // Retailer Type Enum - All possible options from requirements
 export const RETAILER_TYPES = [
   "Online Only",
@@ -286,6 +302,18 @@ export const RETAILER_TYPES = [
 export const MEETING_TYPES = ["In Person", "Phone", "Online Meeting"] as const;
 
 export const INTERACTION_TYPES = ["Call", "Email", "In Person Meeting", "Virtual Meeting", "Store Visit"] as const;
+
+export const CLOSURE_REASONS = [
+  "Business closed",
+  "Lost to competitor",
+  "Relocated",
+  "No longer stocking",
+  "Partnership ended",
+  "Company shut down",
+  "Other",
+] as const;
+
+export const CUSTOMER_STAGES = ["lead", "prospect", "customer", "dormant", "closed"] as const;
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -335,8 +363,7 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   name: z.string().min(1, "Company name is required"),
   email: z.string().optional(),
   phone: z.string().optional(),
-  stage: z.enum(["lead", "prospect", "customer"]).default("lead"),
-  // Make all other fields optional
+  stage: z.enum(CUSTOMER_STAGES).default("lead"),
   contactName: z.string().optional(),
   contactTitle: z.string().optional(),
   contactPhone: z.string().optional(),
@@ -357,17 +384,24 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   country: z.string().optional(),
   netsuiteUrl: z.string().optional(),
   bloomconnectUrl: z.string().optional(),
+  closureDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  closureReason: z.string().optional().nullable(),
+  closureReasonOther: z.string().optional().nullable(),
+  isDeleted: z.boolean().optional().default(false),
 });
 
 export const updateCustomerSchema = createInsertSchema(customers).omit({
   id: true,
   createdAt: true,
 }).partial().extend({
-  stage: z.enum(["lead", "prospect", "customer"]).optional(),
-  // Handle both Date objects and ISO strings from JSON serialization
+  stage: z.enum(CUSTOMER_STAGES).optional(),
   firstOrderDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
   lastContactDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
   dateOfFirstContact: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  closureDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  closureReason: z.string().optional().nullable(),
+  closureReasonOther: z.string().optional().nullable(),
+  isDeleted: z.boolean().optional(),
 });
 
 export const insertInteractionSchema = createInsertSchema(interactions).omit({
@@ -603,6 +637,17 @@ export const insertOfficeAssignmentSchema = createInsertSchema(officeAssignments
 });
 
 
+export const insertCustomerAssignmentSchema = createInsertSchema(customerAssignments).omit({
+  id: true,
+  assignedAt: true,
+}).extend({
+  customerId: z.string().min(1),
+  toUserId: z.string().min(1),
+  assignedBy: z.string().min(1),
+  fromUserId: z.string().optional().nullable(),
+  reason: z.string().optional().nullable(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Sale = typeof sales.$inferSelect;
@@ -641,12 +686,15 @@ export type InsertOffice = z.infer<typeof insertOfficeSchema>;
 export type OfficeAssignment = typeof officeAssignments.$inferSelect;
 export type InsertOfficeAssignment = z.infer<typeof insertOfficeAssignmentSchema>;
 export type OfficeRoleType = typeof OFFICE_ROLE_TYPES[number];
+export type CustomerAssignment = typeof customerAssignments.$inferSelect;
+export type InsertCustomerAssignment = z.infer<typeof insertCustomerAssignmentSchema>;
 
 export type UserRole = "ceo" | "sales_director" | "marketing_director" | "regional_manager" | "manager" | "salesman";
 export type Currency = typeof CURRENCIES[number];
 export type RetailerType = typeof RETAILER_TYPES[number];
 export type MeetingType = typeof MEETING_TYPES[number];
-export type CustomerStage = "lead" | "prospect" | "customer";
+export type CustomerStage = typeof CUSTOMER_STAGES[number];
+export type ClosureReason = typeof CLOSURE_REASONS[number];
 export type InteractionCategory = "marketing" | "sales" | "support";
 
 export type CustomerWithInteractions = Customer & {

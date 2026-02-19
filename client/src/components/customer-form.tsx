@@ -153,7 +153,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
     resolver: zodResolver(isEditing ? updateCustomerSchema : insertCustomerSchema),
     defaultValues: customer ? {
       name: customer.name,
-      stage: customer.stage as "lead" | "prospect" | "customer",
+      stage: customer.stage,
       assignedTo: customer.assignedTo || "",
       personalNotes: customer.personalNotes || "",
       registeredWithBC: customer.registeredWithBC,
@@ -175,7 +175,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       bloomconnectUrl: customer.bloomconnectUrl || "",
     } : {
       name: "",
-      stage: "lead" as "lead" | "prospect" | "customer",
+      stage: "lead",
       assignedTo: "",
       personalNotes: "",
       registeredWithBC: false,
@@ -555,7 +555,8 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     <SelectItem value="lead">Lead</SelectItem>
                     <SelectItem value="prospect">Prospect</SelectItem>
                     <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="at_risk">At Risk</SelectItem>
+                    <SelectItem value="dormant">Dormant</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

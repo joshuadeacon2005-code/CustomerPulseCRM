@@ -72,6 +72,15 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 - **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actuals and variance reporting.
 - **Analytics**: Advanced analytics with monthly and overall views, month selector, team structure visualization, and performance metrics.
 - **Admin Dashboard Features**: Four-tab layout with Overview (Regional Leaderboard, User Management with filtering/sorting/bulk selection/inline editing), Assignments (Customer-to-Salesman mapping with filters by salesman, name, and office), Offices (Regional office management), and Comparative Analytics (Region vs Region and Rep vs Rep comparison charts).
+- **Customer Status Management**: Extended customer lifecycle with 5 stages (lead, prospect, customer, dormant, closed):
+    - **Dormant/Closed Tracking**: Customers can be marked as dormant or closed with closure date, reason, and optional notes
+    - **Closure Reasons**: Predefined reasons (Out of Business, Competitor, Budget, Poor Fit, Not Responsive, Duplicate, Other)
+    - **Soft Delete**: Customers are soft-deleted (hidden from lists but data preserved) with deletedAt timestamp and deletedBy user
+    - **Hard Delete**: Admin-only permanent deletion of customer and all related records
+    - **Self-Assignment**: Users can assign customers to themselves from the detail modal
+    - **Assignment History**: Tracked in customer_assignments table with from/to user and reason
+    - **Bulk Operations**: Select multiple customers for bulk status changes or bulk soft-delete
+    - **Closure List Import**: Upload Excel file to match and bulk-close customers with preview/confirmation flow
 - **Data Retention Policy**: NEVER delete sales data or interaction records. All records must be preserved for historical tracking and audit purposes.
 - **AI-Powered Insights (via OpenAI GPT-4o-mini)**:
     - **Customer AI Insights**: In-modal analysis of sales, purchasing, and engagement with actionable recommendations.
