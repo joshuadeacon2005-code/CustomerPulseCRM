@@ -91,19 +91,8 @@ export default function Dashboard() {
     enabled: user?.role === "manager" || user?.role === "ceo" || user?.role === "sales_director" || user?.role === "regional_manager",
   });
 
-  // Fetch exchange rate for user's preferred currency
-  const userCurrency = (user?.preferredCurrency || 'USD') as Currency;
-  const { data: exchangeRateData } = useQuery<{ rate: string }>({
-    queryKey: ["/api/exchange-rates", "USD", userCurrency],
-    queryFn: async () => {
-      if (userCurrency === 'USD') return { rate: '1' };
-      const res = await fetch(`/api/exchange-rates?from=USD&to=${userCurrency}`);
-      if (!res.ok) return { rate: '1' };
-      return res.json();
-    },
-  });
-  const exchangeRate = exchangeRateData?.rate ? parseFloat(exchangeRateData.rate) : 1;
-  const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || '$';
+  const userCurrency = (user?.preferredCurrency || 'HKD') as Currency;
+  const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || 'HK$';
 
   // Calculate current month stats
   const currentMonth = new Date().getMonth() + 1;
@@ -138,10 +127,12 @@ export default function Dashboard() {
          userCustomerIds.includes(s.customerId)
   );
 
-  const currentMonthSalesUSD = currentMonthSalesData.reduce((total, sale) => {
+  const currentMonthSales = currentMonthSalesData.reduce((total, sale) => {
     return total + (sale.actual ? Number(sale.actual) : 0);
   }, 0);
-  const currentMonthSales = currentMonthSalesUSD * exchangeRate;
+  const currentMonthSalesBase = currentMonthSalesData.reduce((total, sale) => {
+    return total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0);
+  }, 0);
 
   // Calculate previous month's sales
   const previousMonthSalesData = monthlySales.filter(
@@ -150,10 +141,9 @@ export default function Dashboard() {
          userCustomerIds.includes(s.customerId)
   );
 
-  const previousMonthSalesUSD = previousMonthSalesData.reduce((total, sale) => {
+  const previousMonthSales = previousMonthSalesData.reduce((total, sale) => {
     return total + (sale.actual ? Number(sale.actual) : 0);
   }, 0);
-  const previousMonthSales = previousMonthSalesUSD * exchangeRate;
 
   // Calculate month-over-month changes
   const salesChange = previousMonthSales > 0 
@@ -412,7 +402,6 @@ export default function Dashboard() {
           userCustomerIds={userCustomerIds}
           effectiveUserId={effectiveUserId}
           user={user}
-          exchangeRate={exchangeRate}
           currencySymbol={currencySymbol}
           userCurrency={userCurrency}
         />
@@ -534,8 +523,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="flex items-baseline justify-between">
                 <div className="text-3xl font-bold text-green-600 dark:text-green-400" data-testid="text-sales-amount">
-                  {currencySymbol}
-                  {currentMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {formatCompactCurrency(currentMonthSales, currentTargetCurrency)}
                 </div>
                 <div className={`flex items-center gap-1 text-xs ${salesChange > 0 ? 'text-green-600 dark:text-green-400' : salesChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`} aria-label={`Trend: ${salesChange > 0 ? 'up' : salesChange < 0 ? 'down' : 'no change'} ${Math.abs(salesChange).toFixed(1)}%`}>
                   {salesChange > 0 ? <TrendingUp className="h-3 w-3" /> : salesChange < 0 ? <TrendingDown className="h-3 w-3" /> : <span className="h-3 w-3" />}
@@ -543,8 +531,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                vs {currencySymbol}
-                {previousMonthSales.toLocaleString(undefined, { maximumFractionDigits: 0 })} last month
+                vs {formatCompactCurrency(previousMonthSales, currentTargetCurrency)} last month
               </p>
             </CardContent>
           </Card>
@@ -557,35 +544,35 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-3xl font-bold" data-testid="text-progress-percent">
                 {currentTargetBaseUSD > 0
-                  ? Math.round((currentMonthSalesUSD / currentTargetBaseUSD) * 100)
+                  ? Math.round((currentMonthSalesBase / currentTargetBaseUSD) * 100)
                   : 0}%
               </div>
-              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={currentTargetBaseUSD > 0 ? Math.min((currentMonthSalesUSD / currentTargetBaseUSD) * 100, 100) : 0} aria-valuemin={0} aria-valuemax={100}>
+              <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={currentTargetBaseUSD > 0 ? Math.min((currentMonthSalesBase / currentTargetBaseUSD) * 100, 100) : 0} aria-valuemin={0} aria-valuemax={100}>
                 <div 
                   className={`h-full rounded-full transition-all ${
                     currentTargetBaseUSD > 0
-                      ? (currentMonthSalesUSD / currentTargetBaseUSD) >= 1.0
+                      ? (currentMonthSalesBase / currentTargetBaseUSD) >= 1.0
                         ? 'bg-green-600'
-                        : (currentMonthSalesUSD / currentTargetBaseUSD) >= 0.75
+                        : (currentMonthSalesBase / currentTargetBaseUSD) >= 0.75
                         ? 'bg-blue-600'
-                        : (currentMonthSalesUSD / currentTargetBaseUSD) >= 0.5
+                        : (currentMonthSalesBase / currentTargetBaseUSD) >= 0.5
                         ? 'bg-amber-600'
                         : 'bg-red-600'
                       : 'bg-muted'
                   }`}
                   style={{ 
-                    width: `${currentTargetBaseUSD > 0 ? Math.min((currentMonthSalesUSD / currentTargetBaseUSD) * 100, 100) : 0}%` 
+                    width: `${currentTargetBaseUSD > 0 ? Math.min((currentMonthSalesBase / currentTargetBaseUSD) * 100, 100) : 0}%` 
                   }}
                   data-testid="progress-bar"
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {currentTargetBaseUSD > 0
-                  ? (currentMonthSalesUSD / currentTargetBaseUSD) >= 1.0
+                  ? (currentMonthSalesBase / currentTargetBaseUSD) >= 1.0
                     ? 'Target achieved!'
-                    : (currentMonthSalesUSD / currentTargetBaseUSD) >= 0.75
+                    : (currentMonthSalesBase / currentTargetBaseUSD) >= 0.75
                     ? 'On track'
-                    : (currentMonthSalesUSD / currentTargetBaseUSD) >= 0.5
+                    : (currentMonthSalesBase / currentTargetBaseUSD) >= 0.5
                     ? 'Behind pace'
                     : 'Needs attention'
                   : 'No target set'}
@@ -765,11 +752,13 @@ export default function Dashboard() {
                   const memberCustomers = customers.filter(c => c.assignedTo === member.id);
                   const memberCustomerIds = memberCustomers.map(c => c.id);
                   
-                  const memberSales = monthlySales.filter(s => 
+                  const memberSalesData = monthlySales.filter(s => 
                     s.month === currentMonth && 
                     s.year === currentYear &&
                     memberCustomerIds.includes(s.customerId)
-                  ).reduce((total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0);
+                  );
+                  const memberSales = memberSalesData.reduce((total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0);
+                  const memberSalesBase = memberSalesData.reduce((total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0);
                   
                   const memberTarget = monthlyTargets.find(
                     t => t.month === currentMonth && 
@@ -783,7 +772,7 @@ export default function Dashboard() {
                   const memberTargetCurrency = (memberTarget?.currency as Currency) || userCurrency;
                   const memberTargetBaseUSD = memberTarget ? Number(memberTarget.baseCurrencyAmount || memberTarget.targetAmount) : 0;
                   const progress = memberTargetBaseUSD > 0 
-                    ? Math.round((memberSales / memberTargetBaseUSD) * 100)
+                    ? Math.round((memberSalesBase / memberTargetBaseUSD) * 100)
                     : 0;
                   
                   return (
@@ -1152,7 +1141,6 @@ function PersonalTargetsWidget({
   userCustomerIds,
   effectiveUserId,
   user,
-  exchangeRate,
   currencySymbol,
   userCurrency,
 }: {
@@ -1161,7 +1149,6 @@ function PersonalTargetsWidget({
   userCustomerIds: string[];
   effectiveUserId: string | undefined;
   user: User | null;
-  exchangeRate: number;
   currencySymbol: string;
   userCurrency: Currency;
 }) {
@@ -1265,16 +1252,17 @@ function PersonalTargetsWidget({
             const monthSales = monthlySales.filter(
               s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
             );
-            const actualSalesUSD = monthSales.reduce(
+            const actualSales = monthSales.reduce(
               (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
             );
-            const actualSales = actualSalesUSD * exchangeRate;
+            const actualSalesBase = monthSales.reduce(
+              (total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0
+            );
             
             const targetAmt = target ? Number(target.targetAmount) : 0;
             const targetCcy = (target?.currency as Currency) || userCurrency;
             const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
-            const salesBaseUSD = actualSalesUSD;
-            const progress = targetBaseUSD > 0 ? Math.min((salesBaseUSD / targetBaseUSD) * 100, 100) : 0;
+            const progress = targetBaseUSD > 0 ? Math.min((actualSalesBase / targetBaseUSD) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
             return (
@@ -1400,16 +1388,17 @@ function PersonalTargetsWidget({
             const monthSales = monthlySales.filter(
               s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
             );
-            const actualSalesUSD = monthSales.reduce(
+            const actualSales = monthSales.reduce(
               (total, sale) => total + (sale.actual ? Number(sale.actual) : 0), 0
             );
-            const actualSales = actualSalesUSD * exchangeRate;
+            const actualSalesBase = monthSales.reduce(
+              (total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0
+            );
             
             const targetAmt = target ? Number(target.targetAmount) : 0;
             const targetCcy = (target?.currency as Currency) || userCurrency;
             const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
-            const salesBaseUSD = actualSalesUSD;
-            const progress = targetBaseUSD > 0 ? Math.min((salesBaseUSD / targetBaseUSD) * 100, 100) : 0;
+            const progress = targetBaseUSD > 0 ? Math.min((actualSalesBase / targetBaseUSD) * 100, 100) : 0;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
             return (

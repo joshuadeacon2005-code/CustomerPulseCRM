@@ -76,12 +76,18 @@ function validateBaseCurrencyAmount(
   }
 }
 
-async function getUserDefaultCurrency(userId: string): Promise<string> {
+type CurrencyCode = "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR" | "NZD";
+
+async function getUserDefaultCurrency(userId: string): Promise<CurrencyCode> {
   const assignments = await storage.getUserOfficeAssignments(userId);
   if (assignments.length > 0 && assignments[0].officeCurrency) {
-    return assignments[0].officeCurrency;
+    return assignments[0].officeCurrency as CurrencyCode;
   }
-  return "USD";
+  const user = await storage.getUser(userId);
+  if (user?.preferredCurrency && user.preferredCurrency !== 'USD') {
+    return user.preferredCurrency as CurrencyCode;
+  }
+  return "HKD";
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -986,7 +992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let validatedData = insertCustomerMonthlyTargetSchema.partial().parse(req.body);
       
       if (validatedData.targetAmount) {
-        const currency = validatedData.currency || existingTarget.currency || await getUserDefaultCurrency(req.user!.id);
+        const currency = (validatedData.currency || existingTarget.currency || await getUserDefaultCurrency(req.user!.id)) as CurrencyCode;
         validatedData = { ...validatedData, currency };
         
         const calculatedBaseAmount = await validateAndConvertToBase(
@@ -1046,9 +1052,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let validatedData = insertMonthlySalesTrackingSchemaRefined.parse(req.body);
       
-      // Ensure budgetCurrency defaults to USD if not provided
+      // Ensure budgetCurrency defaults to user's regional currency if not provided
       if (!validatedData.budgetCurrency) {
-        validatedData = { ...validatedData, budgetCurrency: "USD" };
+        const userCurrency = await getUserDefaultCurrency(req.user!.id);
+        validatedData = { ...validatedData, budgetCurrency: userCurrency };
       }
       
       // Validate and auto-calculate base amounts for actual if actualCurrency and actual are provided
@@ -1073,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate base amount for budget (now optional, defaults to 0)
       // Budget is no longer required on the form since monthly targets are tracked separately
       const budgetValue = Number(validatedData.budget || 0);
-      const budgetCurrency = validatedData.budgetCurrency || "USD";
+      const budgetCurrency = validatedData.budgetCurrency;
       if (budgetValue > 0) {
         const calculatedBaseBudget = await validateAndConvertToBase(budgetValue, budgetCurrency);
         if (validatedData.budgetBaseCurrencyAmount !== undefined) {
@@ -1221,21 +1228,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const saleMonth = saleDate.getMonth() + 1;
           const saleYear = saleDate.getFullYear();
           
-          // Always use baseCurrencyAmount (USD) for consistency
-          // The conversion was already done earlier in this route, so baseCurrencyAmount should be set
-          // If for some reason it's not set, convert the amount now
-          let saleAmountUSD: number;
-          if (validatedData.baseCurrencyAmount) {
-            saleAmountUSD = Number(validatedData.baseCurrencyAmount);
-          } else if (validatedData.currency && validatedData.currency !== "USD") {
-            // Convert to USD if currency is provided but base amount wasn't calculated
-            saleAmountUSD = await validateAndConvertToBase(Number(validatedData.amount), validatedData.currency);
-          } else {
-            // Assume USD if no currency specified
-            saleAmountUSD = Number(validatedData.amount);
-          }
+          const saleCurrency = validatedData.currency || await getUserDefaultCurrency(req.user!.id);
+          const saleAmount = Number(validatedData.amount);
+          const saleAmountBase = validatedData.baseCurrencyAmount 
+            ? Number(validatedData.baseCurrencyAmount) 
+            : await validateAndConvertToBase(saleAmount, saleCurrency);
           
-          // Find existing monthly tracking record
           const existingTracking = await storage.getMonthlySalesTrackingByCustomerMonthYear(
             matchedCustomer.id,
             saleMonth,
@@ -1243,60 +1241,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           if (existingTracking) {
-            // Calculate existing actual in USD
-            // If actualBaseCurrencyAmount is missing, derive it from actual + actualCurrency
-            let currentActualUSD = 0;
-            if (existingTracking.actualBaseCurrencyAmount) {
-              currentActualUSD = Number(existingTracking.actualBaseCurrencyAmount);
-            } else if (existingTracking.actual && existingTracking.actualCurrency) {
-              // Convert existing actual to USD
-              if (existingTracking.actualCurrency === "USD") {
-                currentActualUSD = Number(existingTracking.actual);
-              } else {
-                try {
-                  currentActualUSD = await validateAndConvertToBase(
-                    Number(existingTracking.actual), 
-                    existingTracking.actualCurrency
-                  );
-                } catch {
-                  currentActualUSD = Number(existingTracking.actual);
-                }
-              }
-            }
+            const currentActual = Number(existingTracking.actual || 0);
+            const currentActualBase = Number(existingTracking.actualBaseCurrencyAmount || 0);
+            const existingCurrency = existingTracking.actualCurrency || saleCurrency;
             
-            const newActualUSD = currentActualUSD + saleAmountUSD;
+            let newActual: number;
+            let newActualBase: number;
+            let finalCurrency = existingCurrency;
             
-            // Try to preserve existing currency, but fallback to USD if no exchange rate
-            const existingCurrency = existingTracking.actualCurrency || "USD";
-            let newActualInCurrency = newActualUSD;
-            let finalCurrency = "USD";
-            
-            if (existingCurrency !== "USD") {
+            if (existingCurrency === saleCurrency) {
+              newActual = currentActual + saleAmount;
+              newActualBase = currentActualBase + saleAmountBase;
+            } else {
+              newActualBase = currentActualBase + saleAmountBase;
               const rateRecord = await storage.getExchangeRate("USD", existingCurrency);
               if (rateRecord) {
-                newActualInCurrency = newActualUSD * Number(rateRecord.rate);
-                finalCurrency = existingCurrency;
+                newActual = newActualBase * Number(rateRecord.rate);
+              } else {
+                newActual = currentActual + saleAmount;
+                finalCurrency = saleCurrency;
               }
-              // If no rate found, keep as USD (finalCurrency already "USD")
             }
             
             await storage.updateMonthlySales(existingTracking.id, {
-              actual: newActualInCurrency.toFixed(2),
-              actualBaseCurrencyAmount: newActualUSD.toFixed(2),
+              actual: newActual.toFixed(2),
+              actualBaseCurrencyAmount: newActualBase.toFixed(2),
               actualCurrency: finalCurrency
             });
           } else {
-            // Create a new monthly tracking record with budget=0 and actual=sale amount (in USD)
+            const userCurrency = await getUserDefaultCurrency(req.user!.id);
             await storage.createMonthlySales({
               customerId: matchedCustomer.id,
               month: saleMonth,
               year: saleYear,
               budget: "0",
-              budgetCurrency: "USD",
+              budgetCurrency: userCurrency,
               budgetBaseCurrencyAmount: "0",
-              actual: saleAmountUSD.toFixed(2),
-              actualCurrency: "USD",
-              actualBaseCurrencyAmount: saleAmountUSD.toFixed(2)
+              actual: saleAmount.toFixed(2),
+              actualCurrency: saleCurrency,
+              actualBaseCurrencyAmount: saleAmountBase.toFixed(2)
             });
           }
         }
