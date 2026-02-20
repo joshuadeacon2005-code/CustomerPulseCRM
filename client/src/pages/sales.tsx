@@ -476,7 +476,7 @@ export default function SalesPage() {
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
             <span className="text-2xl font-bold" data-testid="text-year-total">
-              {formatCurrency(totalTargetAmount, (displayTargets[0]?.currency as Currency) || "USD")}
+              {formatCurrency(totalTargetAmount, (displayTargets[0]?.currency as Currency) || "HKD")}
             </span>
           </div>
         </div>
@@ -584,7 +584,7 @@ export default function SalesPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Target Amount</span>
                     <span className="text-2xl font-bold text-primary" data-testid="text-selected-target">
-                      {formatCurrency(selectedMonthTarget.targetAmount, (selectedMonthTarget.currency as Currency) || "USD")}
+                      {formatCurrency(selectedMonthTarget.targetAmount, (selectedMonthTarget.currency as Currency) || "HKD")}
                     </span>
                   </div>
                 </div>
@@ -647,7 +647,7 @@ export default function SalesPage() {
                               </Badge>
                             </td>
                             <td className="py-3 px-4 text-right font-semibold" data-testid={`text-amount-${target.id}`}>
-                              {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
+                              {formatCurrency(target.targetAmount, (target.currency as Currency) || "HKD")}
                             </td>
                             <td className="py-3 px-4 text-right">
                               <Button

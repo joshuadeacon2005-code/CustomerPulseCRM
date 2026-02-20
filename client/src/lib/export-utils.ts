@@ -54,8 +54,8 @@ export function exportSalesReport(
 
   const salesData = sales.map(sale => ({
     'Customer': sale.customerName,
-    'Amount': `$${parseFloat(sale.amount).toLocaleString()}`,
-    'Currency': sale.currency || 'USD',
+    'Amount': parseFloat(sale.amount).toLocaleString(),
+    'Currency': sale.currency || 'HKD',
     'Country': sale.country || '',
     'Date': new Date(sale.date).toLocaleDateString(),
   }));
@@ -68,7 +68,7 @@ export function exportSalesReport(
   const targetsData = targets.map(target => ({
     'Month': monthNames[target.month - 1],
     'Year': target.year,
-    'Target Amount': formatCurrency(target.targetAmount, (target.currency as Currency) || "USD"),
+    'Target Amount': formatCurrency(target.targetAmount, (target.currency as Currency) || "HKD"),
     'Type': target.targetType,
   }));
   

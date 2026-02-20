@@ -1328,7 +1328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/revenue-breakdown", isAdmin, async (req, res) => {
     try {
-      const userCurrency = req.user?.preferredCurrency || "USD";
+      const userCurrency = req.user?.preferredCurrency || "HKD";
       const breakdown = await storage.getRevenueBreakdownByCountry(
         req.user!.id, 
         req.user!.role as UserRole,

@@ -2057,7 +2057,7 @@ export default function AdminPage() {
                             <p className="text-xs text-muted-foreground capitalize">{target.targetType}</p>
                           </div>
                           <p className="font-bold" data-testid={`text-target-amount-${target.id}`}>
-                            {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
+                            {formatCurrency(target.targetAmount, (target.currency as Currency) || "HKD")}
                           </p>
                         </div>
                       ))}

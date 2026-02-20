@@ -19,7 +19,7 @@ export function CurrencySelector() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>(
-    (user?.preferredCurrency as Currency) || "USD"
+    (user?.preferredCurrency as Currency) || "HKD"
   );
 
   // Sync with user's preferred currency when auth state changes
@@ -54,7 +54,7 @@ export function CurrencySelector() {
     },
     onError: (error) => {
       // Revert the optimistic update on error
-      setSelectedCurrency((user?.preferredCurrency as Currency) || "USD");
+      setSelectedCurrency((user?.preferredCurrency as Currency) || "HKD");
       
       toast({
         title: "Failed to Update Currency",

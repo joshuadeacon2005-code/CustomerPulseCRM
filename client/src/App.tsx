@@ -61,7 +61,7 @@ function AuthenticatedApp() {
                 data-testid="text-preferred-currency"
               >
                 <DollarSign className="h-4 w-4" />
-                <span className="font-medium">{user?.preferredCurrency || 'USD'}</span>
+                <span className="font-medium">{user?.preferredCurrency || 'HKD'}</span>
               </div>
               <ThemeToggle />
             </div>

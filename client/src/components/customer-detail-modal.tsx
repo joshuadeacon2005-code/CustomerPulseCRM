@@ -316,8 +316,8 @@ export function CustomerDetailModal({
     enabled: open && !!user?.id,
   });
 
-  // Get the user's office currency (first assignment's currency or default to USD)
-  const userOfficeCurrency = userOfficeAssignments?.[0]?.officeCurrency || "USD";
+  // Get the user's office currency (first assignment's currency or default to HKD)
+  const userOfficeCurrency = userOfficeAssignments?.[0]?.officeCurrency || "HKD";
 
   const { data: allBrands } = useQuery<Brand[]>({
     queryKey: ['/api/brands'],
@@ -1381,7 +1381,7 @@ export function CustomerDetailModal({
                                     if (value !== budget.toString()) {
                                       updateMonthlySalesMutation.mutate({
                                         id: record.id,
-                                        data: { budget: value, budgetCurrency: record.budgetCurrency || 'USD' }
+                                        data: { budget: value, budgetCurrency: record.budgetCurrency || 'HKD' }
                                       });
                                     }
                                   }}
@@ -1403,7 +1403,7 @@ export function CustomerDetailModal({
                                     if (value !== actual.toString()) {
                                       updateMonthlySalesMutation.mutate({
                                         id: record.id,
-                                        data: { actual: value, actualCurrency: record.actualCurrency || 'USD' }
+                                        data: { actual: value, actualCurrency: record.actualCurrency || 'HKD' }
                                       });
                                     }
                                   }}

@@ -312,7 +312,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                     <div className="border-l pl-4">
                       <div className="text-sm text-muted-foreground">Target</div>
                       <div className="text-xl font-bold" data-testid={`text-target-amount-${target.id}`}>
-                        {formatCurrency(target.targetAmount, (target.currency as Currency) || "USD")}
+                        {formatCurrency(target.targetAmount, (target.currency as Currency) || "HKD")}
                       </div>
                     </div>
                   </div>

@@ -54,7 +54,7 @@ import type {
 } from "@shared/schema";
 import { CalendarView } from "@/components/calendar-view";
 import { CustomerDetailModal } from "@/components/customer-detail-modal";
-import { CURRENCY_SYMBOLS } from "@/lib/currency";
+import { CURRENCY_SYMBOLS, formatCompactCurrency } from "@/lib/currency";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -122,19 +122,8 @@ export default function UserDetailsPage() {
     enabled: !!userId,
   });
 
-  const userCurrency = (userInfo?.user?.preferredCurrency || "USD") as Currency;
-  const { data: exchangeRateData } = useQuery<{ rate: string }>({
-    queryKey: ["/api/exchange-rates", "USD", userCurrency],
-    queryFn: async () => {
-      if (userCurrency === "USD") return { rate: "1" };
-      const res = await fetch(`/api/exchange-rates?from=USD&to=${userCurrency}`);
-      if (!res.ok) return { rate: "1" };
-      return res.json();
-    },
-    enabled: !!userCurrency,
-  });
-  const exchangeRate = exchangeRateData?.rate ? parseFloat(exchangeRateData.rate) : 1;
-  const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || "$";
+  const userCurrency = (userInfo?.user?.preferredCurrency || "HKD") as Currency;
+  const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || "HK$";
 
   const selectedCustomer = useMemo(() => {
     if (!selectedCustomerId) return null;
@@ -193,7 +182,7 @@ export default function UserDetailsPage() {
     (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId))
   );
 
-  const currentMonthSalesUSD = monthlySales
+  const currentMonthSales = monthlySales
     .filter(s =>
       userCustomerIds.includes(s.customerId) &&
       s.month === currentMonth &&
@@ -201,7 +190,13 @@ export default function UserDetailsPage() {
     )
     .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
 
-  const currentMonthSales = currentMonthSalesUSD * exchangeRate;
+  const currentMonthSalesBase = monthlySales
+    .filter(s =>
+      userCustomerIds.includes(s.customerId) &&
+      s.month === currentMonth &&
+      s.year === currentYear
+    )
+    .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
 
   const currentMonthInteractions = userInteractions.filter(interaction => {
     const interactionDate = new Date(interaction.date);
@@ -214,12 +209,16 @@ export default function UserDetailsPage() {
     return firstContactDate.getMonth() === currentMonth - 1 && firstContactDate.getFullYear() === currentYear;
   });
 
-  const targetAmountConverted = currentMonthTarget?.targetAmount
-    ? Number(currentMonthTarget.targetAmount) * exchangeRate
+  const targetAmount = currentMonthTarget?.targetAmount
+    ? Number(currentMonthTarget.targetAmount)
+    : 0;
+  const targetCurrency = (currentMonthTarget?.currency as Currency) || userCurrency;
+  const targetBaseAmount = currentMonthTarget?.baseCurrencyAmount
+    ? Number(currentMonthTarget.baseCurrencyAmount)
     : 0;
 
-  const progressPercent = targetAmountConverted > 0
-    ? Math.round((currentMonthSales / targetAmountConverted) * 100)
+  const progressPercent = targetBaseAmount > 0
+    ? Math.round((currentMonthSalesBase / targetBaseAmount) * 100)
     : 0;
 
   const handleCustomerClick = (customerId: string) => {
@@ -252,10 +251,10 @@ export default function UserDetailsPage() {
 
       return {
         customer,
-        budget: budget * exchangeRate,
-        actual: actual * exchangeRate,
+        budget,
+        actual,
         hasTarget,
-        variance: variance * exchangeRate,
+        variance,
         progress,
       };
     });
@@ -302,14 +301,14 @@ export default function UserDetailsPage() {
 
   const getSalesHistoryMetrics = () => {
     const data = getSalesHistoryData();
-    const totalSales = data.reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0) * exchangeRate;
+    const totalSales = data.reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
     const monthsWithSales = new Set(data.filter(s => s.actual && Number(s.actual) > 0).map(s => s.month)).size;
     const avgMonthly = monthsWithSales > 0 ? totalSales / monthsWithSales : 0;
 
     const monthTotals: Record<number, number> = {};
     data.forEach(s => {
       if (s.actual) {
-        monthTotals[s.month] = (monthTotals[s.month] || 0) + Number(s.actual) * exchangeRate;
+        monthTotals[s.month] = (monthTotals[s.month] || 0) + Number(s.actual);
       }
     });
 
@@ -332,7 +331,7 @@ export default function UserDetailsPage() {
     for (let m = 1; m <= 12; m++) {
       const monthSales = monthlySales
         .filter(s => userCustomerIds.includes(s.customerId) && s.month === m && s.year === year)
-        .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0) * exchangeRate;
+        .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
 
       const monthTarget = monthlyTargets.find(t =>
         t.month === m && t.year === year &&
@@ -342,7 +341,7 @@ export default function UserDetailsPage() {
       trendData.push({
         month: months[m - 1],
         sales: Math.round(monthSales),
-        target: monthTarget ? Math.round(Number(monthTarget.targetAmount) * exchangeRate) : 0,
+        target: monthTarget ? Math.round(Number(monthTarget.targetAmount)) : 0,
       });
     }
 
@@ -361,7 +360,7 @@ export default function UserDetailsPage() {
           if (!customerTotals[s.customerId]) {
             customerTotals[s.customerId] = { name: customer.name, total: 0 };
           }
-          customerTotals[s.customerId].total += Number(s.actual!) * exchangeRate;
+          customerTotals[s.customerId].total += Number(s.actual!);
         }
       });
 
@@ -375,7 +374,11 @@ export default function UserDetailsPage() {
     const year = parseInt(analyticsYear);
     const yearSales = monthlySales
       .filter(s => userCustomerIds.includes(s.customerId) && s.year === year && s.actual)
-      .reduce((sum, s) => sum + Number(s.actual!) * exchangeRate, 0);
+      .reduce((sum, s) => sum + Number(s.actual!), 0);
+
+    const yearSalesBase = monthlySales
+      .filter(s => userCustomerIds.includes(s.customerId) && s.year === year && s.actual)
+      .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
 
     const salesCount = monthlySales
       .filter(s => userCustomerIds.includes(s.customerId) && s.year === year && s.actual && Number(s.actual) > 0)
@@ -383,11 +386,11 @@ export default function UserDetailsPage() {
 
     const avgDealSize = salesCount > 0 ? yearSales / salesCount : 0;
 
-    const yearTarget = monthlyTargets
+    const yearTargetBase = monthlyTargets
       .filter(t => t.year === year && (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId)))
-      .reduce((sum, t) => sum + Number(t.targetAmount) * exchangeRate, 0);
+      .reduce((sum, t) => sum + Number(t.baseCurrencyAmount || t.targetAmount), 0);
 
-    const targetAchievement = yearTarget > 0 ? Math.round((yearSales / yearTarget) * 100) : 0;
+    const targetAchievement = yearTargetBase > 0 ? Math.round((yearSalesBase / yearTargetBase) * 100) : 0;
 
     const activeCustomers = userCustomers.filter(c => c.stage === "customer").length;
 
@@ -507,7 +510,7 @@ export default function UserDetailsPage() {
                 </CardHeader>
                 <CardContent className="relative">
                   <div className="text-3xl font-bold" data-testid="text-target-amount">
-                    {currencySymbol}{targetAmountConverted.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {formatCompactCurrency(targetAmount, targetCurrency)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {format(new Date(), "MMMM yyyy")}
@@ -603,8 +606,8 @@ export default function UserDetailsPage() {
                     s.month === currentMonth &&
                     s.year === currentYear
                   );
-                  const budget = customerSales.length > 0 ? Number(customerSales[0].budget) * exchangeRate : 0;
-                  const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) * exchangeRate : 0;
+                  const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+                  const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
                   const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
                   const variance = actual - budget;
 
@@ -1032,8 +1035,8 @@ export default function UserDetailsPage() {
                 <TableBody>
                   {getSalesHistoryData().map(sale => {
                     const customer = userCustomers.find(c => c.id === sale.customerId);
-                    const budget = Number(sale.budget) * exchangeRate;
-                    const actual = sale.actual ? Number(sale.actual) * exchangeRate : 0;
+                    const budget = Number(sale.budget);
+                    const actual = sale.actual ? Number(sale.actual) : 0;
                     const variance = actual - budget;
 
                     return (

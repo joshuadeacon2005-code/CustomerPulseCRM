@@ -162,7 +162,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       storeAddress: customer.storeAddress || "",
       retailerType: customer.retailerType ?? undefined,
       quarterlySoftTarget: customer.quarterlySoftTarget || undefined,
-      quarterlySoftTargetCurrency: customer.quarterlySoftTargetCurrency || "USD",
+      quarterlySoftTargetCurrency: customer.quarterlySoftTargetCurrency || "HKD",
       lastContactDate: customer.lastContactDate ?? undefined,
       country: customer.country || "",
       contactName: customer.contactName || "",
@@ -1018,7 +1018,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                   <FormLabel>Currency</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || "USD"}
+                    value={field.value || "HKD"}
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-quarterly-target-currency">
