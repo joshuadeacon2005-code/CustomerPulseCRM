@@ -12,6 +12,6 @@ export const REGIONAL_OFFICE_CURRENCY_MAP: Record<string, Currency> = {
 } as const;
 
 export function getCurrencyForRegionalOffice(regionalOffice: string | null | undefined): Currency {
-  if (!regionalOffice) return "USD";
-  return REGIONAL_OFFICE_CURRENCY_MAP[regionalOffice] || "USD";
+  if (!regionalOffice) return "HKD";
+  return REGIONAL_OFFICE_CURRENCY_MAP[regionalOffice] || "HKD";
 }

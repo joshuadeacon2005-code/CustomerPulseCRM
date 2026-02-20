@@ -811,6 +811,129 @@ export default function UserDetailsPage() {
 
         {/* Tab 2: Targets & Customers */}
         <TabsContent value="targets" className="space-y-6" data-testid="tab-content-targets">
+          <Card data-testid="card-monthly-targets-overview">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Monthly Targets
+                </CardTitle>
+                <CardDescription>All personal monthly targets for this user</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {(() => {
+                const userTargets = monthlyTargets
+                  .filter(t => t.salesmanId === userId && t.targetType === "personal")
+                  .sort((a, b) => {
+                    if (a.year !== b.year) return a.year - b.year;
+                    return a.month - b.month;
+                  });
+                if (userTargets.length === 0) {
+                  return (
+                    <div className="text-center py-8">
+                      <TargetIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-sm text-muted-foreground">No monthly targets set</p>
+                    </div>
+                  );
+                }
+                return (
+                  <Table data-testid="table-monthly-targets">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Month</TableHead>
+                        <TableHead className="text-right">Target</TableHead>
+                        <TableHead className="text-right">Actual Sales</TableHead>
+                        <TableHead className="text-right">Variance</TableHead>
+                        <TableHead className="text-right">Progress</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userTargets.map((target) => {
+                        const tCurrency = (target.currency as Currency) || userCurrency;
+                        const tAmount = Number(target.targetAmount);
+                        const tBaseAmount = Number(target.baseCurrencyAmount || target.targetAmount);
+                        const monthSalesBase = monthlySales
+                          .filter(s =>
+                            userCustomerIds.includes(s.customerId) &&
+                            s.month === target.month &&
+                            s.year === target.year
+                          )
+                          .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
+                        const monthSalesActual = monthlySales
+                          .filter(s =>
+                            userCustomerIds.includes(s.customerId) &&
+                            s.month === target.month &&
+                            s.year === target.year
+                          )
+                          .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
+                        const progress = tBaseAmount > 0 ? Math.round((monthSalesBase / tBaseAmount) * 100) : 0;
+                        const variance = monthSalesActual - tAmount;
+                        const isCurrentMonth = target.month === currentMonth && target.year === currentYear;
+                        const isPastMonth = target.year < currentYear || (target.year === currentYear && target.month < currentMonth);
+                        return (
+                          <TableRow
+                            key={target.id}
+                            className={isCurrentMonth ? "bg-primary/5" : ""}
+                            data-testid={`monthly-target-row-${target.month}-${target.year}`}
+                          >
+                            <TableCell className="font-medium">
+                              {months[target.month - 1]} {target.year}
+                              {isCurrentMonth && (
+                                <Badge variant="outline" className="ml-2 text-xs">Current</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCompactCurrency(tAmount, tCurrency)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {formatCompactCurrency(monthSalesActual, tCurrency)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                {variance >= 0 ? "+" : ""}{formatCompactCurrency(Math.abs(variance), tCurrency)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      progress >= 100 ? "bg-green-600" :
+                                      progress >= 75 ? "bg-blue-600" :
+                                      progress >= 50 ? "bg-amber-600" :
+                                      "bg-red-600"
+                                    }`}
+                                    style={{ width: `${Math.min(progress, 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm w-10 text-right">{progress}%</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {isPastMonth ? (
+                                progress >= 100 ? (
+                                  <Badge variant="default" className="bg-green-600" data-testid={`badge-status-achieved-${target.month}-${target.year}`}>Achieved</Badge>
+                                ) : (
+                                  <Badge variant="destructive" data-testid={`badge-status-missed-${target.month}-${target.year}`}>Missed</Badge>
+                                )
+                              ) : isCurrentMonth ? (
+                                <Badge variant="secondary" data-testid={`badge-status-inprogress-${target.month}-${target.year}`}>In Progress</Badge>
+                              ) : (
+                                <Badge variant="outline" data-testid={`badge-status-upcoming-${target.month}-${target.year}`}>Upcoming</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
           <div className="flex gap-3 flex-wrap items-center">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />

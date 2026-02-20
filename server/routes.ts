@@ -79,13 +79,22 @@ function validateBaseCurrencyAmount(
 type CurrencyCode = "USD" | "HKD" | "SGD" | "CNY" | "AUD" | "IDR" | "MYR" | "NZD";
 
 async function getUserDefaultCurrency(userId: string): Promise<CurrencyCode> {
-  const assignments = await storage.getUserOfficeAssignments(userId);
-  if (assignments.length > 0 && assignments[0].officeCurrency) {
-    return assignments[0].officeCurrency as CurrencyCode;
-  }
   const user = await storage.getUser(userId);
+  if (user?.regionalOffice) {
+    const { getCurrencyForRegionalOffice } = await import("@shared/currency-mapping");
+    const officeCurrency = getCurrencyForRegionalOffice(user.regionalOffice);
+    if (officeCurrency && officeCurrency !== 'USD') {
+      return officeCurrency as CurrencyCode;
+    }
+  }
   if (user?.preferredCurrency && user.preferredCurrency !== 'USD') {
     return user.preferredCurrency as CurrencyCode;
+  }
+  const assignments = await storage.getUserOfficeAssignments(userId);
+  for (const assignment of assignments) {
+    if (assignment.officeCurrency && assignment.officeCurrency !== 'USD') {
+      return assignment.officeCurrency as CurrencyCode;
+    }
   }
   return "HKD";
 }
