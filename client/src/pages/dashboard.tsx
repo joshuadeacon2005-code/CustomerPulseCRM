@@ -20,7 +20,9 @@ import {
   TrendingDown,
   Building2,
   Filter,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showTeamCustomers, setShowTeamCustomers] = useState(false);
 
   // Mutation to toggle action item status
   const toggleActionItemMutation = useMutation({
@@ -626,6 +629,120 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {(isCEO || isManager) && isViewingOwnDashboard && teamMembers.length > 0 && (() => {
+          const myTeam = teamMembers.filter(m => m.managerId === user?.id);
+          const teamIds = myTeam.map(m => m.id);
+          const allTeamIds = [user?.id, ...teamIds].filter(Boolean) as string[];
+          const allTeamCustomers = customers.filter(c => allTeamIds.includes(c.assignedTo || ""));
+          const stageGroups: Record<string, number> = {};
+          allTeamCustomers.forEach(c => {
+            const stage = c.stage || "lead";
+            stageGroups[stage] = (stageGroups[stage] || 0) + 1;
+          });
+
+          return (
+            <div className="space-y-4">
+              <Card
+                className="hover-elevate cursor-pointer"
+                data-testid="card-team-customers"
+                onClick={() => setShowTeamCustomers(!showTeamCustomers)}
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Team Customers
+                    {showTeamCustomers ? (
+                      <ChevronUp className="h-3 w-3 ml-auto" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3 ml-auto" />
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-primary" data-testid="text-team-customers-total">
+                    {allTeamCustomers.length}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    {Object.entries(stageGroups).sort().map(([stage, count]) => (
+                      <span key={stage} className="text-xs text-muted-foreground">
+                        {stage}: {count}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Across {allTeamIds.length} team members — click to expand
+                  </p>
+                </CardContent>
+              </Card>
+
+              {showTeamCustomers && (
+                <Card data-testid="card-team-customers-breakdown">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Customer Distribution
+                      </CardTitle>
+                      <CardDescription>Breakdown across your team members</CardDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => { e.stopPropagation(); setShowTeamCustomers(false); }}
+                      data-testid="button-close-team-customers"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {allTeamIds.map(memberId => {
+                        const member = memberId === user?.id ? user : myTeam.find(m => m.id === memberId);
+                        if (!member) return null;
+                        const memberCustomers = customers.filter(c => c.assignedTo === memberId);
+                        const leads = memberCustomers.filter(c => c.stage === "lead").length;
+                        const prospects = memberCustomers.filter(c => c.stage === "prospect").length;
+                        const active = memberCustomers.filter(c => c.stage === "customer").length;
+                        const dormant = memberCustomers.filter(c => c.stage === "dormant").length;
+                        const isMe = memberId === user?.id;
+                        return (
+                          <div
+                            key={memberId}
+                            className="flex items-center justify-between p-3 rounded-lg border hover-elevate"
+                            data-testid={`team-customer-row-${memberId}`}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isMe ? (
+                                  <span className="font-medium">{member.name} (You)</span>
+                                ) : (
+                                  <Link href={`/admin/user-details/${memberId}`} className="font-medium hover:underline">
+                                    {member.name}
+                                  </Link>
+                                )}
+                                <Badge variant="outline" className="text-xs capitalize">{member.role}</Badge>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+                                {leads > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {leads} leads</span>}
+                                {prospects > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> {prospects} prospects</span>}
+                                {active > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {active} customers</span>}
+                                {dormant > 0 && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> {dormant} dormant</span>}
+                              </div>
+                            </div>
+                            <Badge variant="secondary" data-testid={`badge-member-customer-count-${memberId}`}>
+                              {memberCustomers.length}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          );
+        })()}
 
       </div>
 
