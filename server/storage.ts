@@ -124,6 +124,7 @@ export interface IStorage {
   removeBrandFromCustomer(customerId: string, brandId: string): Promise<boolean>;
 
   getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]>;
+  getMonthlyTargetById(id: string): Promise<MonthlyTarget | undefined>;
   createMonthlyTarget(target: InsertMonthlyTarget): Promise<MonthlyTarget>;
   updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined>;
 
@@ -895,6 +896,11 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return newTarget;
+  }
+
+  async getMonthlyTargetById(id: string): Promise<MonthlyTarget | undefined> {
+    const [target] = await db.select().from(monthlyTargets).where(eq(monthlyTargets.id, id));
+    return target;
   }
 
   async updateMonthlyTarget(id: string, target: UpdateMonthlyTarget): Promise<MonthlyTarget | undefined> {

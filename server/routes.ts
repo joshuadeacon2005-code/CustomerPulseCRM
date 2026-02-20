@@ -76,6 +76,14 @@ function validateBaseCurrencyAmount(
   }
 }
 
+async function getUserDefaultCurrency(userId: string): Promise<string> {
+  const assignments = await storage.getUserOfficeAssignments(userId);
+  if (assignments.length > 0 && assignments[0].officeCurrency) {
+    return assignments[0].officeCurrency;
+  }
+  return "USD";
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first (session, passport)
   setupAuth(app);
@@ -788,28 +796,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetType = req.body.targetType || "personal";
       const salesmanId = targetType === "general" ? null : (req.body.salesmanId || req.user!.id);
       
+      const effectiveUserId = salesmanId || req.user!.id;
+      const userCurrency = req.body.currency || await getUserDefaultCurrency(effectiveUserId);
+      
       let validatedData = insertMonthlyTargetSchemaRefined.parse({
         ...req.body,
         salesmanId,
+        currency: userCurrency,
       });
       
-      // Validate and auto-calculate base amount if currency is provided
-      if (validatedData.currency) {
-        const calculatedBaseAmount = await validateAndConvertToBase(
+      const calculatedBaseAmount = await validateAndConvertToBase(
+        Number(validatedData.targetAmount),
+        validatedData.currency
+      );
+      
+      if (validatedData.baseCurrencyAmount !== undefined) {
+        validateBaseCurrencyAmount(
           Number(validatedData.targetAmount),
-          validatedData.currency
+          validatedData.currency,
+          Number(validatedData.baseCurrencyAmount),
+          calculatedBaseAmount
         );
-        
-        if (validatedData.baseCurrencyAmount !== undefined) {
-          validateBaseCurrencyAmount(
-            Number(validatedData.targetAmount),
-            validatedData.currency,
-            Number(validatedData.baseCurrencyAmount),
-            calculatedBaseAmount
-          );
-        } else {
-          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
-        }
+      } else {
+        validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
       }
       
       const target = await storage.createMonthlyTarget(validatedData);
@@ -829,23 +838,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let validatedData = updateMonthlyTargetSchema.parse(req.body);
       
-      // Validate and auto-calculate base amount if currency and amount are being updated
-      if (validatedData.currency && validatedData.targetAmount) {
+      if (validatedData.targetAmount) {
+        const existingTarget = await storage.getMonthlyTargetById(req.params.id);
+        const currency = validatedData.currency || existingTarget?.currency || await getUserDefaultCurrency(req.user!.id);
+        validatedData = { ...validatedData, currency };
+        
         const calculatedBaseAmount = await validateAndConvertToBase(
           Number(validatedData.targetAmount),
-          validatedData.currency
+          currency
         );
-        
-        if (validatedData.baseCurrencyAmount !== undefined) {
-          validateBaseCurrencyAmount(
-            Number(validatedData.targetAmount),
-            validatedData.currency,
-            Number(validatedData.baseCurrencyAmount),
-            calculatedBaseAmount
-          );
-        } else {
-          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
-        }
+        validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
       }
       
       const target = await storage.updateMonthlyTarget(req.params.id, validatedData);
@@ -944,30 +946,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers/:customerId/targets", isAuthenticated, async (req, res) => {
     try {
+      const userCurrency = req.body.currency || await getUserDefaultCurrency(req.user!.id);
+      
       let validatedData = insertCustomerMonthlyTargetSchemaRefined.parse({
         ...req.body,
         customerId: req.params.customerId,
         createdBy: req.user!.id,
+        currency: userCurrency,
       });
       
-      // Validate and auto-calculate base amount if currency is provided
-      if (validatedData.currency) {
-        const calculatedBaseAmount = await validateAndConvertToBase(
-          Number(validatedData.targetAmount),
-          validatedData.currency
-        );
-        
-        if (validatedData.baseCurrencyAmount !== undefined) {
-          validateBaseCurrencyAmount(
-            Number(validatedData.targetAmount),
-            validatedData.currency,
-            Number(validatedData.baseCurrencyAmount),
-            calculatedBaseAmount
-          );
-        } else {
-          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
-        }
-      }
+      const calculatedBaseAmount = await validateAndConvertToBase(
+        Number(validatedData.targetAmount),
+        validatedData.currency
+      );
+      validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
       
       const target = await storage.createCustomerMonthlyTarget(validatedData);
       res.status(201).json(target);
@@ -993,23 +985,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       let validatedData = insertCustomerMonthlyTargetSchema.partial().parse(req.body);
       
-      // Validate and auto-calculate base amount if currency and amount are being updated
-      if (validatedData.currency && validatedData.targetAmount) {
+      if (validatedData.targetAmount) {
+        const currency = validatedData.currency || existingTarget.currency || await getUserDefaultCurrency(req.user!.id);
+        validatedData = { ...validatedData, currency };
+        
         const calculatedBaseAmount = await validateAndConvertToBase(
           Number(validatedData.targetAmount),
-          validatedData.currency
+          currency
         );
-        
-        if (validatedData.baseCurrencyAmount !== undefined) {
-          validateBaseCurrencyAmount(
-            Number(validatedData.targetAmount),
-            validatedData.currency,
-            Number(validatedData.baseCurrencyAmount),
-            calculatedBaseAmount
-          );
-        } else {
-          validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
-        }
+        validatedData = { ...validatedData, baseCurrencyAmount: calculatedBaseAmount.toString() };
       }
       
       const target = await storage.updateCustomerMonthlyTarget(req.params.id, req.params.customerId, validatedData);
