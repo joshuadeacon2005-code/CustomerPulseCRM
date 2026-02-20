@@ -39,6 +39,8 @@ import {
   BarChart3,
   Users,
   Calendar,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import type {
   Customer,
@@ -86,6 +88,7 @@ export default function UserDetailsPage() {
   const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<string>("all");
 
   const [analyticsYear, setAnalyticsYear] = useState<string>(String(new Date().getFullYear()));
+  const [showYearlyTargets, setShowYearlyTargets] = useState(false);
 
   const { data: userInfo } = useQuery<any>({
     queryKey: [`/api/admin/user-details/${userId}`],
@@ -500,12 +503,21 @@ export default function UserDetailsPage() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Current Month Performance</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <Card className="hover-elevate relative overflow-visible" data-testid="card-target">
+              <Card
+                className="hover-elevate relative overflow-visible cursor-pointer"
+                data-testid="card-target"
+                onClick={() => setShowYearlyTargets(!showYearlyTargets)}
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl pointer-events-none" />
                 <CardHeader className="relative pb-3">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <TargetIcon className="h-4 w-4 text-primary" />
                     Target
+                    {showYearlyTargets ? (
+                      <ChevronUp className="h-3 w-3 ml-auto" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3 ml-auto" />
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="relative">
@@ -513,7 +525,7 @@ export default function UserDetailsPage() {
                     {formatCompactCurrency(targetAmount, targetCurrency)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(), "MMMM yyyy")}
+                    {format(new Date(), "MMMM yyyy")} — click to view all
                   </p>
                 </CardContent>
               </Card>
@@ -591,6 +603,142 @@ export default function UserDetailsPage() {
               </Card>
             </div>
           </div>
+
+          {showYearlyTargets && (
+            <Card data-testid="card-yearly-targets-expanded">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TargetIcon className="h-5 w-5" />
+                    {currentYear} Personal Targets
+                  </CardTitle>
+                  <CardDescription>Monthly breakdown for the year</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowYearlyTargets(false)}
+                  data-testid="button-close-yearly-targets"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {(() => {
+                  const yearTargets = monthlyTargets
+                    .filter(t => t.salesmanId === userId && t.targetType === "personal" && t.year === currentYear)
+                    .sort((a, b) => a.month - b.month);
+                  if (yearTargets.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <TargetIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                        <p className="text-sm text-muted-foreground">No personal targets set for {currentYear}</p>
+                      </div>
+                    );
+                  }
+                  const totalTarget = yearTargets.reduce((sum, t) => sum + Number(t.targetAmount), 0);
+                  const totalActual = yearTargets.reduce((sum, t) => {
+                    return sum + monthlySales
+                      .filter(s => userCustomerIds.includes(s.customerId) && s.month === t.month && s.year === t.year)
+                      .reduce((s, sale) => s + (sale.actual ? Number(sale.actual) : 0), 0);
+                  }, 0);
+                  const tCurrency = (yearTargets[0]?.currency as Currency) || userCurrency;
+                  return (
+                    <Table data-testid="table-yearly-targets">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Month</TableHead>
+                          <TableHead className="text-right">Target</TableHead>
+                          <TableHead className="text-right">Actual</TableHead>
+                          <TableHead className="text-right">Variance</TableHead>
+                          <TableHead className="text-right">Progress</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {yearTargets.map((target) => {
+                          const tc = (target.currency as Currency) || userCurrency;
+                          const tAmt = Number(target.targetAmount);
+                          const tBase = Number(target.baseCurrencyAmount || target.targetAmount);
+                          const salesBase = monthlySales
+                            .filter(s => userCustomerIds.includes(s.customerId) && s.month === target.month && s.year === target.year)
+                            .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
+                          const salesActual = monthlySales
+                            .filter(s => userCustomerIds.includes(s.customerId) && s.month === target.month && s.year === target.year)
+                            .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
+                          const prog = tBase > 0 ? Math.round((salesBase / tBase) * 100) : 0;
+                          const vari = salesActual - tAmt;
+                          const isCurrent = target.month === currentMonth && target.year === currentYear;
+                          const isPast = target.year < currentYear || (target.year === currentYear && target.month < currentMonth);
+                          return (
+                            <TableRow
+                              key={target.id}
+                              className={isCurrent ? "bg-primary/5" : ""}
+                              data-testid={`yearly-target-row-${target.month}`}
+                            >
+                              <TableCell className="font-medium">
+                                {months[target.month - 1]}
+                                {isCurrent && <Badge variant="outline" className="ml-2 text-xs">Now</Badge>}
+                              </TableCell>
+                              <TableCell className="text-right">{formatCompactCurrency(tAmt, tc)}</TableCell>
+                              <TableCell className="text-right">{formatCompactCurrency(salesActual, tc)}</TableCell>
+                              <TableCell className="text-right">
+                                <span className={vari >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                  {vari >= 0 ? "+" : "-"}{formatCompactCurrency(Math.abs(vari), tc)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center gap-2 justify-end">
+                                  <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${
+                                        prog >= 100 ? "bg-green-600" : prog >= 75 ? "bg-blue-600" : prog >= 50 ? "bg-amber-600" : "bg-red-600"
+                                      }`}
+                                      style={{ width: `${Math.min(prog, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-sm w-10 text-right">{prog}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {isPast ? (
+                                  prog >= 100 ? (
+                                    <Badge variant="default" className="bg-green-600" data-testid={`badge-yearly-achieved-${target.month}`}>Achieved</Badge>
+                                  ) : (
+                                    <Badge variant="destructive" data-testid={`badge-yearly-missed-${target.month}`}>Missed</Badge>
+                                  )
+                                ) : isCurrent ? (
+                                  <Badge variant="secondary" data-testid={`badge-yearly-inprogress-${target.month}`}>In Progress</Badge>
+                                ) : (
+                                  <Badge variant="outline" data-testid={`badge-yearly-upcoming-${target.month}`}>Upcoming</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="font-semibold bg-muted/50" data-testid="yearly-target-total-row">
+                          <TableCell>Year Total</TableCell>
+                          <TableCell className="text-right">{formatCompactCurrency(totalTarget, tCurrency)}</TableCell>
+                          <TableCell className="text-right">{formatCompactCurrency(totalActual, tCurrency)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={totalActual - totalTarget >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                              {totalActual - totalTarget >= 0 ? "+" : "-"}{formatCompactCurrency(Math.abs(totalActual - totalTarget), tCurrency)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {totalTarget > 0 && (
+                              <span className="text-sm">{Math.round((totalActual / totalTarget) * 100)}%</span>
+                            )}
+                          </TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="hover-elevate relative overflow-visible" data-testid="card-customer-performance">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-xl pointer-events-none" />
