@@ -733,7 +733,17 @@ export default function UserDetailsPage() {
                     s.month === currentMonth &&
                     s.year === currentYear
                   );
-                  const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+                  const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+                  // Fallback to customer_monthly_targets if no MST budget
+                  const cmtTarget = (customerTargetsData?.targets || []).find(
+                    t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
+                  );
+                  const budget = mstBudget > 0 ? mstBudget : (cmtTarget ? Number(cmtTarget.targetAmount) : 0);
+                  const budgetCurrency = (mstBudget > 0
+                    ? customerSales[0]?.budgetCurrency
+                    : cmtTarget?.currency) as Currency || userCurrency;
+                  const budgetSym = CURRENCY_SYMBOLS[budgetCurrency] || currencySymbol;
+
                   const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
                   const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
                   const variance = actual - budget;
@@ -746,10 +756,10 @@ export default function UserDetailsPage() {
                         <div className="flex-1">
                           <p className="font-medium">{renderCustomerName(customer)}</p>
                           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
-                            <span>Target: {currencySymbol}{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                            <span>Actual: {currencySymbol}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            <span>Target: {budgetSym}{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            <span>Actual: {budgetSym}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                             <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                              {variance >= 0 ? "+" : ""}{currencySymbol}{variance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {variance >= 0 ? "+" : ""}{budgetSym}{Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>
@@ -779,13 +789,16 @@ export default function UserDetailsPage() {
                     s.month === currentMonth &&
                     s.year === currentYear
                   );
-                  const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
-                  return budget === 0;
+                  const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+                  const cmtTarget = (customerTargetsData?.targets || []).find(
+                    t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
+                  );
+                  return mstBudget === 0 && !cmtTarget;
                 }) && (
                   <div className="text-center py-8">
                     <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-sm text-muted-foreground">No customer budgets set for this month</p>
-                    <p className="text-xs text-muted-foreground mt-1">Add monthly sales budgets to track customer progress</p>
+                    <p className="text-sm text-muted-foreground">No targets set for this month</p>
+                    <p className="text-xs text-muted-foreground mt-1">Targets can be set per customer in the Targets tab</p>
                   </div>
                 )}
               </div>

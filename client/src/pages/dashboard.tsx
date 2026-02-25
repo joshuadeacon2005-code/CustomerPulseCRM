@@ -24,7 +24,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency } from "@shared/schema";
+import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency, CustomerMonthlyTarget } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
@@ -92,6 +92,11 @@ export default function Dashboard() {
   const { data: teamMembers = [] } = useQuery<Omit<User, 'password'>[]>({
     queryKey: ["/api/users"],
     enabled: user?.role === "manager" || user?.role === "ceo" || user?.role === "sales_director" || user?.role === "regional_manager",
+  });
+
+  const { data: customerMonthlyTargets = [] } = useQuery<CustomerMonthlyTarget[]>({
+    queryKey: [`/api/customer-targets?userId=${effectiveUserId}`],
+    enabled: !!effectiveUserId,
   });
 
   const userCurrency = (user?.preferredCurrency || 'HKD') as Currency;
@@ -957,26 +962,34 @@ export default function Dashboard() {
                 s.year === currentYear
               );
               
-              const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+              const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+              // Fallback to customer_monthly_targets if no MST budget
+              const cmtTarget = customerMonthlyTargets.find(
+                t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
+              );
+              const budget = mstBudget > 0 ? mstBudget : (cmtTarget ? Number(cmtTarget.targetAmount) : 0);
+              const budgetCurrency = mstBudget > 0
+                ? (customerSales[0]?.budgetCurrency as Currency || userCurrency)
+                : (cmtTarget?.currency as Currency || userCurrency);
+              const budgetSymbol = CURRENCY_SYMBOLS[budgetCurrency] || currencySymbol;
+
               const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
               const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
               const variance = actual - budget;
 
-              // Skip customers with no budget set
+              // Skip customers with no budget or target set
               if (budget === 0) return null;
 
               return (
                 <div key={customer.id} className="space-y-2" data-testid={`customer-progress-${customer.id}`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex-1">
                       <p className="font-medium">{customer.name}</p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                        <span>Target: ${budget.toLocaleString()}</span>
-                        <span>•</span>
-                        <span>Actual: ${actual.toLocaleString()}</span>
-                        <span>•</span>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+                        <span>Target: {budgetSymbol}{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        <span>Actual: {budgetSymbol}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                         <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                          {variance >= 0 ? '+' : ''}{variance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {variance >= 0 ? '+' : ''}{budgetSymbol}{Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>
@@ -1006,13 +1019,16 @@ export default function Dashboard() {
                 s.month === currentMonth &&
                 s.year === currentYear
               );
-              const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
-              return budget === 0;
+              const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
+              const cmtTarget = customerMonthlyTargets.find(
+                t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
+              );
+              return mstBudget === 0 && !cmtTarget;
             }) && (
               <div className="text-center py-8">
                 <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm text-muted-foreground">No customer budgets set for this month</p>
-                <p className="text-xs text-muted-foreground mt-1">Add monthly sales budgets to track customer progress</p>
+                <p className="text-sm text-muted-foreground">No targets set for this month</p>
+                <p className="text-xs text-muted-foreground mt-1">Targets can be set per customer in the Targets tab</p>
               </div>
             )}
           </div>

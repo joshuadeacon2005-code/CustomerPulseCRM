@@ -1438,6 +1438,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer monthly targets for dashboard (accessible by all authenticated users)
+  app.get("/api/customer-targets", isAuthenticated, async (req, res) => {
+    try {
+      const requestingUserId = req.user!.id;
+      const requestingRole = (req.user!.role || "").toLowerCase();
+      const targetUserId = (req.query.userId as string) || requestingUserId;
+      const adminRoles = ["ceo", "sales_director", "marketing_director", "admin", "regional_manager", "manager"];
+      if (!adminRoles.includes(requestingRole) && targetUserId !== requestingUserId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const customers = await storage.getCustomers(targetUserId, "salesman");
+      const customerIds = customers.map((c: { id: string }) => c.id);
+      const targets = await storage.getCustomerMonthlyTargetsByCustomerIds(customerIds);
+      res.json(targets);
+    } catch (error) {
+      console.error("Error fetching customer targets:", error);
+      res.status(500).json({ error: "Failed to fetch customer targets" });
+    }
+  });
+
   app.patch("/api/sales/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
