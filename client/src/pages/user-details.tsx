@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
@@ -53,6 +53,7 @@ import type {
   CustomerWithDetails,
   UpdateCustomer,
   InsertInteraction,
+  CustomerMonthlyTarget,
 } from "@shared/schema";
 import { CalendarView } from "@/components/calendar-view";
 import { CustomerDetailModal } from "@/components/customer-detail-modal";
@@ -81,14 +82,15 @@ export default function UserDetailsPage() {
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const [targetFilter, setTargetFilter] = useState<string>("all");
-  const [targetSort, setTargetSort] = useState<string>("name");
-
   const [salesHistoryYear, setSalesHistoryYear] = useState<string>(String(new Date().getFullYear()));
   const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<string>("all");
 
   const [analyticsYear, setAnalyticsYear] = useState<string>(String(new Date().getFullYear()));
   const [showYearlyTargets, setShowYearlyTargets] = useState(false);
+
+  const [customerTargetMonth, setCustomerTargetMonth] = useState<number>(new Date().getMonth() + 1);
+  const [customerTargetYear, setCustomerTargetYear] = useState<number>(new Date().getFullYear());
+  const [expandedCustomerTargets, setExpandedCustomerTargets] = useState<Set<string>>(new Set());
 
   const { data: userInfo } = useQuery<any>({
     queryKey: [`/api/admin/user-details/${userId}`],
@@ -122,6 +124,11 @@ export default function UserDetailsPage() {
 
   const { data: allUsers = [] } = useQuery<UserType[]>({
     queryKey: ["/api/users"],
+    enabled: !!userId,
+  });
+
+  const { data: customerTargetsData } = useQuery<{ customers: Customer[]; targets: CustomerMonthlyTarget[] }>({
+    queryKey: [`/api/admin/user-details/${userId}/customer-targets`],
     enabled: !!userId,
   });
 
@@ -237,58 +244,6 @@ export default function UserDetailsPage() {
       {customer.name}
     </span>
   );
-
-  const getTargetCustomerData = () => {
-    return userCustomers.map(customer => {
-      const customerSales = monthlySales.filter(s =>
-        s.customerId === customer.id &&
-        s.month === currentMonth &&
-        s.year === currentYear
-      );
-
-      const budget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
-      const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
-      const hasTarget = budget > 0;
-      const variance = actual - budget;
-      const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
-
-      return {
-        customer,
-        budget,
-        actual,
-        hasTarget,
-        variance,
-        progress,
-      };
-    });
-  };
-
-  const filteredTargetData = () => {
-    let data = getTargetCustomerData();
-
-    if (targetFilter === "has_target") {
-      data = data.filter(d => d.hasTarget);
-    } else if (targetFilter === "no_target") {
-      data = data.filter(d => !d.hasTarget);
-    }
-
-    switch (targetSort) {
-      case "name":
-        data.sort((a, b) => a.customer.name.localeCompare(b.customer.name));
-        break;
-      case "target":
-        data.sort((a, b) => b.budget - a.budget);
-        break;
-      case "sales":
-        data.sort((a, b) => b.actual - a.actual);
-        break;
-      case "variance":
-        data.sort((a, b) => b.variance - a.variance);
-        break;
-    }
-
-    return data;
-  };
 
   const getSalesHistoryData = () => {
     const year = parseInt(salesHistoryYear);
@@ -959,14 +914,16 @@ export default function UserDetailsPage() {
 
         {/* Tab 2: Targets & Customers */}
         <TabsContent value="targets" className="space-y-6" data-testid="tab-content-targets">
+
+          {/* Section 1: Personal Monthly Targets */}
           <Card data-testid="card-monthly-targets-overview">
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Monthly Targets
+                  <TargetIcon className="h-5 w-5" />
+                  Personal Monthly Targets
                 </CardTitle>
-                <CardDescription>All personal monthly targets for this user</CardDescription>
+                <CardDescription>All personal monthly targets set for this user across all months</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -981,7 +938,7 @@ export default function UserDetailsPage() {
                   return (
                     <div className="text-center py-8">
                       <TargetIcon className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                      <p className="text-sm text-muted-foreground">No monthly targets set</p>
+                      <p className="text-sm text-muted-foreground">No personal monthly targets set</p>
                     </div>
                   );
                 }
@@ -1082,135 +1039,311 @@ export default function UserDetailsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex gap-3 flex-wrap items-center">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filter:</span>
-            </div>
-            <Select value={targetFilter} onValueChange={setTargetFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-target-filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
-                <SelectItem value="has_target">Has Target</SelectItem>
-                <SelectItem value="no_target">No Target</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Sort:</span>
-            </div>
-            <Select value={targetSort} onValueChange={setTargetSort}>
-              <SelectTrigger className="w-[180px]" data-testid="select-target-sort">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Customer Name</SelectItem>
-                <SelectItem value="target">Target Amount</SelectItem>
-                <SelectItem value="sales">Sales Amount</SelectItem>
-                <SelectItem value="variance">Variance</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Card>
+          {/* Section 2: Per-Customer Targets */}
+          <Card data-testid="card-customer-monthly-targets">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Per-Customer Targets &amp; Progress
+                </CardTitle>
+                <CardDescription>
+                  Individual targets set per customer with actual sales progress. Select a month to view, or expand a customer to see all months.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select
+                  value={String(customerTargetMonth)}
+                  onValueChange={v => setCustomerTargetMonth(Number(v))}
+                >
+                  <SelectTrigger className="w-[120px]" data-testid="select-customer-target-month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((m, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={String(customerTargetYear)}
+                  onValueChange={v => setCustomerTargetYear(Number(v))}
+                >
+                  <SelectTrigger className="w-[100px]" data-testid="select-customer-target-year">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(new Set([
+                      currentYear - 1,
+                      currentYear,
+                      currentYear + 1,
+                      ...(customerTargetsData?.targets || []).map(t => t.year),
+                    ])).sort((a, b) => b - a).map(y => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
             <CardContent className="p-0">
-              <Table data-testid="table-targets">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer Name</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead className="text-right">Monthly Target</TableHead>
-                    <TableHead className="text-right">Actual Sales</TableHead>
-                    <TableHead className="text-right">Variance</TableHead>
-                    <TableHead className="text-right">Progress</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTargetData().map(({ customer, budget, actual, hasTarget, variance, progress }) => (
-                    <TableRow key={customer.id} data-testid={`target-row-${customer.id}`}>
-                      <TableCell>{renderCustomerName(customer)}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={customer.stage === "customer" ? "default" : customer.stage === "prospect" ? "secondary" : "outline"}
-                          data-testid={`badge-stage-${customer.id}`}
-                        >
-                          {customer.stage}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {hasTarget ? (
-                          <span>{currencySymbol}{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                        ) : (
-                          <span className="text-muted-foreground">No target</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {currencySymbol}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {hasTarget ? (
-                          <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                            {variance >= 0 ? "+" : ""}{currencySymbol}{variance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {hasTarget ? (
-                          <div className="flex items-center gap-2 justify-end">
-                            <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  progress >= 100 ? "bg-green-600" :
-                                  progress >= 75 ? "bg-blue-600" :
-                                  progress >= 50 ? "bg-amber-600" :
-                                  "bg-red-600"
-                                }`}
-                                style={{ width: `${Math.min(progress, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-sm w-10 text-right">{progress}%</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {filteredTargetData().length > 0 && (
-                    <TableRow className="font-semibold bg-muted/50" data-testid="target-summary-row">
-                      <TableCell>Total ({filteredTargetData().length} customers)</TableCell>
-                      <TableCell />
-                      <TableCell className="text-right">
-                        {currencySymbol}{filteredTargetData().reduce((sum, d) => sum + d.budget, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {currencySymbol}{filteredTargetData().reduce((sum, d) => sum + d.actual, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {(() => {
-                          const totalVariance = filteredTargetData().reduce((sum, d) => sum + (d.hasTarget ? d.variance : 0), 0);
+              {(() => {
+                const allCusTargets = customerTargetsData?.targets || [];
+                const allCusFromApi = customerTargetsData?.customers || userCustomers;
+
+                const customersWithAnyTarget = allCusFromApi.filter(c =>
+                  allCusTargets.some(t => t.customerId === c.id)
+                );
+                const customersWithoutTarget = allCusFromApi.filter(c =>
+                  !allCusTargets.some(t => t.customerId === c.id)
+                );
+
+                const selectedMonthTargets = allCusTargets.filter(
+                  t => t.month === customerTargetMonth && t.year === customerTargetYear
+                );
+
+                const allCustomersForView = [
+                  ...allCusFromApi.filter(c =>
+                    selectedMonthTargets.some(t => t.customerId === c.id)
+                  ),
+                  ...allCusFromApi.filter(c =>
+                    !selectedMonthTargets.some(t => t.customerId === c.id)
+                  ),
+                ];
+
+                const toggleExpand = (customerId: string) => {
+                  setExpandedCustomerTargets(prev => {
+                    const next = new Set(prev);
+                    if (next.has(customerId)) {
+                      next.delete(customerId);
+                    } else {
+                      next.add(customerId);
+                    }
+                    return next;
+                  });
+                };
+
+                const getActualForCustomerMonth = (customerId: string, month: number, year: number) => {
+                  return monthlySales
+                    .filter(s => s.customerId === customerId && s.month === month && s.year === year)
+                    .reduce((sum, s) => sum + (s.actual ? Number(s.actual) : 0), 0);
+                };
+
+                const getStatusBadge = (progress: number, month: number, year: number) => {
+                  const isMonthPast = year < currentYear || (year === currentYear && month < currentMonth);
+                  const isCurrent = month === currentMonth && year === currentYear;
+                  if (isMonthPast) {
+                    return progress >= 100
+                      ? <Badge variant="default" className="bg-green-600">Achieved</Badge>
+                      : <Badge variant="destructive">Missed</Badge>;
+                  }
+                  if (isCurrent) return <Badge variant="secondary">In Progress</Badge>;
+                  return <Badge variant="outline">Upcoming</Badge>;
+                };
+
+                if (allCusFromApi.length === 0) {
+                  return (
+                    <div className="text-center py-10">
+                      <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-sm text-muted-foreground">No customers assigned to this user</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div>
+                    <Table data-testid="table-customer-targets">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-8" />
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Stage</TableHead>
+                          <TableHead className="text-right">Target ({months[customerTargetMonth - 1]} {customerTargetYear})</TableHead>
+                          <TableHead className="text-right">Actual Sales</TableHead>
+                          <TableHead className="text-right">Variance</TableHead>
+                          <TableHead className="text-right">Progress</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allCustomersForView.map((customer) => {
+                          const monthTarget = selectedMonthTargets.find(t => t.customerId === customer.id);
+                          const tAmount = monthTarget ? Number(monthTarget.targetAmount) : 0;
+                          const tBase = monthTarget ? Number(monthTarget.baseCurrencyAmount || monthTarget.targetAmount) : 0;
+                          const tCurrency = (monthTarget?.currency as Currency) || userCurrency;
+                          const actual = getActualForCustomerMonth(customer.id, customerTargetMonth, customerTargetYear);
+                          const actualBase = monthlySales
+                            .filter(s => s.customerId === customer.id && s.month === customerTargetMonth && s.year === customerTargetYear)
+                            .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
+                          const progress = tBase > 0 ? Math.round((actualBase / tBase) * 100) : 0;
+                          const variance = actual - tAmount;
+                          const isExpanded = expandedCustomerTargets.has(customer.id);
+                          const customerAllTargets = allCusTargets
+                            .filter(t => t.customerId === customer.id)
+                            .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+                          const hasAnyTarget = customerAllTargets.length > 0;
+
                           return (
-                            <span className={totalVariance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                              {totalVariance >= 0 ? "+" : ""}{currencySymbol}{totalVariance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
+                            <Fragment key={customer.id}>
+                              <TableRow
+                                className={`${monthTarget ? "bg-primary/3" : ""} ${hasAnyTarget ? "cursor-pointer hover-elevate" : ""}`}
+                                onClick={() => hasAnyTarget && toggleExpand(customer.id)}
+                                data-testid={`customer-target-row-${customer.id}`}
+                              >
+                                <TableCell className="text-center p-2">
+                                  {hasAnyTarget ? (
+                                    isExpanded
+                                      ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                      : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <span className="text-muted-foreground/30 text-xs">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div>
+                                    <span className="font-medium">{renderCustomerName(customer)}</span>
+                                    {hasAnyTarget && (
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        {customerAllTargets.length} month{customerAllTargets.length !== 1 ? "s" : ""} with targets
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={customer.stage === "customer" ? "default" : customer.stage === "prospect" ? "secondary" : "outline"}
+                                    data-testid={`badge-cust-stage-${customer.id}`}
+                                  >
+                                    {customer.stage}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {monthTarget ? (
+                                    <span className="font-medium">{formatCompactCurrency(tAmount, tCurrency)}</span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">No target</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {monthTarget ? (
+                                    <span>{formatCompactCurrency(actual, tCurrency)}</span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {monthTarget ? (
+                                    <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                      {variance >= 0 ? "+" : ""}{formatCompactCurrency(Math.abs(variance), tCurrency)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {monthTarget ? (
+                                    <div className="flex items-center gap-2 justify-end">
+                                      <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all ${
+                                            progress >= 100 ? "bg-green-600" :
+                                            progress >= 75 ? "bg-blue-600" :
+                                            progress >= 50 ? "bg-amber-600" :
+                                            "bg-red-600"
+                                          }`}
+                                          style={{ width: `${Math.min(progress, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-sm w-10 text-right">{progress}%</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {monthTarget ? getStatusBadge(progress, customerTargetMonth, customerTargetYear) : (
+                                    <span className="text-muted-foreground text-sm">—</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+
+                              {/* Expanded: all monthly targets for this customer */}
+                              {isExpanded && customerAllTargets.map((ct) => {
+                                const ctActual = getActualForCustomerMonth(customer.id, ct.month, ct.year);
+                                const ctActualBase = monthlySales
+                                  .filter(s => s.customerId === customer.id && s.month === ct.month && s.year === ct.year)
+                                  .reduce((sum, s) => sum + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0), 0);
+                                const ctBase = Number(ct.baseCurrencyAmount || ct.targetAmount);
+                                const ctAmt = Number(ct.targetAmount);
+                                const ctCurrency = (ct.currency as Currency) || userCurrency;
+                                const ctProg = ctBase > 0 ? Math.round((ctActualBase / ctBase) * 100) : 0;
+                                const ctVariance = ctActual - ctAmt;
+                                const isThisMonth = ct.month === customerTargetMonth && ct.year === customerTargetYear;
+
+                                return (
+                                  <TableRow
+                                    key={ct.id}
+                                    className={`bg-muted/30 ${isThisMonth ? "ring-1 ring-inset ring-primary/30" : ""}`}
+                                    data-testid={`customer-target-expanded-${customer.id}-${ct.month}-${ct.year}`}
+                                  >
+                                    <TableCell className="p-2" />
+                                    <TableCell className="pl-6 text-sm text-muted-foreground">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {months[ct.month - 1]} {ct.year}
+                                        {isThisMonth && <Badge variant="outline" className="ml-1 text-xs py-0">Viewing</Badge>}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell />
+                                    <TableCell className="text-right text-sm">{formatCompactCurrency(ctAmt, ctCurrency)}</TableCell>
+                                    <TableCell className="text-right text-sm">{formatCompactCurrency(ctActual, ctCurrency)}</TableCell>
+                                    <TableCell className="text-right text-sm">
+                                      <span className={ctVariance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                        {ctVariance >= 0 ? "+" : ""}{formatCompactCurrency(Math.abs(ctVariance), ctCurrency)}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center gap-2 justify-end">
+                                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full transition-all ${
+                                              ctProg >= 100 ? "bg-green-600" :
+                                              ctProg >= 75 ? "bg-blue-600" :
+                                              ctProg >= 50 ? "bg-amber-600" :
+                                              "bg-red-600"
+                                            }`}
+                                            style={{ width: `${Math.min(ctProg, 100)}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-sm w-10 text-right">{ctProg}%</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {getStatusBadge(ctProg, ct.month, ct.year)}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </Fragment>
                           );
-                        })()}
-                      </TableCell>
-                      <TableCell />
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-              {filteredTargetData().length === 0 && (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm text-muted-foreground">No customers found</p>
-                </div>
-              )}
+                        })}
+                      </TableBody>
+                    </Table>
+                    <div className="px-4 py-3 border-t bg-muted/20 flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                      <span data-testid="text-customers-with-targets">
+                        <span className="font-medium text-foreground">{customersWithAnyTarget.length}</span> customers with targets
+                      </span>
+                      <span>|</span>
+                      <span data-testid="text-customers-without-targets">
+                        <span className="font-medium text-foreground">{customersWithoutTarget.length}</span> customers without targets
+                      </span>
+                      <span>|</span>
+                      <span data-testid="text-targets-this-month">
+                        <span className="font-medium text-foreground">{selectedMonthTargets.length}</span> targets for {months[customerTargetMonth - 1]} {customerTargetYear}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

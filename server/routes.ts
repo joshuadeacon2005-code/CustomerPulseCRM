@@ -1425,6 +1425,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/user-details/:userId/customer-targets", isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const customers = await storage.getCustomers(userId, "salesman");
+      const customerIds = customers.map((c: { id: string }) => c.id);
+      const targets = await storage.getCustomerMonthlyTargetsByCustomerIds(customerIds);
+      res.json({ customers, targets });
+    } catch (error) {
+      console.error("Error fetching user customer targets:", error);
+      res.status(500).json({ error: "Failed to fetch customer targets" });
+    }
+  });
+
   app.patch("/api/sales/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;

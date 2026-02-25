@@ -135,6 +135,7 @@ export interface IStorage {
   completeActionItem(id: string): Promise<ActionItem | undefined>;
 
   getCustomerMonthlyTargets(customerId: string): Promise<CustomerMonthlyTarget[]>;
+  getCustomerMonthlyTargetsByCustomerIds(customerIds: string[]): Promise<CustomerMonthlyTarget[]>;
   getCustomerMonthlyTargetById(id: string): Promise<CustomerMonthlyTarget | undefined>;
   createCustomerMonthlyTarget(target: InsertCustomerMonthlyTarget): Promise<CustomerMonthlyTarget>;
   updateCustomerMonthlyTarget(id: string, customerId: string, target: Partial<InsertCustomerMonthlyTarget>): Promise<CustomerMonthlyTarget | undefined>;
@@ -1055,6 +1056,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(customerMonthlyTargets)
       .where(eq(customerMonthlyTargets.customerId, customerId))
+      .orderBy(desc(customerMonthlyTargets.year), desc(customerMonthlyTargets.month));
+  }
+
+  async getCustomerMonthlyTargetsByCustomerIds(customerIds: string[]): Promise<CustomerMonthlyTarget[]> {
+    if (customerIds.length === 0) return [];
+    return await db
+      .select()
+      .from(customerMonthlyTargets)
+      .where(inArray(customerMonthlyTargets.customerId, customerIds))
       .orderBy(desc(customerMonthlyTargets.year), desc(customerMonthlyTargets.month));
   }
 
