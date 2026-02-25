@@ -1,5 +1,5 @@
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Link } from "wouter";
@@ -91,6 +91,7 @@ export default function UserDetailsPage() {
   const [customerTargetMonth, setCustomerTargetMonth] = useState<number>(new Date().getMonth() + 1);
   const [customerTargetYear, setCustomerTargetYear] = useState<number>(new Date().getFullYear());
   const [expandedCustomerTargets, setExpandedCustomerTargets] = useState<Set<string>>(new Set());
+  const hasAutoSelectedMonth = useRef(false);
 
   const { data: userInfo } = useQuery<any>({
     queryKey: [`/api/admin/user-details/${userId}`],
@@ -131,6 +132,29 @@ export default function UserDetailsPage() {
     queryKey: [`/api/admin/user-details/${userId}/customer-targets`],
     enabled: !!userId,
   });
+
+  // Auto-select the most recent month with targets if the current month has none
+  useEffect(() => {
+    if (!customerTargetsData || hasAutoSelectedMonth.current) return;
+    hasAutoSelectedMonth.current = true;
+    const targets = customerTargetsData.targets;
+    if (!targets.length) return;
+    const currentM = new Date().getMonth() + 1;
+    const currentY = new Date().getFullYear();
+    const hasTargetsThisMonth = targets.some(t => t.month === currentM && t.year === currentY);
+    if (!hasTargetsThisMonth) {
+      const sorted = [...targets].sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month);
+      setCustomerTargetMonth(sorted[0].month);
+      setCustomerTargetYear(sorted[0].year);
+    }
+  }, [customerTargetsData]);
+
+  // Reset auto-selection flag when userId changes
+  useEffect(() => {
+    hasAutoSelectedMonth.current = false;
+    setCustomerTargetMonth(new Date().getMonth() + 1);
+    setCustomerTargetYear(new Date().getFullYear());
+  }, [userId]);
 
   const userCurrency = (userInfo?.user?.preferredCurrency || "HKD") as Currency;
   const currencySymbol = CURRENCY_SYMBOLS[userCurrency] || "HK$";
@@ -1101,12 +1125,34 @@ export default function UserDetailsPage() {
                   t => t.month === customerTargetMonth && t.year === customerTargetYear
                 );
 
+                // MST budget fallback: for customers with no CMT target, check monthly_sales_tracking.budget
+                const getMstBudgetForCustomerMonth = (customerId: string, month: number, year: number) => {
+                  const mstRecord = monthlySales.find(
+                    s => s.customerId === customerId && s.month === month && s.year === year && s.budget && Number(s.budget) > 0
+                  );
+                  return mstRecord || null;
+                };
+
+                // Get unique months that have targets, sorted desc
+                const monthsWithTargets = Array.from(
+                  new Set(allCusTargets.map(t => `${t.year}-${String(t.month).padStart(2, "0")}`))
+                ).sort().reverse().map(key => {
+                  const [y, m] = key.split("-");
+                  return { month: Number(m), year: Number(y) };
+                });
+
+                const hasTargetsThisMonth = selectedMonthTargets.length > 0 ||
+                  allCusFromApi.some(c => getMstBudgetForCustomerMonth(c.id, customerTargetMonth, customerTargetYear));
+                const hasTargetsOtherMonths = allCusTargets.length > 0 || monthsWithTargets.length > 0;
+
                 const allCustomersForView = [
                   ...allCusFromApi.filter(c =>
-                    selectedMonthTargets.some(t => t.customerId === c.id)
+                    selectedMonthTargets.some(t => t.customerId === c.id) ||
+                    !!getMstBudgetForCustomerMonth(c.id, customerTargetMonth, customerTargetYear)
                   ),
                   ...allCusFromApi.filter(c =>
-                    !selectedMonthTargets.some(t => t.customerId === c.id)
+                    !selectedMonthTargets.some(t => t.customerId === c.id) &&
+                    !getMstBudgetForCustomerMonth(c.id, customerTargetMonth, customerTargetYear)
                   ),
                 ];
 
@@ -1151,6 +1197,32 @@ export default function UserDetailsPage() {
 
                 return (
                   <div>
+                    {/* Notice when selected month has no targets but other months do */}
+                    {!hasTargetsThisMonth && hasTargetsOtherMonths && (
+                      <div className="mx-4 mt-4 mb-2 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            No targets set for {months[customerTargetMonth - 1]} {customerTargetYear}
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                            Targets are available for:&nbsp;
+                            {monthsWithTargets.slice(0, 6).map((mwt, idx) => (
+                              <span key={`${mwt.year}-${mwt.month}`}>
+                                {idx > 0 && ", "}
+                                <button
+                                  className="underline underline-offset-2 hover:no-underline font-medium"
+                                  onClick={() => { setCustomerTargetMonth(mwt.month); setCustomerTargetYear(mwt.year); }}
+                                >
+                                  {months[mwt.month - 1]} {mwt.year}
+                                </button>
+                              </span>
+                            ))}
+                            {monthsWithTargets.length > 6 && ` and ${monthsWithTargets.length - 6} more`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <Table data-testid="table-customer-targets">
                       <TableHeader>
                         <TableRow>
@@ -1167,9 +1239,18 @@ export default function UserDetailsPage() {
                       <TableBody>
                         {allCustomersForView.map((customer) => {
                           const monthTarget = selectedMonthTargets.find(t => t.customerId === customer.id);
-                          const tAmount = monthTarget ? Number(monthTarget.targetAmount) : 0;
-                          const tBase = monthTarget ? Number(monthTarget.baseCurrencyAmount || monthTarget.targetAmount) : 0;
-                          const tCurrency = (monthTarget?.currency as Currency) || userCurrency;
+                          // Fallback to MST budget when no CMT target exists
+                          const mstBudgetRecord = !monthTarget ? getMstBudgetForCustomerMonth(customer.id, customerTargetMonth, customerTargetYear) : null;
+                          const hasTarget = !!monthTarget || !!mstBudgetRecord;
+                          const tAmount = monthTarget
+                            ? Number(monthTarget.targetAmount)
+                            : mstBudgetRecord ? Number(mstBudgetRecord.budget) : 0;
+                          const tBase = monthTarget
+                            ? Number(monthTarget.baseCurrencyAmount || monthTarget.targetAmount)
+                            : mstBudgetRecord ? Number(mstBudgetRecord.budgetBaseCurrencyAmount || mstBudgetRecord.budget) : 0;
+                          const tCurrency = monthTarget
+                            ? (monthTarget.currency as Currency)
+                            : mstBudgetRecord ? (mstBudgetRecord.budgetCurrency as Currency || userCurrency) : userCurrency;
                           const actual = getActualForCustomerMonth(customer.id, customerTargetMonth, customerTargetYear);
                           const actualBase = monthlySales
                             .filter(s => s.customerId === customer.id && s.month === customerTargetMonth && s.year === customerTargetYear)
@@ -1185,7 +1266,7 @@ export default function UserDetailsPage() {
                           return (
                             <Fragment key={customer.id}>
                               <TableRow
-                                className={`${monthTarget ? "bg-primary/3" : ""} ${hasAnyTarget ? "cursor-pointer hover-elevate" : ""}`}
+                                className={`${hasTarget ? "bg-primary/3" : ""} ${hasAnyTarget ? "cursor-pointer hover-elevate" : ""}`}
                                 onClick={() => hasAnyTarget && toggleExpand(customer.id)}
                                 data-testid={`customer-target-row-${customer.id}`}
                               >
@@ -1217,21 +1298,26 @@ export default function UserDetailsPage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {monthTarget ? (
-                                    <span className="font-medium">{formatCompactCurrency(tAmount, tCurrency)}</span>
+                                  {hasTarget ? (
+                                    <div className="flex items-center gap-1 justify-end">
+                                      <span className="font-medium">{formatCompactCurrency(tAmount, tCurrency)}</span>
+                                      {mstBudgetRecord && !monthTarget && (
+                                        <span className="text-xs text-muted-foreground">(budget)</span>
+                                      )}
+                                    </div>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">No target</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {monthTarget ? (
+                                  {hasTarget ? (
                                     <span>{formatCompactCurrency(actual, tCurrency)}</span>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">—</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {monthTarget ? (
+                                  {hasTarget ? (
                                     <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                                       {variance >= 0 ? "+" : ""}{formatCompactCurrency(Math.abs(variance), tCurrency)}
                                     </span>
@@ -1240,7 +1326,7 @@ export default function UserDetailsPage() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {monthTarget ? (
+                                  {hasTarget ? (
                                     <div className="flex items-center gap-2 justify-end">
                                       <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                                         <div
@@ -1260,7 +1346,7 @@ export default function UserDetailsPage() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                  {monthTarget ? getStatusBadge(progress, customerTargetMonth, customerTargetYear) : (
+                                  {hasTarget ? getStatusBadge(progress, customerTargetMonth, customerTargetYear) : (
                                     <span className="text-muted-foreground text-sm">—</span>
                                   )}
                                 </TableCell>
@@ -1334,12 +1420,25 @@ export default function UserDetailsPage() {
                       </span>
                       <span>|</span>
                       <span data-testid="text-customers-without-targets">
-                        <span className="font-medium text-foreground">{customersWithoutTarget.length}</span> customers without targets
+                        <span className="font-medium text-foreground">{customersWithoutTarget.length}</span> without targets
                       </span>
                       <span>|</span>
                       <span data-testid="text-targets-this-month">
-                        <span className="font-medium text-foreground">{selectedMonthTargets.length}</span> targets for {months[customerTargetMonth - 1]} {customerTargetYear}
+                        <span className="font-medium text-foreground">
+                          {allCusFromApi.filter(c =>
+                            selectedMonthTargets.some(t => t.customerId === c.id) ||
+                            !!getMstBudgetForCustomerMonth(c.id, customerTargetMonth, customerTargetYear)
+                          ).length}
+                        </span> with targets for {months[customerTargetMonth - 1]} {customerTargetYear}
                       </span>
+                      {monthsWithTargets.length > 0 && (
+                        <>
+                          <span>|</span>
+                          <span>
+                            Targets set across <span className="font-medium text-foreground">{monthsWithTargets.length}</span> month{monthsWithTargets.length !== 1 ? "s" : ""}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
