@@ -9,7 +9,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { QuickActionMenu } from "@/components/quick-action-menu";
 import { SessionExpirationHandler } from "@/components/session-expiration-handler";
-import { DollarSign } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
@@ -55,14 +54,6 @@ function AuthenticatedApp() {
               <GlobalSearch />
             </div>
             <div className="flex items-center gap-3">
-              <div 
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground bg-muted rounded-md" 
-                title={`Currency based on regional office: ${user?.regionalOffice || 'Not assigned'}`}
-                data-testid="text-preferred-currency"
-              >
-                <DollarSign className="h-4 w-4" />
-                <span className="font-medium">{user?.preferredCurrency || 'HKD'}</span>
-              </div>
               <ThemeToggle />
             </div>
           </header>
