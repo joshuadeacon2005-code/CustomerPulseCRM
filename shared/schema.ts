@@ -708,8 +708,9 @@ export type CustomerWithInteractions = Customer & {
 
 export type CustomerWithBrands = Customer & {
   brands: Brand[];
-  currentMonthTarget?: { targetAmount: string; currency: string } | null;
+  currentMonthTarget?: { targetAmount: string; currency: string; baseCurrencyAmount: string } | null;
   currentMonthActual?: { actual: string; actualCurrency: string } | null;
+  currentMonthSalesBase?: string | null;
 };
 
 export type CustomerWithDetails = Customer & {

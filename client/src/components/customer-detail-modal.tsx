@@ -788,31 +788,41 @@ export function CustomerDetailModal({
         {!isEditing && currentMonthTarget && (() => {
           const currency = (currentMonthTarget.currency as Currency) || "HKD";
           const targetAmt = parseFloat(currentMonthTarget.targetAmount);
-          const mstActual = customer.monthlySales?.find(
+          const targetBase = parseFloat((currentMonthTarget as any).baseCurrencyAmount || targetAmt.toString());
+          const mstEntry = customer.monthlySales?.find(
             m => m.month === currentMonthNum && m.year === currentYearNum
           );
-          const actualAmt = mstActual?.actual ? parseFloat(mstActual.actual) : 0;
-          const actualCurrency = (mstActual?.actualCurrency as Currency) || currency;
-          const pct = targetAmt > 0 ? Math.min((actualAmt / targetAmt) * 100, 100) : 0;
-          const isOver = actualAmt > targetAmt && targetAmt > 0;
+          const actualAmt = mstEntry?.actual ? parseFloat(mstEntry.actual) : 0;
+          const actualCurrency = (mstEntry?.actualCurrency as Currency) || currency;
+          const actualBase = mstEntry?.actualBaseCurrencyAmount ? parseFloat(mstEntry.actualBaseCurrencyAmount) : actualAmt;
+          // Use base amounts for cross-currency safe % calculation
+          const pct = targetBase > 0 ? Math.min((actualBase / targetBase) * 100, 100) : 0;
+          const isOver = actualBase > targetBase && targetBase > 0;
           const monthName = new Date(currentYearNum, currentMonthNum - 1).toLocaleString('default', { month: 'long' });
+          const barColor = pct >= 100 ? 'bg-green-500' : pct >= 60 ? 'bg-primary' : pct >= 30 ? 'bg-amber-500' : 'bg-red-400';
           return (
-            <div className="mt-4 px-2 py-3 rounded-md bg-muted/40 space-y-2" data-testid="section-modal-month-target">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-foreground">{monthName} Target</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-xs">
-                    {formatCurrency(actualAmt, actualCurrency)} actual
-                  </span>
-                  <span className="font-semibold">
-                    / {formatCurrency(targetAmt, currency)}
-                  </span>
-                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isOver ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                    {pct.toFixed(0)}%
-                  </span>
+            <div className="mt-4 px-2 space-y-2" data-testid="section-modal-month-target">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{monthName} Target</span>
+                <div className="flex items-center gap-2 text-sm">
+                  {actualAmt > 0 && (
+                    <span className="text-muted-foreground">{formatCurrency(actualAmt, actualCurrency)} actual /</span>
+                  )}
+                  <span className="font-semibold">{formatCurrency(targetAmt, currency)}</span>
                 </div>
               </div>
-              <Progress value={pct} className="h-2" data-testid="progress-modal-month-target" />
+              <div className="relative h-4 w-full rounded-full bg-muted overflow-hidden" data-testid="progress-modal-month-target">
+                <div
+                  className={`h-full rounded-full transition-all ${barColor}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>{isOver ? 'Target exceeded!' : actualAmt > 0 ? 'In progress' : 'No sales yet this month'}</span>
+                <span className={`font-bold text-sm ${isOver ? 'text-green-600' : pct >= 60 ? 'text-primary' : ''}`}>
+                  {pct.toFixed(0)}%
+                </span>
+              </div>
             </div>
           );
         })()}

@@ -181,22 +181,48 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
           {'currentMonthTarget' in customer && customer.currentMonthTarget && (() => {
             const currency = (customer.currentMonthTarget.currency as Currency) || "HKD";
             const targetAmt = parseFloat(customer.currentMonthTarget.targetAmount);
-            const actualAmt = 'currentMonthActual' in customer && customer.currentMonthActual
+            const targetBase = parseFloat(customer.currentMonthTarget.baseCurrencyAmount || '0');
+
+            // Use direct sales sum (most reliable) falling back to MST actual
+            const salesBase = 'currentMonthSalesBase' in customer && customer.currentMonthSalesBase
+              ? parseFloat(customer.currentMonthSalesBase)
+              : 0;
+            const mstActual = 'currentMonthActual' in customer && customer.currentMonthActual
               ? parseFloat(customer.currentMonthActual.actual)
               : 0;
-            const actualCurrency = ('currentMonthActual' in customer && customer.currentMonthActual?.actualCurrency as Currency) || currency;
-            const pct = targetAmt > 0 ? Math.min((actualAmt / targetAmt) * 100, 100) : 0;
-            const isOver = actualAmt > targetAmt && targetAmt > 0;
+            const mstCurrency = ('currentMonthActual' in customer && customer.currentMonthActual?.actualCurrency as Currency) || currency;
+
+            // % from base amounts (cross-currency safe)
+            const pct = targetBase > 0 ? Math.min((salesBase / targetBase) * 100, 100) : 0;
+            const isOver = salesBase > targetBase && targetBase > 0;
             const monthName = new Date().toLocaleString('default', { month: 'short' });
+
+            const barColor = pct >= 100 ? 'bg-green-500' : pct >= 60 ? 'bg-primary' : pct >= 30 ? 'bg-amber-500' : 'bg-red-400';
+
+            // Display actual: prefer MST amount in its currency, fall back to nothing
+            const displayActual = mstActual > 0 ? formatCurrency(mstActual, mstCurrency) : null;
+
             return (
-              <div className="space-y-1.5" data-testid={`section-month-target-${customer.id}`}>
+              <div className="space-y-1" data-testid={`section-month-target-${customer.id}`}>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground font-medium">{monthName} Target</span>
-                  <span className={`font-semibold ${isOver ? 'text-green-600' : 'text-foreground'}`}>
-                    {formatCurrency(actualAmt, actualCurrency)} / {formatCurrency(targetAmt, currency)}
+                  <span className="text-muted-foreground">
+                    {displayActual ? `${displayActual} / ` : ''}{formatCurrency(targetAmt, currency)}
                   </span>
                 </div>
-                <Progress value={pct} className="h-1.5" data-testid={`progress-month-target-${customer.id}`} />
+                {/* Progress track */}
+                <div className="relative h-3 w-full rounded-full bg-muted overflow-hidden" data-testid={`progress-month-target-${customer.id}`}>
+                  <div
+                    className={`h-full rounded-full transition-all ${barColor}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-muted-foreground">{isOver ? 'Target exceeded' : 'Progress'}</span>
+                  <span className={`font-semibold ${isOver ? 'text-green-600' : pct >= 60 ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {pct.toFixed(0)}%
+                  </span>
+                </div>
               </div>
             );
           })()}

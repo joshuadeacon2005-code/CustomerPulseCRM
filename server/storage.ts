@@ -69,7 +69,7 @@ import {
   type InsertExchangeRate,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, sql, or, inArray } from "drizzle-orm";
+import { eq, desc, gte, lt, and, sql, or, inArray, sum } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -596,8 +596,11 @@ export class DatabaseStorage implements IStorage {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
-    // Batch fetch current month targets and actuals for all customers
-    const [batchTargets, batchActuals] = customerIds.length > 0 ? await Promise.all([
+    // Batch fetch current month targets, actuals, and direct sales sums for all customers
+    const monthStart = new Date(currentYear, currentMonth - 1, 1);
+    const monthEnd = new Date(currentYear, currentMonth, 1);
+
+    const [batchTargets, batchActuals, batchSales] = customerIds.length > 0 ? await Promise.all([
       db.select().from(customerMonthlyTargets)
         .where(and(
           inArray(customerMonthlyTargets.customerId, customerIds),
@@ -610,10 +613,24 @@ export class DatabaseStorage implements IStorage {
           eq(monthlySalesTracking.month, currentMonth),
           eq(monthlySalesTracking.year, currentYear)
         )),
-    ]) : [[], []];
+      db.select({
+          customerId: sales.customerId,
+          totalBase: sql<string>`COALESCE(SUM(${sales.baseCurrencyAmount}), '0')`,
+          totalAmount: sql<string>`COALESCE(SUM(${sales.amount}), '0')`,
+          currency: sql<string>`MAX(${sales.currency})`,
+        })
+        .from(sales)
+        .where(and(
+          inArray(sales.customerId, customerIds),
+          gte(sales.date, monthStart),
+          lt(sales.date, monthEnd)
+        ))
+        .groupBy(sales.customerId),
+    ]) : [[], [], []];
 
     const targetMap = new Map(batchTargets.map(t => [t.customerId, t]));
     const actualMap = new Map(batchActuals.map(a => [a.customerId, a]));
+    const salesMap = new Map(batchSales.map(s => [s.customerId, s]));
 
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
@@ -628,13 +645,15 @@ export class DatabaseStorage implements IStorage {
 
         const target = targetMap.get(customer.id);
         const actual = actualMap.get(customer.id);
+        const salesData = salesMap.get(customer.id);
         
         return {
           ...customer,
           brands: customerBrandsList,
           assignedToName,
-          currentMonthTarget: target ? { targetAmount: target.targetAmount, currency: target.currency } : null,
+          currentMonthTarget: target ? { targetAmount: target.targetAmount, currency: target.currency, baseCurrencyAmount: target.baseCurrencyAmount } : null,
           currentMonthActual: actual ? { actual: actual.actual ?? "0", actualCurrency: actual.actualCurrency ?? target?.currency ?? "HKD" } : null,
+          currentMonthSalesBase: salesData ? salesData.totalBase : (actual?.actualBaseCurrencyAmount ?? null),
         };
       })
     );
