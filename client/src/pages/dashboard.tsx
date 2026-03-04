@@ -3,6 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
@@ -23,6 +25,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency, CustomerMonthlyTarget } from "@shared/schema";
 import { format, isToday, isPast, parseISO } from "date-fns";
@@ -37,6 +41,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [teamMemberOpen, setTeamMemberOpen] = useState(false);
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showTeamCustomers, setShowTeamCustomers] = useState(false);
@@ -289,22 +294,59 @@ export default function Dashboard() {
           <CardContent>
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <Select value={selectedUserId || "myself"} onValueChange={(val) => setSelectedUserId(val === "myself" ? null : val)}>
-                  <SelectTrigger data-testid="select-team-member">
-                    <SelectValue placeholder="Select team member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="myself">Myself</SelectItem>
-                    {teamMembers
-                      .filter(member => member.id !== user?.id)
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(member => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name} ({member.role})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={teamMemberOpen} onOpenChange={setTeamMemberOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={teamMemberOpen}
+                      className="w-full justify-between font-normal"
+                      data-testid="select-team-member"
+                    >
+                      {selectedUserId
+                        ? teamMembers.find(m => m.id === selectedUserId)?.name
+                        : "Myself"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Type a name to search..." data-testid="input-team-member-search" />
+                      <CommandList>
+                        <CommandEmpty>No team member found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="myself"
+                            onSelect={() => {
+                              setSelectedUserId(null);
+                              setTeamMemberOpen(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${!selectedUserId ? "opacity-100" : "opacity-0"}`} />
+                            Myself
+                          </CommandItem>
+                          {teamMembers
+                            .filter(member => member.id !== user?.id)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(member => (
+                              <CommandItem
+                                key={member.id}
+                                value={`${member.name} ${member.role}`}
+                                onSelect={() => {
+                                  setSelectedUserId(member.id);
+                                  setTeamMemberOpen(false);
+                                }}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${selectedUserId === member.id ? "opacity-100" : "opacity-0"}`} />
+                                {member.name}
+                                <span className="ml-1 text-muted-foreground text-xs">({member.role})</span>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </CardContent>
