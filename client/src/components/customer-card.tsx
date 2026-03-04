@@ -1,9 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 import { Customer, CustomerWithBrands } from "@shared/schema";
 import { MapPin, Building2, AlertTriangle, Clock, TrendingUp, Mail, Phone } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import { formatCurrency, Currency } from "@/lib/currency";
 
 interface CustomerCardProps {
   customer: Customer | CustomerWithBrands;
@@ -57,7 +59,7 @@ function getContactStatus(lastContactDate: Date | null | undefined): {
   return { status: 'ok', days };
 }
 
-function formatCurrency(value: number | string | null | undefined): string {
+function formatQuarterlyTarget(value: number | string | null | undefined): string {
   if (!value) return "-";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return "-";
@@ -169,12 +171,36 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quarterly Target</p>
                 <p className="font-semibold text-sm text-foreground">
-                  {formatCurrency(customer.quarterlySoftTarget)}
+                  {formatQuarterlyTarget(customer.quarterlySoftTarget)}
                 </p>
               </div>
             </div>
           )}
           
+          {/* Current Month Target Progress Bar */}
+          {'currentMonthTarget' in customer && customer.currentMonthTarget && (() => {
+            const currency = (customer.currentMonthTarget.currency as Currency) || "HKD";
+            const targetAmt = parseFloat(customer.currentMonthTarget.targetAmount);
+            const actualAmt = 'currentMonthActual' in customer && customer.currentMonthActual
+              ? parseFloat(customer.currentMonthActual.actual)
+              : 0;
+            const actualCurrency = ('currentMonthActual' in customer && customer.currentMonthActual?.actualCurrency as Currency) || currency;
+            const pct = targetAmt > 0 ? Math.min((actualAmt / targetAmt) * 100, 100) : 0;
+            const isOver = actualAmt > targetAmt && targetAmt > 0;
+            const monthName = new Date().toLocaleString('default', { month: 'short' });
+            return (
+              <div className="space-y-1.5" data-testid={`section-month-target-${customer.id}`}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">{monthName} Target</span>
+                  <span className={`font-semibold ${isOver ? 'text-green-600' : 'text-foreground'}`}>
+                    {formatCurrency(actualAmt, actualCurrency)} / {formatCurrency(targetAmt, currency)}
+                  </span>
+                </div>
+                <Progress value={pct} className="h-1.5" data-testid={`progress-month-target-${customer.id}`} />
+              </div>
+            );
+          })()}
+
           {/* Last Contact Footer - Always Show */}
           <div className={`flex items-center gap-2 pt-2 border-t ${
             contactStatus.status === 'critical' ? 'text-red-600 dark:text-red-400' :

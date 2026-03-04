@@ -591,6 +591,30 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    const customerIds = allCustomers.map(c => c.id);
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    // Batch fetch current month targets and actuals for all customers
+    const [batchTargets, batchActuals] = customerIds.length > 0 ? await Promise.all([
+      db.select().from(customerMonthlyTargets)
+        .where(and(
+          inArray(customerMonthlyTargets.customerId, customerIds),
+          eq(customerMonthlyTargets.month, currentMonth),
+          eq(customerMonthlyTargets.year, currentYear)
+        )),
+      db.select().from(monthlySalesTracking)
+        .where(and(
+          inArray(monthlySalesTracking.customerId, customerIds),
+          eq(monthlySalesTracking.month, currentMonth),
+          eq(monthlySalesTracking.year, currentYear)
+        )),
+    ]) : [[], []];
+
+    const targetMap = new Map(batchTargets.map(t => [t.customerId, t]));
+    const actualMap = new Map(batchActuals.map(a => [a.customerId, a]));
+
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
         const customerBrandsList = await this.getCustomerBrands(customer.id);
@@ -601,11 +625,16 @@ export class DatabaseStorage implements IStorage {
           const [assignedUser] = await db.select({ username: users.username }).from(users).where(eq(users.id, customer.assignedTo));
           assignedToName = assignedUser?.username || null;
         }
+
+        const target = targetMap.get(customer.id);
+        const actual = actualMap.get(customer.id);
         
         return {
           ...customer,
           brands: customerBrandsList,
           assignedToName,
+          currentMonthTarget: target ? { targetAmount: target.targetAmount, currency: target.currency } : null,
+          currentMonthActual: actual ? { actual: actual.actual ?? "0", actualCurrency: actual.actualCurrency ?? target?.currency ?? "HKD" } : null,
         };
       })
     );

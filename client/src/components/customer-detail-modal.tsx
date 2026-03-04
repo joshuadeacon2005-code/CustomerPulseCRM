@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -782,6 +783,39 @@ export function CustomerDetailModal({
             />
           </div>
         )}
+
+        {/* Current Month Target Progress */}
+        {!isEditing && currentMonthTarget && (() => {
+          const currency = (currentMonthTarget.currency as Currency) || "HKD";
+          const targetAmt = parseFloat(currentMonthTarget.targetAmount);
+          const mstActual = customer.monthlySales?.find(
+            m => m.month === currentMonthNum && m.year === currentYearNum
+          );
+          const actualAmt = mstActual?.actual ? parseFloat(mstActual.actual) : 0;
+          const actualCurrency = (mstActual?.actualCurrency as Currency) || currency;
+          const pct = targetAmt > 0 ? Math.min((actualAmt / targetAmt) * 100, 100) : 0;
+          const isOver = actualAmt > targetAmt && targetAmt > 0;
+          const monthName = new Date(currentYearNum, currentMonthNum - 1).toLocaleString('default', { month: 'long' });
+          return (
+            <div className="mt-4 px-2 py-3 rounded-md bg-muted/40 space-y-2" data-testid="section-modal-month-target">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-muted-foreground">{monthName} Target</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-xs">
+                    {formatCurrency(actualAmt, actualCurrency)} actual
+                  </span>
+                  <span className="font-semibold">
+                    / {formatCurrency(targetAmt, currency)}
+                  </span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isOver ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                    {pct.toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+              <Progress value={pct} className="h-2" data-testid="progress-modal-month-target" />
+            </div>
+          );
+        })()}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
           <TabsList className="grid w-full grid-cols-4">
