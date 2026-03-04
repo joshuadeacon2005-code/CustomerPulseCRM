@@ -19,7 +19,9 @@ import type { Sale, MonthlyTarget, Customer, Currency } from "@shared/schema";
 import { CURRENCIES } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
-import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, ChevronsUpDown } from "lucide-react";
+import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, ChevronsUpDown, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { exportSalesReport } from "@/lib/export-utils";
 import { formatCurrency } from "@/lib/currency";
 import { useLocation } from "wouter";
@@ -62,6 +64,14 @@ export default function SalesPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [editingTarget, setEditingTarget] = useState<MonthlyTarget | null>(null);
   const [targetView, setTargetView] = useState<"personal" | "general">("personal");
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editForm, setEditForm] = useState({
+    customerName: "",
+    amount: "",
+    currency: "HKD",
+    date: "",
+    description: "",
+  });
 
   const canSetGeneralTargets = user?.role === "ceo" || user?.role === "regional_manager";
 
@@ -105,6 +115,39 @@ export default function SalesPage() {
       });
     },
   });
+
+  const updateSaleMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: Partial<typeof editForm> }) => {
+      const response = await apiRequest("PATCH", `/api/sales/${data.id}`, data.updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-sales"] });
+      setEditingSale(null);
+      toast({ title: "Sale updated", description: "The sale has been updated successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const openEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setEditForm({
+      customerName: sale.customerName,
+      amount: parseFloat(sale.amount).toString(),
+      currency: sale.currency,
+      date: new Date(sale.date).toISOString().split("T")[0],
+      description: sale.description || "",
+    });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSale) return;
+    updateSaleMutation.mutate({ id: editingSale.id, updates: editForm });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -464,19 +507,29 @@ export default function SalesPage() {
               {sales.map((sale) => (
                 <div
                   key={sale.id}
-                  className="flex justify-between items-center p-3 border rounded-md"
+                  className="flex justify-between items-center p-3 border rounded-md gap-3"
                   data-testid={`sale-${sale.id}`}
                 >
-                  <div>
-                    <p className="font-medium" data-testid={`text-customer-${sale.id}`}>{sale.customerName}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate" data-testid={`text-customer-${sale.id}`}>{sale.customerName}</p>
                     <p className="text-sm text-muted-foreground" data-testid={`text-product-${sale.id}`}>{sale.product}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold" data-testid={`text-amount-${sale.id}`}>${parseFloat(sale.amount).toFixed(2)}</p>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold" data-testid={`text-amount-${sale.id}`}>
+                      {sale.currency} {parseFloat(sale.amount).toFixed(2)}
+                    </p>
                     <p className="text-sm text-muted-foreground" data-testid={`text-date-${sale.id}`}>
                       {format(new Date(sale.date), "MMM dd, yyyy")}
                     </p>
                   </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => openEditSale(sale)}
+                    data-testid={`button-edit-sale-${sale.id}`}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
@@ -690,6 +743,83 @@ export default function SalesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Sale Dialog */}
+      <Dialog open={!!editingSale} onOpenChange={(open) => !open && setEditingSale(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Sale</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="edit-customer">Customer</Label>
+              <Input
+                id="edit-customer"
+                value={editForm.customerName}
+                onChange={(e) => setEditForm(f => ({ ...f, customerName: e.target.value }))}
+                data-testid="input-edit-customer"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="edit-amount">Amount</Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  step="0.01"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                  data-testid="input-edit-amount"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Currency</Label>
+                <Select
+                  value={editForm.currency}
+                  onValueChange={(val) => setEditForm(f => ({ ...f, currency: val }))}
+                >
+                  <SelectTrigger className="w-[100px]" data-testid="select-edit-currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-date">Date</Label>
+              <Input
+                id="edit-date"
+                type="date"
+                value={editForm.date}
+                onChange={(e) => setEditForm(f => ({ ...f, date: e.target.value }))}
+                data-testid="input-edit-date"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-description">Notes</Label>
+              <Textarea
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm(f => ({ ...f, description: e.target.value }))}
+                rows={2}
+                data-testid="input-edit-description"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingSale(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateSaleMutation.isPending} data-testid="button-save-edit-sale">
+                {updateSaleMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

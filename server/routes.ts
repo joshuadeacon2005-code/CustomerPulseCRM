@@ -1497,11 +1497,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/sales/:id", isAdmin, async (req, res) => {
+  app.patch("/api/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
+      const requestingUser = req.user as any;
+
+      // Fetch the sale to check ownership
+      const existingSales = await storage.getSales(requestingUser.id, requestingUser.role);
+      const targetSale = existingSales.find((s: any) => s.id === id);
+
+      // Admins can edit any sale; salesmen can only edit their own
+      const isAdminRole = ["ceo", "sales_director", "marketing_director", "admin", "regional_manager", "manager"].includes(requestingUser.role?.toLowerCase());
+      if (!isAdminRole && (!targetSale || targetSale.salesmanId !== requestingUser.id)) {
+        return res.status(403).json({ error: "You can only edit your own sales" });
+      }
+
       const updateData = { ...req.body };
-      
+
       // Convert and validate date string to Date object if present
       if (updateData.date && typeof updateData.date === 'string') {
         const dateObj = new Date(updateData.date);
@@ -1510,7 +1522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         updateData.date = dateObj;
       }
-      
+
       const sale = await storage.updateSale(id, updateData);
       if (sale) {
         res.json(sale);
