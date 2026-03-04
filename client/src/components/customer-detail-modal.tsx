@@ -58,7 +58,9 @@ import {
   insertCustomerAddressSchema,
   COUNTRIES,
   CLOSURE_REASONS,
+  CustomerMonthlyTarget,
 } from "@shared/schema";
+import { formatCurrency, Currency } from "@/lib/currency";
 import { 
   Mail, 
   Phone, 
@@ -318,6 +320,18 @@ export function CustomerDetailModal({
 
   // Get the user's office currency (first assignment's currency or default to HKD)
   const userOfficeCurrency = userOfficeAssignments?.[0]?.officeCurrency || "HKD";
+
+  const currentMonthNum = new Date().getMonth() + 1;
+  const currentYearNum = new Date().getFullYear();
+
+  const { data: customerTargets } = useQuery<CustomerMonthlyTarget[]>({
+    queryKey: ['/api/customers', customer?.id, 'targets'],
+    enabled: open && !!customer?.id,
+  });
+
+  const currentMonthTarget = customerTargets?.find(
+    t => t.month === currentMonthNum && t.year === currentYearNum
+  );
 
   const { data: allBrands } = useQuery<Brand[]>({
     queryKey: ['/api/brands'],
@@ -586,10 +600,20 @@ export function CustomerDetailModal({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <DialogTitle className="text-2xl mb-2" data-testid="text-modal-customer-name">
-                  {customer.name}
-                </DialogTitle>
-                
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <DialogTitle className="text-2xl" data-testid="text-modal-customer-name">
+                    {customer.name}
+                  </DialogTitle>
+                  {currentMonthTarget && (
+                    <span
+                      className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-medium whitespace-nowrap"
+                      data-testid="badge-current-month-target"
+                    >
+                      {new Date().toLocaleString('default', { month: 'short' })} target: {formatCurrency(parseFloat(currentMonthTarget.targetAmount), (currentMonthTarget.currency as Currency) || "HKD")}
+                    </span>
+                  )}
+                </div>
+
                 {/* External System Links */}
                 {(customer.netsuiteUrl || customer.bloomconnectUrl) && (
                   <div className="flex flex-wrap items-center gap-2 mb-3">

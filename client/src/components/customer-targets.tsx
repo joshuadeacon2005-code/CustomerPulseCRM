@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCustomerMonthlyTargetSchema, type CustomerMonthlyTarget } from "@shared/schema";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Target, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 
 const targetFormSchema = z.object({
@@ -164,10 +164,71 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     "July", "August", "September", "October", "November", "December"
   ];
 
-  const sortedTargets = [...targets].sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
-  });
+  const currentTarget = targets.find(t => t.month === currentMonth && t.year === currentYear);
+
+  const renderTargetCard = (target: CustomerMonthlyTarget, isCurrent: boolean) => {
+    const currency = (target.currency as Currency) || "HKD";
+    const targetAmount = parseFloat(target.targetAmount);
+    const mstEntry = monthlySales.find(m => m.month === target.month && m.year === target.year);
+    const actual = mstEntry?.actual ? parseFloat(mstEntry.actual) : 0;
+    const actualCurrency = (mstEntry?.actualCurrency as Currency) || currency;
+    const percentage = targetAmount > 0 ? Math.min((actual / targetAmount) * 100, 100) : 0;
+    const isOver = targetAmount > 0 && actual > targetAmount;
+
+    return (
+      <Card key={target.id} className={isCurrent ? "ring-2 ring-primary/30" : ""}>
+        <CardContent className="py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {monthNames[target.month - 1]} {target.year}
+                  </div>
+                  {isCurrent && (
+                    <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                      This month
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 text-sm font-semibold">
+                  <span data-testid={`text-target-amount-${target.id}`}>
+                    {formatCurrency(targetAmount, currency)}
+                  </span>
+                  <span className={`text-xs ${isOver ? "text-green-600" : "text-muted-foreground"}`}>
+                    {percentage.toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+              <Progress value={percentage} className="h-2 mb-1" data-testid={`progress-target-${target.id}`} />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span data-testid={`text-actual-${target.id}`}>
+                  {actual > 0 ? `${formatCurrency(actual, actualCurrency)} actual` : "No sales recorded"}
+                </span>
+                <span>Target: {formatCurrency(targetAmount, currency)}</span>
+              </div>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <Button size="icon" variant="ghost" onClick={() => handleEdit(target)} data-testid={`button-edit-target-${target.id}`}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => handleDelete(target.id)} disabled={deleteTargetMutation.isPending} data-testid={`button-delete-target-${target.id}`}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const futureTargets = [...targets]
+    .filter(t => t.year > currentYear || (t.year === currentYear && t.month > currentMonth))
+    .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+
+  const pastTargets = [...targets]
+    .filter(t => t.year < currentYear || (t.year === currentYear && t.month < currentMonth))
+    .sort((a, b) => a.year !== b.year ? b.year - a.year : b.month - a.month);
 
   return (
     <div className="space-y-4">
@@ -297,7 +358,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
 
       {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Loading targets...</div>
-      ) : sortedTargets.length === 0 ? (
+      ) : targets.length === 0 ? (
         <Card>
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
@@ -308,74 +369,41 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {sortedTargets.map((target) => {
-            const currency = (target.currency as Currency) || "HKD";
-            const targetAmount = parseFloat(target.targetAmount);
-            const mstEntry = monthlySales.find(
-              m => m.month === target.month && m.year === target.year
-            );
-            const actual = mstEntry?.actual ? parseFloat(mstEntry.actual) : 0;
-            const actualCurrency = (mstEntry?.actualCurrency as Currency) || currency;
-            const percentage = targetAmount > 0 ? Math.min((actual / targetAmount) * 100, 100) : 0;
-            const isOver = targetAmount > 0 && actual > targetAmount;
+        <div className="space-y-4">
+          {/* Current month */}
+          {currentTarget && renderTargetCard(currentTarget, true)}
 
-            return (
-              <Card key={target.id}>
-                <CardContent className="py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm font-medium text-muted-foreground">
-                          {monthNames[target.month - 1]} {target.year}
-                        </div>
-                        <div className="flex items-center gap-1 text-sm font-semibold">
-                          <span data-testid={`text-target-amount-${target.id}`}>
-                            {formatCurrency(targetAmount, currency)}
-                          </span>
-                          <span className={`text-xs ${isOver ? "text-green-600" : "text-muted-foreground"}`}>
-                            {percentage.toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                      <Progress
-                        value={percentage}
-                        className="h-2 mb-1"
-                        data-testid={`progress-target-${target.id}`}
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span data-testid={`text-actual-${target.id}`}>
-                          {actual > 0
-                            ? `${formatCurrency(actual, actualCurrency)} actual`
-                            : "No sales recorded"}
-                        </span>
-                        <span>Target: {formatCurrency(targetAmount, currency)}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleEdit(target)}
-                        data-testid={`button-edit-target-${target.id}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(target.id)}
-                        disabled={deleteTargetMutation.isPending}
-                        data-testid={`button-delete-target-${target.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {/* Jump to upcoming button */}
+          {futureTargets.length > 0 && (
+            <button
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => document.getElementById('upcoming-targets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              data-testid="button-jump-upcoming"
+            >
+              <ChevronDown className="h-3 w-3" />
+              {futureTargets.length} upcoming month{futureTargets.length > 1 ? 's' : ''} — jump to upcoming
+            </button>
+          )}
+
+          {/* Past months */}
+          {pastTargets.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Past Months</p>
+              <div className="grid gap-3">
+                {pastTargets.map(t => renderTargetCard(t, false))}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming months */}
+          {futureTargets.length > 0 && (
+            <div className="space-y-2" id="upcoming-targets">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Upcoming Months</p>
+              <div className="grid gap-3">
+                {futureTargets.map(t => renderTargetCard(t, false))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
