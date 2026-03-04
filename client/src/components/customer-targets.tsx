@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { formatCurrency } from "@/lib/currency";
-import type { Currency } from "@shared/schema";
+import type { Currency, MonthlySalesTracking } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,16 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
 
   const { data: targets = [], isLoading } = useQuery<CustomerMonthlyTarget[]>({
     queryKey: ['/api/customers', customerId, 'targets'],
+    enabled: !!customerId,
+  });
+
+  const { data: monthlySales = [] } = useQuery<MonthlySalesTracking[]>({
+    queryKey: ['/api/monthly-sales', customerId],
+    queryFn: async () => {
+      const res = await fetch(`/api/monthly-sales?customerId=${customerId}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch monthly sales');
+      return res.json();
+    },
     enabled: !!customerId,
   });
 
@@ -298,47 +309,73 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {sortedTargets.map((target) => (
-            <Card key={target.id}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[100px]">
-                      <div className="text-sm text-muted-foreground">
-                        {monthNames[target.month - 1]}
+          {sortedTargets.map((target) => {
+            const currency = (target.currency as Currency) || "HKD";
+            const targetAmount = parseFloat(target.targetAmount);
+            const mstEntry = monthlySales.find(
+              m => m.month === target.month && m.year === target.year
+            );
+            const actual = mstEntry?.actual ? parseFloat(mstEntry.actual) : 0;
+            const actualCurrency = (mstEntry?.actualCurrency as Currency) || currency;
+            const percentage = targetAmount > 0 ? Math.min((actual / targetAmount) * 100, 100) : 0;
+            const isOver = targetAmount > 0 && actual > targetAmount;
+
+            return (
+              <Card key={target.id}>
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-muted-foreground">
+                          {monthNames[target.month - 1]} {target.year}
+                        </div>
+                        <div className="flex items-center gap-1 text-sm font-semibold">
+                          <span data-testid={`text-target-amount-${target.id}`}>
+                            {formatCurrency(targetAmount, currency)}
+                          </span>
+                          <span className={`text-xs ${isOver ? "text-green-600" : "text-muted-foreground"}`}>
+                            {percentage.toFixed(0)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-lg font-semibold">{target.year}</div>
+                      <Progress
+                        value={percentage}
+                        className="h-2 mb-1"
+                        data-testid={`progress-target-${target.id}`}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span data-testid={`text-actual-${target.id}`}>
+                          {actual > 0
+                            ? `${formatCurrency(actual, actualCurrency)} actual`
+                            : "No sales recorded"}
+                        </span>
+                        <span>Target: {formatCurrency(targetAmount, currency)}</span>
+                      </div>
                     </div>
-                    <div className="border-l pl-4">
-                      <div className="text-sm text-muted-foreground">Target</div>
-                      <div className="text-xl font-bold" data-testid={`text-target-amount-${target.id}`}>
-                        {formatCurrency(target.targetAmount, (target.currency as Currency) || "HKD")}
-                      </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleEdit(target)}
+                        data-testid={`button-edit-target-${target.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(target.id)}
+                        disabled={deleteTargetMutation.isPending}
+                        data-testid={`button-delete-target-${target.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleEdit(target)}
-                      data-testid={`button-edit-target-${target.id}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(target.id)}
-                      disabled={deleteTargetMutation.isPending}
-                      data-testid={`button-delete-target-${target.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
