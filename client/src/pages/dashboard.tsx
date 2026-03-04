@@ -74,11 +74,29 @@ export default function Dashboard() {
   });
 
   const { data: monthlyTargets = [] } = useQuery<MonthlyTarget[]>({
-    queryKey: ["/api/targets"],
+    queryKey: ["/api/targets", effectiveUserId],
+    queryFn: async () => {
+      const url = effectiveUserId && effectiveUserId !== user?.id
+        ? `/api/targets?userId=${effectiveUserId}`
+        : "/api/targets";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch targets");
+      return res.json();
+    },
+    enabled: !!effectiveUserId,
   });
 
   const { data: monthlySales = [] } = useQuery<MonthlySalesTracking[]>({
-    queryKey: ["/api/monthly-sales"],
+    queryKey: ["/api/monthly-sales", effectiveUserId],
+    queryFn: async () => {
+      const url = effectiveUserId && effectiveUserId !== user?.id
+        ? `/api/monthly-sales?userId=${effectiveUserId}`
+        : "/api/monthly-sales";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch monthly sales");
+      return res.json();
+    },
+    enabled: !!effectiveUserId,
   });
 
   const { data: actionItems = [] } = useQuery<ActionItem[]>({
@@ -279,6 +297,7 @@ export default function Dashboard() {
                     <SelectItem value="myself">Myself</SelectItem>
                     {teamMembers
                       .filter(member => member.id !== user?.id)
+                      .sort((a, b) => a.name.localeCompare(b.name))
                       .map(member => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name} ({member.role})

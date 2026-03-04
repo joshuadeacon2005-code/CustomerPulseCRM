@@ -64,6 +64,7 @@ export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   salesmanId: varchar("salesman_id").notNull(),
   customerName: text("customer_name").notNull(),
+  customerId: varchar("customer_id"),
   product: text("product").notNull().default("General Sale"),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("USD"),
@@ -331,14 +332,18 @@ export const insertUserSchema = createInsertSchema(users).omit({
 // Base schema without refinements for client-side use
 const insertSaleBaseSchema = createInsertSchema(sales).omit({
   id: true,
-  date: true,
 }).extend({
   salesmanId: z.string().min(1),
   customerName: z.string().min(1),
+  customerId: z.string().optional().nullable(),
   product: z.string().optional().default("General Sale"),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
   currency: z.enum(CURRENCIES).optional().default("USD"),
   baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  date: z.union([
+    z.date(),
+    z.string().transform((val) => val ? new Date(val) : new Date()),
+  ]).optional().default(() => new Date()),
 });
 
 // Export base schema for client-side composition

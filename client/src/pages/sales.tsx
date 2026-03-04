@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertMonthlyTargetSchema } from "@shared/schema";
 import type { Sale, MonthlyTarget, Customer, Currency } from "@shared/schema";
+import { CURRENCIES } from "@shared/schema";
 import { format } from "date-fns";
 import { z } from "zod";
 import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, ChevronsUpDown } from "lucide-react";
@@ -52,6 +54,7 @@ export default function SalesPage() {
     customerName: "",
     customerId: "",
     amount: "",
+    currency: (user?.preferredCurrency || "HKD") as string,
     date: new Date().toISOString().split("T")[0],
   });
 
@@ -81,10 +84,12 @@ export default function SalesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/monthly-sales"] });
       setSaleData({
         customerName: "",
         customerId: "",
         amount: "",
+        currency: (user?.preferredCurrency || "HKD") as string,
         date: new Date().toISOString().split("T")[0],
       });
       toast({
@@ -361,16 +366,32 @@ export default function SalesPage() {
                 </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount ($)</Label>
-                <Input
-                  id="amount"
-                  data-testid="input-amount"
-                  type="number"
-                  step="0.01"
-                  value={saleData.amount}
-                  onChange={(e) => setSaleData({ ...saleData, amount: e.target.value })}
-                  required
-                />
+                <Label htmlFor="amount">Amount</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={saleData.currency}
+                    onValueChange={(val) => setSaleData({ ...saleData, currency: val })}
+                  >
+                    <SelectTrigger className="w-[100px]" data-testid="select-currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="amount"
+                    data-testid="input-amount"
+                    type="number"
+                    step="0.01"
+                    value={saleData.amount}
+                    onChange={(e) => setSaleData({ ...saleData, amount: e.target.value })}
+                    required
+                    className="flex-1"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>

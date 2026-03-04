@@ -69,7 +69,11 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 - **Excel Import System**: Bulk customer import with downloadable template, flexible column mapping, duplicate detection, currency enforcement, brand assignment, and detailed error tracking.
 - **Brand Management**: Many-to-many relationship for multi-brand assignment per customer with inline brand creation (e.g., Beaba, Skip Hop).
 - **Target Management**: Supports Personal and General monthly sales targets, with role-based setting capabilities and per-customer monthly targets.
-- **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actuals and variance reporting.
+- **Sales Tracking & Reporting**: Monthly sales tracking per customer with budget vs. actuals and variance reporting. Sales now properly sync to `monthly_sales_tracking.actual` using the sale's submitted date (not today's date), ensuring backdated sales are bucketed to the correct month.
+- **Sales Form Improvements**: Log New Sale form includes a currency selector (defaults to user's preferred currency) and a customer name combobox with type-ahead search that stores `customerId` on the sale record. The `sales` table now has an optional `customer_id` foreign key column.
+- **Last Contact Auto-Update**: Logging a sale for a customer now updates the customer's `lastContactDate` to the sale date if it's more recent than the existing value.
+- **Manager Dashboard Visibility**: `/api/targets` and `/api/monthly-sales` now accept an optional `?userId=` query parameter for managers/admins to view team member data. The dashboard `View Team Member` selector passes the selected user's ID to these endpoints so managers see the correct targets and sales.
+- **Team Member Dropdown**: Sorted A-Z (with "Myself" pinned at top) in the View Team Member selector on the dashboard.
 - **Analytics**: Advanced analytics with monthly and overall views, month selector, team structure visualization, and performance metrics.
 - **Admin Dashboard Features**: Four-tab layout with Overview (Regional Leaderboard, User Management with filtering/sorting/bulk selection/inline editing), Assignments (Customer-to-Salesman mapping with filters by salesman, name, and office), Offices (Regional office management), and Comparative Analytics (Region vs Region and Rep vs Rep comparison charts).
 - **Customer Status Management**: Extended customer lifecycle with 5 stages (lead, prospect, customer, dormant, closed):

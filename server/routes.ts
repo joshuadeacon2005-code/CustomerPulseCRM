@@ -792,13 +792,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Monthly targets routes
   app.get("/api/targets", isAuthenticated, async (req, res) => {
     try {
-      if (req.user) {
-        const targets = await storage.getMonthlyTargets(req.user.id, req.user.role as UserRole);
-        res.json(targets);
-      } else {
-        const targets = await storage.getMonthlyTargets(req.user!.id, req.user!.role as UserRole);
-        res.json(targets);
+      const requestingUserId = req.user!.id;
+      const requestingRole = (req.user!.role || "").toLowerCase();
+      const targetUserId = (req.query.userId as string) || requestingUserId;
+      const adminRoles = ["ceo", "sales_director", "marketing_director", "admin", "regional_manager", "manager"];
+
+      if (targetUserId !== requestingUserId && !adminRoles.includes(requestingRole)) {
+        return res.status(403).json({ error: "Forbidden" });
       }
+
+      const targetUser = targetUserId === requestingUserId
+        ? req.user!
+        : await storage.getUser(targetUserId);
+      if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+      const targets = await storage.getMonthlyTargets(targetUserId, targetUser.role as UserRole);
+      res.json(targets);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly targets" });
     }
@@ -1049,8 +1058,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Monthly sales tracking routes
   app.get("/api/monthly-sales", isAuthenticated, async (req, res) => {
     try {
+      const requestingUserId = req.user!.id;
+      const requestingRole = (req.user!.role || "").toLowerCase();
       const customerId = req.query.customerId as string | undefined;
-      const monthlySales = await storage.getMonthlySales(req.user!.id, req.user!.role as UserRole, customerId);
+      const targetUserId = (req.query.userId as string) || requestingUserId;
+      const adminRoles = ["ceo", "sales_director", "marketing_director", "admin", "regional_manager", "manager"];
+
+      if (targetUserId !== requestingUserId && !adminRoles.includes(requestingRole)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const targetUser = targetUserId === requestingUserId
+        ? req.user!
+        : await storage.getUser(targetUserId);
+      if (!targetUser) return res.status(404).json({ error: "User not found" });
+
+      const monthlySales = await storage.getMonthlySales(targetUserId, targetUser.role as UserRole, customerId);
       res.json(monthlySales);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch monthly sales" });
@@ -1232,8 +1255,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (matchedCustomer) {
-          // Use current date for the sale (date is auto-generated on insert)
-          const saleDate = new Date();
+          // Use the submitted sale date (not today's date) for correct month/year bucketing
+          const saleDate = validatedData.date instanceof Date ? validatedData.date : new Date(validatedData.date as any || Date.now());
           const saleMonth = saleDate.getMonth() + 1;
           const saleYear = saleDate.getFullYear();
           
@@ -1295,6 +1318,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (syncError) {
         // Log but don't fail the sale creation
         console.error("Failed to auto-sync sale to monthly tracking:", syncError);
+      }
+
+      // Bug #5: Update customer's lastContactDate to the sale date
+      try {
+        const customerId = validatedData.customerId || sale.customerId;
+        if (customerId) {
+          const customer = await storage.getCustomer(customerId);
+          if (customer) {
+            const saleDate = validatedData.date instanceof Date ? validatedData.date : new Date(validatedData.date as any || Date.now());
+            if (!customer.lastContactDate || saleDate > new Date(customer.lastContactDate)) {
+              await storage.updateCustomer(customerId, { lastContactDate: saleDate } as any);
+            }
+          }
+        }
+      } catch (contactErr) {
+        console.error("Failed to update lastContactDate after sale:", contactErr);
       }
       
       res.status(201).json(sale);
