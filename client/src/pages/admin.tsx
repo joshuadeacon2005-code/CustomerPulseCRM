@@ -152,7 +152,7 @@ export default function AdminPage() {
     enabled: revenueBreakdownOpen,
   });
 
-  const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager");
+  const managers = allUsers.filter(u => u.role === "sales_director" || u.role === "regional_manager" || u.role === "manager").sort((a, b) => a.name.localeCompare(b.name));
 
   // Comparative analytics data
   const regions = useMemo(() => {
@@ -161,7 +161,7 @@ export default function AdminPage() {
   }, [customers]);
 
   const salesReps = useMemo(() => {
-    return allUsers.filter(u => u.role === "salesman" || u.role === "manager" || u.role === "sales_director" || u.role === "regional_manager");
+    return allUsers.filter(u => u.role === "salesman" || u.role === "manager" || u.role === "sales_director" || u.role === "regional_manager").sort((a, b) => a.name.localeCompare(b.name));
   }, [allUsers]);
 
   // Filtered customers for Assignments tab
@@ -321,7 +321,7 @@ export default function AdminPage() {
   };
   
   // Get unique regional offices
-  const regionalOffices = Array.from(new Set(allUsers.map(u => u.regionalOffice).filter(Boolean))) as string[];
+  const regionalOffices = Array.from(new Set(allUsers.map(u => u.regionalOffice).filter(Boolean))).sort((a, b) => (a as string).localeCompare(b as string)) as string[];
   
   // Filter and sort users
   const filteredUsers = allUsers
@@ -1303,6 +1303,7 @@ export default function AdminPage() {
                     }
                     return false;
                   })
+                  .sort((a, b) => a.name.localeCompare(b.name))
                   .map((user) => (
                     <SelectItem key={user.id} value={user.id} data-testid={`option-team-member-${user.id}`}>
                       {user.name} ({getRoleDisplayName(user.role as UserRole)})

@@ -577,7 +577,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {allUsers.map((user) => (
+                    {[...allUsers].sort((a, b) => a.name.localeCompare(b.name)).map((user) => (
                       <SelectItem key={user.id} value={user.id} data-testid={`option-assigned-${user.id}`}>
                         {user.name} ({user.role})
                       </SelectItem>
