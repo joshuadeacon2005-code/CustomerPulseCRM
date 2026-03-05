@@ -1135,6 +1135,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
+      // Upsert: if a record already exists for this customer/month/year, accumulate into it
+      if (validatedData.customerId && validatedData.month && validatedData.year) {
+        const existing = await storage.getMonthlySalesTrackingByCustomerMonthYear(
+          validatedData.customerId,
+          validatedData.month,
+          validatedData.year
+        );
+        if (existing) {
+          const newActual = Number(existing.actual || 0) + Number(validatedData.actual || 0);
+          const newActualBase = Number(existing.actualBaseCurrencyAmount || 0) + Number(validatedData.actualBaseCurrencyAmount || 0);
+          const newBudget = Math.max(Number(existing.budget || 0), Number(validatedData.budget || 0));
+          const newBudgetBase = Math.max(Number(existing.budgetBaseCurrencyAmount || 0), Number(validatedData.budgetBaseCurrencyAmount || 0));
+          const updated = await storage.updateMonthlySales(existing.id, {
+            actual: newActual.toFixed(2),
+            actualBaseCurrencyAmount: newActualBase.toFixed(2),
+            actualCurrency: validatedData.actualCurrency || existing.actualCurrency || undefined,
+            budget: newBudget.toFixed(2),
+            budgetBaseCurrencyAmount: newBudgetBase.toFixed(2),
+            budgetCurrency: validatedData.budgetCurrency || existing.budgetCurrency || undefined,
+          });
+          return res.status(200).json(updated);
+        }
+      }
+
       const monthlySales = await storage.createMonthlySales(validatedData);
       res.status(201).json(monthlySales);
     } catch (error) {

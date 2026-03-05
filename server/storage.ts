@@ -607,12 +607,19 @@ export class DatabaseStorage implements IStorage {
           eq(customerMonthlyTargets.month, currentMonth),
           eq(customerMonthlyTargets.year, currentYear)
         )),
-      db.select().from(monthlySalesTracking)
+      db.select({
+          customerId: monthlySalesTracking.customerId,
+          actual: sql<string>`COALESCE(SUM(CAST(${monthlySalesTracking.actual} AS NUMERIC)), 0)::text`,
+          actualBaseCurrencyAmount: sql<string>`COALESCE(SUM(CAST(${monthlySalesTracking.actualBaseCurrencyAmount} AS NUMERIC)), 0)::text`,
+          actualCurrency: sql<string>`MAX(${monthlySalesTracking.actualCurrency})`,
+          id: sql<string>`MIN(${monthlySalesTracking.id})`,
+        }).from(monthlySalesTracking)
         .where(and(
           inArray(monthlySalesTracking.customerId, customerIds),
           eq(monthlySalesTracking.month, currentMonth),
           eq(monthlySalesTracking.year, currentYear)
-        )),
+        ))
+        .groupBy(monthlySalesTracking.customerId),
       db.select({
           customerId: sales.customerId,
           totalBase: sql<string>`COALESCE(SUM(${sales.baseCurrencyAmount}), '0')`,
