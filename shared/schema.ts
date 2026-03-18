@@ -30,6 +30,7 @@ export const CURRENCIES = [
 
 export const COUNTRIES = [
   "Australia",
+  "Brunei",
   "China",
   "Hong Kong",
   "Indonesia",
@@ -293,6 +294,7 @@ export const RETAILER_TYPES = [
   "Toy Store Independent",
   "Department Store",
   "Pharmacy",
+  "Groceries",
   "Discount/Closeouts",
   "Expo",
   "Corporate",

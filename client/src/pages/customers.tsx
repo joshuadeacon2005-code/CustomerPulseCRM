@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award, Trash2, FileUp } from "lucide-react";
-import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User } from "@shared/schema";
+import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User, RETAILER_TYPES } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -937,10 +937,9 @@ export default function Customers() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Retail Store">Retail</SelectItem>
-                <SelectItem value="Online">Online</SelectItem>
-                <SelectItem value="Wholesale">Wholesale</SelectItem>
-                <SelectItem value="Distributor">Distributor</SelectItem>
+                {RETAILER_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

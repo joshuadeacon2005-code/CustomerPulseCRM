@@ -1,0 +1,87 @@
+# CRM Bug Fix — Replit Agent Prompt
+**Project:** Bloom & Grow CRM | **Date:** 18 Mar 2026 | **Reporter:** Janice Kong
+
+---
+
+## Instructions
+Read all issues before writing code. Run grep commands to confirm file paths. Test each fix before moving on. Commit after each issue.
+
+---
+
+## Issue #1 — Brunei customers invisible on dashboard [P1]
+
+**Problem:** Customers created under region "Brunei" do not appear on the dashboard. Dashboard appears filtered to Malaysia only.
+
+**Likely causes:**
+- Region enum in schema missing "Brunei"
+- Dashboard API has hardcoded `WHERE region = 'Malaysia'`
+- Frontend applying static region filter
+- User's region assignment doesn't include Brunei
+
+**Steps:**
+
+1. Find region enum in schema and add Brunei:
+   ```
+   grep -n 'region' shared/schema.ts
+   ```
+   Add `'Brunei'` to the enum alongside Malaysia, Singapore, etc.
+
+2. Check API route for hardcoded region filter:
+   ```
+   grep -rn 'Malaysia\|region.*filter\|where.*region' server/routes
+   ```
+   Replace any hardcoded value with dynamic filtering based on logged-in user's region(s).
+
+3. Check dashboard component for client-side filtering:
+   ```
+   grep -rn 'Malaysia\|region' client/src/pages/dashboard.tsx
+   ```
+   Remove static filter; use user session region value instead.
+
+4. Check if user region field supports multiple regions. If single-value only, update to array/join table so a user can cover both Malaysia and Brunei.
+
+5. Add Brunei to all region dropdowns in customer forms and filters:
+   ```
+   grep -rn "'Malaysia'" client/src/components
+   ```
+
+**Test:** Create a customer with region=Brunei → confirm it appears on Janice's dashboard and in customer list.
+
+---
+
+## Issue #2 — Add "Groceries" retailer type [P2]
+
+**Problem:** No "Groceries" option in retailer type selector. Bloom & Grow are now targeting grocery stores and need to tag these accounts.
+
+**Steps:**
+
+1. Find retailerType enum and add value:
+   ```
+   grep -n 'retailerType\|retailer_type' shared/schema.ts
+   ```
+   Add `'Groceries'` to the enum.
+
+2. If using a Postgres native enum type, run migration:
+   ```sql
+   ALTER TYPE retailer_type ADD VALUE 'Groceries';
+   ```
+   If it's a string column with app-level validation, Step 1 is sufficient.
+
+3. Add to frontend form dropdown:
+   ```
+   grep -rn 'retailerType' client/src/components
+   ```
+   Add `{ value: 'Groceries', label: 'Groceries' }` to the options array.
+
+4. Add to any filter dropdowns on dashboard/customer list:
+   ```
+   grep -rn 'retailerType' client/src/pages
+   ```
+
+**Test:** Create customer with Retailer Type=Groceries → save → filter list by Groceries → confirm customer appears.
+
+---
+
+## Execution Order
+1. Issue #1 (data visibility broken)
+2. Issue #2 (feature addition)

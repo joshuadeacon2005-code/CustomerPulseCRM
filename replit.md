@@ -65,7 +65,7 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
     - **Team Performance Summary**: (CEO/Manager-only) shows team sales progress.
     - **Interactive Calendar**: Replaces the To Do List widget, displaying color-coded tasks and interactions with filtering and detail views.
     - **Action Items List**: Filterable list of action items below the calendar.
-- **Customer Management**: Comprehensive profiles with multi-contact support, country selection (15 APAC countries), notes, marketplace integration, structured retailer types, quarterly soft targets, last contact date, lead management, and interaction tracking. Supports advanced filtering and view toggles. Includes multi-address support with structured fields, CRUD operations, and CSV bulk import for addresses.
+- **Customer Management**: Comprehensive profiles with multi-contact support, country selection (16 APAC countries including Brunei), notes, marketplace integration, structured retailer types (including Groceries), quarterly soft targets, last contact date, lead management, and interaction tracking. Supports advanced filtering and view toggles. Includes multi-address support with structured fields, CRUD operations, and CSV bulk import for addresses.
 - **Excel Import System**: Bulk customer import with downloadable template, flexible column mapping, duplicate detection, currency enforcement, brand assignment, and detailed error tracking.
 - **Brand Management**: Many-to-many relationship for multi-brand assignment per customer with inline brand creation (e.g., Beaba, Skip Hop).
 - **Target Management**: Supports Personal and General monthly sales targets, with role-based setting capabilities and per-customer monthly targets.

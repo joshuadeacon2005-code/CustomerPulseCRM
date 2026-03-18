@@ -550,6 +550,9 @@ export class DatabaseStorage implements IStorage {
           "Guangzhou": ["China", "Guangzhou"],
           "Shanghai": ["China", "Shanghai"],
           "Hong Kong": ["Hong Kong", "Macau"],
+          "Malaysia": ["Malaysia", "Brunei"],
+          "Singapore": ["Singapore"],
+          "Indonesia": ["Indonesia"],
         };
         
         const matchingCountries = regionToCountries[managerRegion] || [managerRegion];
