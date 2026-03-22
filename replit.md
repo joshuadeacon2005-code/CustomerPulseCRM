@@ -76,7 +76,18 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
 - **Team Member Dropdown**: Sorted A-Z (with "Myself" pinned at top) in the View Team Member selector on the dashboard.
 - **Analytics**: Advanced analytics with monthly and overall views, month selector, team structure visualization, and performance metrics.
 - **Admin Dashboard Features**: Four-tab layout with Overview (Regional Leaderboard, User Management with filtering/sorting/bulk selection/inline editing), Assignments (Customer-to-Salesman mapping with filters by salesman, name, and office), Offices (Regional office management), and Comparative Analytics (Region vs Region and Rep vs Rep comparison charts).
-- **Customer Status Management**: Extended customer lifecycle with 5 stages (lead, prospect, customer, dormant, closed):
+- **Pipeline Status Classification**: 4 new stages added to classify stalled leads and prospects without deleting them:
+    - **Nurture**: Interested but not ready to convert; revisit when conditions change
+    - **Cold**: Unresponsive after multiple follow-ups; no clear disqualification reason
+    - **Disqualified – Price Mismatch** (`disqualified_price`): Engaged but couldn't convert due to pricing; revisit with promotions
+    - **Disqualified – Unresponsive** (`disqualified_unresponsive`): No response after multiple follow-ups
+    - **Disqualification Note**: Optional free-text field (`disqualification_note`) that appears conditionally in the stage selector and customer form when a disqualified stage is chosen
+    - **Stage Selector Redesign**: The customer detail modal stage selector is now a grouped pill-button UI (not a linear slider) supporting all 9 stages in 4 groups: Active Pipeline, Qualification, Converted, Inactive
+    - **Inline Note Editor**: In the detail modal, clicking the note area opens an in-place textarea for entering/editing the disqualification reason
+    - **Grouped Stage Dropdown**: The customer form stage Select and the customers list stage filter both use `SelectGroup` sections for clarity
+    - **Pipeline Columns**: 4 new kanban columns added to the pipeline board (Nurture, Cold, Disqualified – Price, Disqualified – Unresponsive)
+    - **STAGE_LABELS**: Exported constant mapping stage keys to display names (e.g. `disqualified_price` → "Disqualified – Price Mismatch")
+- **Customer Status Management**: Extended customer lifecycle with 9 stages (lead, nurture, cold, disqualified_price, disqualified_unresponsive, prospect, customer, dormant, closed):
     - **Dormant/Closed Tracking**: Customers can be marked as dormant or closed with closure date, reason, and optional notes
     - **Closure Reasons**: Predefined reasons (Out of Business, Competitor, Budget, Poor Fit, Not Responsive, Duplicate, Other)
     - **Soft Delete**: Customers are soft-deleted (hidden from lists but data preserved) with deletedAt timestamp and deletedBy user

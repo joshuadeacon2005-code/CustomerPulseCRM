@@ -1,7 +1,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Customer, User, COUNTRIES, CustomerWithDetails, InsertInteraction, UpdateCustomer } from "@shared/schema";
+import { Customer, User, COUNTRIES, CustomerWithDetails, InsertInteraction, UpdateCustomer, STAGE_LABELS } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,6 +18,10 @@ import { CustomerDetailModal } from "@/components/customer-detail-modal";
 
 const STAGES = [
   { id: "lead", name: "Leads", color: "bg-blue-500" },
+  { id: "nurture", name: "Nurture", color: "bg-teal-500" },
+  { id: "cold", name: "Cold", color: "bg-slate-500" },
+  { id: "disqualified_price", name: "Disqualified – Price", color: "bg-orange-500" },
+  { id: "disqualified_unresponsive", name: "Disqualified – Unresponsive", color: "bg-rose-500" },
   { id: "prospect", name: "Prospects", color: "bg-amber-500" },
   { id: "customer", name: "Customers", color: "bg-green-500" },
   { id: "dormant", name: "Dormant", color: "bg-gray-400" },

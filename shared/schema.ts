@@ -88,6 +88,7 @@ export const customers = pgTable("customers", {
   assignedTo: text("assigned_to"),
   officeId: varchar("office_id"),
   personalNotes: text("personal_notes"),
+  disqualificationNote: text("disqualification_note"),
   registeredWithBC: boolean("registered_with_bc").notNull().default(false),
   ordersViaBC: boolean("orders_via_bc").notNull().default(false),
   firstOrderDate: timestamp("first_order_date"),
@@ -316,7 +317,29 @@ export const CLOSURE_REASONS = [
   "Other",
 ] as const;
 
-export const CUSTOMER_STAGES = ["lead", "prospect", "customer", "dormant", "closed"] as const;
+export const CUSTOMER_STAGES = [
+  "lead",
+  "nurture",
+  "cold",
+  "disqualified_price",
+  "disqualified_unresponsive",
+  "prospect",
+  "customer",
+  "dormant",
+  "closed",
+] as const;
+
+export const STAGE_LABELS: Record<string, string> = {
+  lead: "Lead",
+  nurture: "Nurture",
+  cold: "Cold",
+  disqualified_price: "Disqualified – Price Mismatch",
+  disqualified_unresponsive: "Disqualified – Unresponsive",
+  prospect: "Prospect",
+  customer: "Customer",
+  dormant: "Dormant",
+  closed: "Closed",
+};
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -377,6 +400,7 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   contactEmail: z.string().optional(),
   assignedTo: z.string().optional(),
   personalNotes: z.string().optional(),
+  disqualificationNote: z.string().optional().nullable(),
   registeredWithBC: z.boolean().optional().default(false),
   ordersViaBC: z.boolean().optional().default(false),
   firstOrderDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),

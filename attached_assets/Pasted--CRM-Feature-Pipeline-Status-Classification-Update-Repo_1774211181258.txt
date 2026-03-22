@@ -1,0 +1,84 @@
+# CRM Feature — Pipeline Status Classification Update
+**Reporter:** Lina | **Date:** 22 Mar 2026
+
+---
+
+## Context
+Sales team needs clearer ways to classify stalled prospects and dead leads instead of leaving them Active or deleting them. Two specific scenarios:
+
+1. **Prospects contacted multiple times but not converted due to pricing** → should be re-visitable when promotions/new products launch
+2. **Leads that don't materialise after multiple follow-ups** → should be moved out of Active with a clear reason tag
+
+---
+
+## Required Changes
+
+### 1. Add/confirm pipeline statuses
+Ensure these statuses exist in the lead/prospect pipeline:
+
+- `Nurture` — interested but not ready; revisit when conditions change
+- `Cold` — unresponsive after multiple follow-ups; no clear disqualification reason
+- `Disqualified – Price Mismatch` — engaged but couldn't convert due to pricing; may revisit with promotions
+- `Disqualified – Unresponsive` — no response after multiple follow-ups
+
+Check current statuses:
+```
+grep -n 'status\|pipeline' shared/schema.ts
+grep -rn 'Nurture\|Cold\|Disqualified' client/src/components
+```
+
+Add any missing values to the status enum. Example final set:
+```
+'Active' | 'Nurture' | 'Cold' | 'Disqualified – Price Mismatch' | 'Disqualified – Unresponsive' | 'Converted' | 'Lost'
+```
+
+---
+
+### 2. Update frontend status dropdown
+Find the lead/prospect status selector and ensure all new statuses are present:
+```
+grep -rn 'status' client/src/components/lead-form.tsx
+grep -rn 'status' client/src/components/customer-form.tsx
+```
+Add missing options. Group visually if possible (Active states / Inactive states).
+
+---
+
+### 3. Add a "Disqualification Reason" notes field (optional but recommended)
+When a user selects any `Disqualified` status, surface a short free-text field:
+- Label: `Reason / Notes`
+- Placeholder: `e.g. Price too high for current range — revisit Q3`
+- Store in existing `notes` column if one exists, or add `disqualificationNote: text()` to schema
+
+```
+grep -n 'notes\|note' shared/schema.ts
+```
+
+---
+
+### 4. Update pipeline/list view filters
+Ensure the pipeline board or customer list can filter by the new statuses so the team can pull up all "Price Mismatch" accounts when a promotion launches:
+```
+grep -rn 'filterStatus\|status.*filter' client/src/pages/dashboard.tsx
+grep -rn 'filterStatus\|status.*filter' client/src/pages/customers.tsx
+```
+Add new statuses to any filter dropdown.
+
+---
+
+### 5. DB migration (if using Postgres native enum)
+```sql
+ALTER TYPE lead_status ADD VALUE 'Nurture';
+ALTER TYPE lead_status ADD VALUE 'Cold';
+ALTER TYPE lead_status ADD VALUE 'Disqualified – Price Mismatch';
+ALTER TYPE lead_status ADD VALUE 'Disqualified – Unresponsive';
+```
+If status is a plain text column with app-level validation only, Step 1 is sufficient.
+
+---
+
+## Test
+- Open a lead record → confirm all new statuses appear in dropdown
+- Set a record to `Disqualified – Price Mismatch` → save → confirm status persists
+- Filter list by `Disqualified – Price Mismatch` → confirm correct records appear
+- Confirm existing `Active` records are unaffected

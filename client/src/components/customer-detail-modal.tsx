@@ -60,6 +60,7 @@ import {
   COUNTRIES,
   CLOSURE_REASONS,
   CustomerMonthlyTarget,
+  STAGE_LABELS,
 } from "@shared/schema";
 import { formatCurrency, Currency } from "@/lib/currency";
 import { 
@@ -160,99 +161,144 @@ interface CustomerDetailModalProps {
 
 const stageColors: Record<string, string> = {
   lead: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  nurture: "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20",
+  cold: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
+  disqualified_price: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+  disqualified_unresponsive: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
   prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
   dormant: "bg-gray-400/10 text-gray-600 dark:text-gray-400 border-gray-400/20",
   closed: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
 
-const CUSTOMER_STAGES = [
-  { value: "lead", label: "Lead", color: "bg-blue-500", lightColor: "bg-blue-100 dark:bg-blue-900/30" },
-  { value: "prospect", label: "Prospect", color: "bg-amber-500", lightColor: "bg-amber-100 dark:bg-amber-900/30" },
-  { value: "customer", label: "Customer", color: "bg-green-500", lightColor: "bg-green-100 dark:bg-green-900/30" },
-  { value: "dormant", label: "Dormant", color: "bg-gray-400", lightColor: "bg-gray-100 dark:bg-gray-900/30" },
-  { value: "closed", label: "Closed", color: "bg-red-500", lightColor: "bg-red-100 dark:bg-red-900/30" },
-] as const;
+const STAGE_GROUPS = [
+  {
+    label: "Active Pipeline",
+    stages: [
+      { value: "lead", color: "bg-blue-500" },
+      { value: "prospect", color: "bg-amber-500" },
+    ],
+  },
+  {
+    label: "Qualification",
+    stages: [
+      { value: "nurture", color: "bg-teal-500" },
+      { value: "cold", color: "bg-slate-500" },
+      { value: "disqualified_price", color: "bg-orange-500" },
+      { value: "disqualified_unresponsive", color: "bg-rose-500" },
+    ],
+  },
+  {
+    label: "Converted",
+    stages: [
+      { value: "customer", color: "bg-green-500" },
+    ],
+  },
+  {
+    label: "Inactive",
+    stages: [
+      { value: "dormant", color: "bg-gray-400" },
+      { value: "closed", color: "bg-red-500" },
+    ],
+  },
+];
 
-interface StageSliderProps {
+interface StageSelectorProps {
   currentStage: string;
   onStageChange: (stage: string) => void;
   isUpdating?: boolean;
 }
 
-function StageSlider({ currentStage, onStageChange, isUpdating }: StageSliderProps) {
-  const currentIndex = CUSTOMER_STAGES.findIndex(s => s.value === currentStage);
-  
+function StageSlider({ currentStage, onStageChange, isUpdating }: StageSelectorProps) {
   return (
-    <div className="w-full py-3" data-testid="stage-slider">
-      <div className="relative">
-        {/* Progress bar background */}
-        <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted rounded-full -translate-y-1/2" />
-        
-        {/* Progress bar fill */}
-        <div 
-          className="absolute top-1/2 left-0 h-1 rounded-full -translate-y-1/2 transition-all duration-300"
-          style={{ 
-            width: currentIndex >= 0 ? `${(currentIndex / (CUSTOMER_STAGES.length - 1)) * 100}%` : '0%',
-            background: (() => {
-              const stageGradients = ['#3b82f6', '#f59e0b', '#22c55e', '#9ca3af', '#ef4444'];
-              const colors = stageGradients.slice(0, currentIndex + 1);
-              return colors.length > 1 
-                ? `linear-gradient(to right, ${colors.join(', ')})` 
-                : colors[0] || '#3b82f6';
-            })()
-          }}
-        />
-        
-        {/* Stage points */}
-        <div className="relative flex justify-between">
-          {CUSTOMER_STAGES.map((stage, index) => {
-            const isActive = stage.value === currentStage;
-            const isPast = index < currentIndex;
-            
-            return (
-              <button
-                key={stage.value}
-                onClick={() => !isUpdating && onStageChange(stage.value)}
-                disabled={isUpdating}
-                className={cn(
-                  "relative flex flex-col items-center group transition-all duration-200",
-                  isUpdating && "cursor-not-allowed opacity-50"
-                )}
-                data-testid={`stage-button-${stage.value}`}
-              >
-                {/* Circle indicator */}
-                <div 
+    <div className="w-full space-y-2" data-testid="stage-slider">
+      {STAGE_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            {group.label}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {group.stages.map((stage) => {
+              const isActive = stage.value === currentStage;
+              return (
+                <button
+                  key={stage.value}
+                  onClick={() => !isUpdating && onStageChange(stage.value)}
+                  disabled={isUpdating}
+                  data-testid={`stage-button-${stage.value}`}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300",
-                    isActive 
-                      ? `${stage.color} border-white shadow-lg scale-110` 
-                      : isPast 
-                        ? `${stage.color} border-white/50`
-                        : "bg-muted border-muted-foreground/20 group-hover:border-muted-foreground/40"
+                    "px-3 py-1 rounded-md text-xs font-medium border transition-all duration-150",
+                    isUpdating && "cursor-not-allowed opacity-50",
+                    isActive
+                      ? `${stage.color} text-white border-transparent shadow-sm`
+                      : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  {(isActive || isPast) && (
-                    <Check className="h-4 w-4 text-white" />
-                  )}
-                </div>
-                
-                {/* Label */}
-                <span 
-                  className={cn(
-                    "mt-2 text-xs font-medium transition-all duration-200",
-                    isActive 
-                      ? "text-foreground" 
-                      : "text-muted-foreground group-hover:text-foreground"
-                  )}
-                >
-                  {stage.label}
-                </span>
-              </button>
-            );
-          })}
+                  {STAGE_LABELS[stage.value] ?? stage.value}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ))}
+    </div>
+  );
+}
+
+function DisqualificationNoteInline({
+  customer,
+  onSave,
+}: {
+  customer: { disqualificationNote?: string | null };
+  onSave: (note: string) => void;
+}) {
+  const [note, setNote] = useState(customer.disqualificationNote ?? "");
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    setNote(customer.disqualificationNote ?? "");
+  }, [customer.disqualificationNote]);
+
+  return (
+    <div className="mt-1 space-y-1">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Reason / Notes
+      </p>
+      {editing ? (
+        <div className="flex flex-col gap-1.5">
+          <textarea
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Price too high for current range — revisit Q3"
+            data-testid="input-modal-disqualification-note"
+            autoFocus
+          />
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => { onSave(note); setEditing(false); }}
+              className="px-3 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => { setNote(customer.disqualificationNote ?? ""); setEditing(false); }}
+              className="px-3 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full text-left text-sm text-muted-foreground hover:text-foreground px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition-colors"
+          data-testid="button-edit-disqualification-note"
+        >
+          {note || <span className="italic opacity-60">Click to add a reason or note…</span>}
+        </button>
+      )}
     </div>
   );
 }
@@ -394,8 +440,8 @@ export function CustomerDetailModal({
   });
 
   const updateStageMutation = useMutation({
-    mutationFn: async (stage: string) => {
-      return await apiRequest('PATCH', `/api/customers/${customer?.id}`, { stage });
+    mutationFn: async ({ stage, disqualificationNote }: { stage: string; disqualificationNote?: string | null }) => {
+      return await apiRequest('PATCH', `/api/customers/${customer?.id}`, { stage, disqualificationNote: disqualificationNote ?? null });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
@@ -773,14 +819,22 @@ export function CustomerDetailModal({
           </div>
         </DialogHeader>
 
-        {/* Stage Slider */}
+        {/* Stage Selector */}
         {!isEditing && (
-          <div className="mt-4 px-2">
-            <StageSlider 
+          <div className="mt-4 px-2 space-y-3">
+            <StageSlider
               currentStage={customer.stage}
-              onStageChange={(stage) => updateStageMutation.mutate(stage)}
+              onStageChange={(stage) =>
+                updateStageMutation.mutate({
+                  stage,
+                  disqualificationNote: stage.startsWith("disqualified") ? (customer.disqualificationNote ?? "") : null,
+                })
+              }
               isUpdating={updateStageMutation.isPending}
             />
+            {customer.stage?.startsWith("disqualified") && (
+              <DisqualificationNoteInline customer={customer} onSave={(note) => updateStageMutation.mutate({ stage: customer.stage, disqualificationNote: note })} />
+            )}
           </div>
         )}
 

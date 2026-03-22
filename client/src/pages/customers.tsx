@@ -14,14 +14,16 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users as UsersIcon, Filter, X, Download, LayoutGrid, List, Upload, AlertTriangle, Clock, TrendingUp, Target, Award, Trash2, FileUp } from "lucide-react";
-import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User, RETAILER_TYPES } from "@shared/schema";
+import { CustomerWithBrands, CustomerWithDetails, InsertCustomer, UpdateCustomer, InsertInteraction, Brand, InsertCustomerContact, Customer, User, RETAILER_TYPES, STAGE_LABELS } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -931,6 +933,36 @@ export default function Customers() {
               </PopoverContent>
             </Popover>
 
+            <Select value={stageFilterLocal} onValueChange={setStageFilterLocal}>
+              <SelectTrigger className="w-auto min-w-[110px]" data-testid="select-stage-filter">
+                <SelectValue placeholder="Stage" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stages</SelectItem>
+                <SelectGroup>
+                  <SelectLabel className="text-xs text-muted-foreground">Active Pipeline</SelectLabel>
+                  <SelectItem value="lead">Lead</SelectItem>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel className="text-xs text-muted-foreground">Qualification</SelectLabel>
+                  <SelectItem value="nurture">Nurture</SelectItem>
+                  <SelectItem value="cold">Cold</SelectItem>
+                  <SelectItem value="disqualified_price">Disqualified – Price Mismatch</SelectItem>
+                  <SelectItem value="disqualified_unresponsive">Disqualified – Unresponsive</SelectItem>
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel className="text-xs text-muted-foreground">Converted</SelectLabel>
+                  <SelectItem value="customer">Customer</SelectItem>
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel className="text-xs text-muted-foreground">Inactive</SelectLabel>
+                  <SelectItem value="dormant">Dormant</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
             <Select value={retailerTypeFilter} onValueChange={setRetailerTypeFilter}>
               <SelectTrigger className="w-auto min-w-[100px]" data-testid="select-retailer-filter">
                 <SelectValue placeholder="Type" />
@@ -982,8 +1014,8 @@ export default function Customers() {
               </Badge>
             )}
             {stageFilterLocal !== "all" && (
-              <Badge variant="secondary" className="gap-1 no-default-hover-elevate capitalize">
-                {stageFilterLocal}s
+              <Badge variant="secondary" className="gap-1 no-default-hover-elevate">
+                {STAGE_LABELS[stageFilterLocal] ?? stageFilterLocal}
                 <X className="h-3 w-3 cursor-pointer opacity-60 hover:opacity-100" onClick={() => setStageFilterLocal("all")} />
               </Badge>
             )}

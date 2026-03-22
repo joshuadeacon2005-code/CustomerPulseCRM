@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Customer, CustomerWithBrands } from "@shared/schema";
+import { Customer, CustomerWithBrands, STAGE_LABELS } from "@shared/schema";
 import { MapPin, AlertTriangle, Clock } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { formatCurrency, Currency } from "@/lib/currency";
@@ -16,6 +16,26 @@ const stageConfig: Record<string, { bg: string; text: string; badgeBg: string }>
     bg: "bg-blue-500",
     text: "text-blue-700 dark:text-blue-400",
     badgeBg: "bg-blue-500/10 border-blue-500/30"
+  },
+  nurture: {
+    bg: "bg-teal-500",
+    text: "text-teal-700 dark:text-teal-400",
+    badgeBg: "bg-teal-500/10 border-teal-500/30"
+  },
+  cold: {
+    bg: "bg-slate-500",
+    text: "text-slate-600 dark:text-slate-400",
+    badgeBg: "bg-slate-500/10 border-slate-500/30"
+  },
+  disqualified_price: {
+    bg: "bg-orange-500",
+    text: "text-orange-700 dark:text-orange-400",
+    badgeBg: "bg-orange-500/10 border-orange-500/30"
+  },
+  disqualified_unresponsive: {
+    bg: "bg-rose-500",
+    text: "text-rose-700 dark:text-rose-400",
+    badgeBg: "bg-rose-500/10 border-rose-500/30"
   },
   prospect: {
     bg: "bg-amber-500",
@@ -118,7 +138,7 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
                   className={`${config.badgeBg} ${config.text} uppercase text-[10px] font-semibold shrink-0 px-1.5 py-0`}
                   data-testid={`badge-stage-${customer.id}`}
                 >
-                  {customer.stage}
+                  {STAGE_LABELS[customer.stage] ?? customer.stage}
                 </Badge>
               </div>
               {customer.country && (

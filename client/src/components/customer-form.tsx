@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, COUNTRIES, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, RETAILER_TYPES, COUNTRIES, STAGE_LABELS, type Customer, type InsertCustomer, type UpdateCustomer, type User, type InsertCustomerContact } from "@shared/schema";
 import { format } from "date-fns";
 import { CalendarIcon, Plus, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,7 +25,9 @@ import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -59,6 +61,33 @@ interface CustomerFormProps {
   onSubmit: (data: InsertCustomer | UpdateCustomer, additionalContacts?: Omit<InsertCustomerContact, 'customerId'>[], initialAddress?: InitialAddress) => void;
   onCancel: () => void;
   isLoading?: boolean;
+}
+
+function DisqualificationNoteField({ form }: { form: any }) {
+  const stage = useWatch({ control: form.control, name: "stage" });
+  if (!stage?.startsWith("disqualified")) return null;
+  return (
+    <FormField
+      control={form.control}
+      name="disqualificationNote"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Reason / Notes</FormLabel>
+          <FormControl>
+            <Textarea
+              {...field}
+              value={field.value ?? ""}
+              placeholder="e.g. Price too high for current range — revisit Q3"
+              className="resize-none text-sm"
+              rows={2}
+              data-testid="input-disqualification-note"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
 }
 
 export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: CustomerFormProps) {
@@ -156,6 +185,7 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
       stage: customer.stage,
       assignedTo: customer.assignedTo || "",
       personalNotes: customer.personalNotes || "",
+      disqualificationNote: customer.disqualificationNote || "",
       registeredWithBC: customer.registeredWithBC,
       ordersViaBC: customer.ordersViaBC,
       firstOrderDate: customer.firstOrderDate ?? undefined,
@@ -552,17 +582,35 @@ export function CustomerForm({ customer, onSubmit, onCancel, isLoading }: Custom
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="lead">Lead</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                    <SelectItem value="customer">Customer</SelectItem>
-                    <SelectItem value="dormant">Dormant</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Active Pipeline</SelectLabel>
+                      <SelectItem value="lead">Lead</SelectItem>
+                      <SelectItem value="prospect">Prospect</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Qualification Status</SelectLabel>
+                      <SelectItem value="nurture">Nurture</SelectItem>
+                      <SelectItem value="cold">Cold</SelectItem>
+                      <SelectItem value="disqualified_price">Disqualified – Price Mismatch</SelectItem>
+                      <SelectItem value="disqualified_unresponsive">Disqualified – Unresponsive</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Converted</SelectLabel>
+                      <SelectItem value="customer">Customer</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-xs text-muted-foreground">Inactive</SelectLabel>
+                      <SelectItem value="dormant">Dormant</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <DisqualificationNoteField form={form} />
 
           <FormField
             control={form.control}
