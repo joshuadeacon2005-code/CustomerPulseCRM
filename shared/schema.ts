@@ -556,7 +556,12 @@ export const updateActionItemSchema = insertActionItemSchema
   .extend({
     dueDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
     visitDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
-  });
+    completedAt: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "At least one field must be provided" },
+  );
 
 export type UpdateActionItem = z.infer<typeof updateActionItemSchema>;
 
