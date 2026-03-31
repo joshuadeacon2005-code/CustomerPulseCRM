@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isToday, isPast, startOfDay } from "date-fns";
-import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Unlink, FileUp } from "lucide-react";
+import { Plus, CheckCircle2, Calendar as CalendarIcon, ListTodo, Link2, Unlink, FileUp, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertActionItemSchema, type ActionItemWithCustomer, type Customer } from "@shared/schema";
+import type { UpdateActionItem } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
 import Papa from "papaparse";
@@ -56,6 +57,7 @@ type FormData = z.infer<typeof formSchema>;
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<ActionItemWithCustomer | null>(null);
   const [isBasecampProjectsDialogOpen, setIsBasecampProjectsDialogOpen] = useState(false);
   const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<number[]>([]);
@@ -281,6 +283,20 @@ export default function Tasks() {
     },
   });
 
+  const editFormSchema = formSchema.omit({ customerId: true }).extend({
+    customerId: z.string().optional(),
+  });
+  type EditFormData = z.infer<typeof editFormSchema>;
+
+  const editForm = useForm<EditFormData>({
+    resolver: zodResolver(editFormSchema),
+    defaultValues: {
+      description: "",
+      dueDate: null,
+      visitDate: null,
+    },
+  });
+
   const createTaskMutation = useMutation({
     mutationFn: (data: FormData) => {
       const payload = {
@@ -309,6 +325,35 @@ export default function Tasks() {
       toast({
         title: "Error",
         description: "Failed to create to-do. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateActionItem }) => {
+      const payload = {
+        ...data,
+        dueDate: data.dueDate !== undefined ? (data.dueDate ? (data.dueDate as any).toISOString?.() || data.dueDate : null) : undefined,
+        visitDate: data.visitDate !== undefined ? (data.visitDate ? (data.visitDate as any).toISOString?.() || data.visitDate : null) : undefined,
+      };
+      return apiRequest("PATCH", `/api/action-items/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
+      setEditingTask(null);
+      toast({
+        title: "To-do updated",
+        description: "The to-do has been successfully updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update to-do. Please try again.",
         variant: "destructive",
       });
     },
@@ -393,6 +438,23 @@ export default function Tasks() {
               </div>
             </div>
           </div>
+          {!task.completedAt && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                setEditingTask(task);
+                editForm.reset({
+                  description: task.description,
+                  dueDate: task.dueDate ? new Date(task.dueDate) : null,
+                  visitDate: task.visitDate ? new Date(task.visitDate) : null,
+                });
+              }}
+              data-testid={`button-edit-task-${task.id}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
     </Card>
@@ -802,6 +864,142 @@ export default function Tasks() {
                   data-testid="button-submit"
                 >
                   {createTaskMutation.isPending ? "Creating..." : "Create To-Do"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit To-Do Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => { if (!open) setEditingTask(null); }}>
+        <DialogContent data-testid="dialog-edit-task">
+          <DialogHeader>
+            <DialogTitle>Edit To-Do</DialogTitle>
+            <DialogDescription>
+              Update the description, due date, or visit date.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form
+              onSubmit={editForm.handleSubmit((data) => {
+                if (!editingTask) return;
+                updateTaskMutation.mutate({
+                  id: editingTask.id,
+                  data: {
+                    description: data.description,
+                    dueDate: data.dueDate || null,
+                    visitDate: data.visitDate || null,
+                  } as UpdateActionItem,
+                });
+              })}
+              className="space-y-4"
+            >
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Enter to-do description"
+                        data-testid="input-edit-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="dueDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="button-edit-due-date"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : "Pick a date"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="visitDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Visit Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="button-edit-visit-date"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, "PPP") : "Pick a date"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingTask(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateTaskMutation.isPending}
+                  data-testid="button-submit-edit"
+                >
+                  {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>
             </form>

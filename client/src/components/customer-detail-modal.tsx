@@ -51,6 +51,8 @@ import {
   insertBrandSchema,
   InsertActionItem,
   insertActionItemSchema,
+  UpdateActionItem,
+  updateActionItemSchema,
   InsertMonthlySalesTracking,
   insertMonthlySalesTrackingSchema,
   updateMonthlySalesTrackingSchema,
@@ -89,6 +91,7 @@ import {
   Loader2,
   ExternalLink,
   Building,
+  Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -335,6 +338,7 @@ export function CustomerDetailModal({
   const [isAddingBrand, setIsAddingBrand] = useState(false);
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
   const [isAddingActionItem, setIsAddingActionItem] = useState(false);
+  const [editingActionItemId, setEditingActionItemId] = useState<string | null>(null);
   const [isAddingSales, setIsAddingSales] = useState(false);
   const setIsAddingSale = setIsAddingSales; // Alias for quick actions
   const [activeTab, setActiveTab] = useState("overview");
@@ -356,6 +360,7 @@ export function CustomerDetailModal({
       setQuickInteractionType(null);
       setIsAddingSales(false);
       setIsAddingActionItem(false);
+      setEditingActionItemId(null);
     }
   }, [open]);
 
@@ -474,6 +479,26 @@ export function CustomerDetailModal({
         errorMessage = error.message;
       }
       toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    },
+  });
+
+  const updateActionItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateActionItem }) => {
+      const payload = {
+        ...data,
+        dueDate: data.dueDate !== undefined ? (data.dueDate ? (data.dueDate as any).toISOString?.() || data.dueDate : null) : undefined,
+        visitDate: data.visitDate !== undefined ? (data.visitDate ? (data.visitDate as any).toISOString?.() || data.visitDate : null) : undefined,
+      };
+      return await apiRequest('PATCH', `/api/action-items/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
+      setEditingActionItemId(null);
+      toast({ title: "Action item updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update action item", variant: "destructive" });
     },
   });
 
@@ -1373,6 +1398,7 @@ export function CustomerDetailModal({
               <div className="space-y-2">
                 {customer.actionItems.map((item) => {
                   const status = getActionItemStatus(item);
+                  const isEditingThis = editingActionItemId === item.id;
                   return (
                     <Card
                       key={item.id}
@@ -1384,38 +1410,70 @@ export function CustomerDetailModal({
                       data-testid={`card-action-item-${item.id}`}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {status === 'completed' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                              {status === 'overdue' && <AlertCircle className="h-4 w-4 text-red-600" />}
-                              {status === 'today' && <Clock className="h-4 w-4 text-orange-600" />}
-                              {status === 'upcoming' && <Clock className="h-4 w-4 text-muted-foreground" />}
-                              <span className={cn("text-sm font-medium", status === 'completed' && "line-through")}>
-                                {item.description}
-                              </span>
+                        {isEditingThis ? (
+                          <>
+                            <p className="text-sm font-medium mb-3">Edit Action Item</p>
+                            <ActionItemForm
+                              customerId={customer.id}
+                              initialValues={{
+                                description: item.description,
+                                dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+                                visitDate: item.visitDate ? new Date(item.visitDate) : undefined,
+                              }}
+                              isEditing
+                              onSubmit={(data) => {
+                                updateActionItemMutation.mutate({ id: item.id, data: data as UpdateActionItem });
+                              }}
+                              onCancel={() => setEditingActionItemId(null)}
+                              isLoading={updateActionItemMutation.isPending}
+                            />
+                          </>
+                        ) : (
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                {status === 'completed' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                {status === 'overdue' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                                {status === 'today' && <Clock className="h-4 w-4 text-orange-600" />}
+                                {status === 'upcoming' && <Clock className="h-4 w-4 text-muted-foreground" />}
+                                <span className={cn("text-sm font-medium", status === 'completed' && "line-through")}>
+                                  {item.description}
+                                </span>
+                              </div>
+                              <div className="flex gap-3 text-xs text-muted-foreground">
+                                {item.dueDate && (
+                                  <span>Due: {format(new Date(item.dueDate), "MMM d, yyyy")}</span>
+                                )}
+                                {item.visitDate && (
+                                  <span>Visit: {format(new Date(item.visitDate), "MMM d, yyyy")}</span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex gap-3 text-xs text-muted-foreground">
-                              {item.dueDate && (
-                                <span>Due: {format(new Date(item.dueDate), "MMM d, yyyy")}</span>
+                            <div className="flex items-center gap-2">
+                              {!item.completedAt && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingActionItemId(item.id)}
+                                  data-testid={`button-edit-action-${item.id}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
                               )}
-                              {item.visitDate && (
-                                <span>Visit: {format(new Date(item.visitDate), "MMM d, yyyy")}</span>
+                              {!item.completedAt && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => completeActionItemMutation.mutate(item.id)}
+                                  data-testid={`button-complete-action-${item.id}`}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Complete
+                                </Button>
                               )}
                             </div>
                           </div>
-                          {!item.completedAt && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => completeActionItemMutation.mutate(item.id)}
-                              data-testid={`button-complete-action-${item.id}`}
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Complete
-                            </Button>
-                          )}
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                   );
@@ -1958,19 +2016,23 @@ function ActionItemForm({
   onSubmit,
   onCancel,
   isLoading,
+  initialValues,
+  isEditing = false,
 }: {
   customerId: string;
   onSubmit: (data: InsertActionItem) => void;
   onCancel: () => void;
   isLoading: boolean;
+  initialValues?: { description?: string; dueDate?: Date; visitDate?: Date };
+  isEditing?: boolean;
 }) {
   const form = useForm({
     resolver: zodResolver(actionItemFormSchema),
     defaultValues: {
       customerId,
-      description: '',
-      dueDate: undefined,
-      visitDate: undefined,
+      description: initialValues?.description || '',
+      dueDate: initialValues?.dueDate ?? undefined,
+      visitDate: initialValues?.visitDate ?? undefined,
     },
   });
 
@@ -2082,7 +2144,7 @@ function ActionItemForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isLoading} data-testid="button-submit-action-item">
-            {isLoading ? 'Creating...' : 'Create Action Item'}
+            {isLoading ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Action Item')}
           </Button>
         </div>
       </form>

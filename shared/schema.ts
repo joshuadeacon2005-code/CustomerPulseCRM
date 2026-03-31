@@ -550,6 +550,19 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   createdBy: z.string().min(1),
 });
 
+export const updateActionItemSchema = createInsertSchema(actionItems).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  completedAt: true,
+}).partial().extend({
+  description: z.string().min(1).optional(),
+  dueDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  visitDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+});
+
+export type UpdateActionItem = z.infer<typeof updateActionItemSchema>;
+
 // Base schema without refinements for client-side use
 // Note: Budget field is now optional (defaults to 0) since monthly budgets are tracked at customer level
 // Actual is required as it's the primary purpose of logging a sale
