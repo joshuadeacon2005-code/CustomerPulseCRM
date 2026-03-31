@@ -550,11 +550,13 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   createdBy: z.string().min(1),
 });
 
-export const updateActionItemSchema = z.object({
-  description: z.string().min(1).optional(),
-  dueDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
-  visitDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
-});
+export const updateActionItemSchema = insertActionItemSchema
+  .pick({ description: true })
+  .partial()
+  .extend({
+    dueDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+    visitDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
+  });
 
 export type UpdateActionItem = z.infer<typeof updateActionItemSchema>;
 

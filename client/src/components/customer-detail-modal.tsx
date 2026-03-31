@@ -1427,7 +1427,8 @@ export function CustomerDetailModal({
                               }}
                               isEditing
                               onSubmit={(data) => {
-                                updateActionItemMutation.mutate({ id: item.id, data: data as UpdateActionItem });
+                                const { description, dueDate, visitDate } = data;
+                                updateActionItemMutation.mutate({ id: item.id, data: { description, dueDate, visitDate } });
                               }}
                               onCancel={() => setEditingActionItemId(null)}
                               isLoading={updateActionItemMutation.isPending}
