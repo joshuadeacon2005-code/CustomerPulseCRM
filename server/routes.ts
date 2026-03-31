@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, updateInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
+import { insertCustomerSchema, updateCustomerSchema, insertInteractionSchema, updateInteractionSchema, insertSaleSchema, insertSaleSchemaRefined, insertBrandSchema, insertCustomerBrandSchema, insertMonthlyTargetSchema, insertMonthlyTargetSchemaRefined, updateMonthlyTargetSchema, insertActionItemSchema, updateActionItemSchema, insertMonthlySalesTrackingSchema, insertMonthlySalesTrackingSchemaRefined, updateMonthlySalesTrackingSchema, insertCustomerMonthlyTargetSchema, insertCustomerMonthlyTargetSchemaRefined, type UserRole, type CustomerWithBrands } from "@shared/schema";
 import { setupAuth, isAuthenticated, isAdmin, getEffectiveRole } from "./auth";
 import { randomBytes } from "crypto";
 import { z } from "zod";
@@ -929,14 +929,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/action-items/:id", isAuthenticated, async (req, res) => {
     try {
-      // Convert date strings to Date objects if present
-      const updates = {
-        ...req.body,
-        ...(req.body.dueDate !== undefined && { dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null }),
-        ...(req.body.visitDate !== undefined && { visitDate: req.body.visitDate ? new Date(req.body.visitDate) : null }),
-        ...(req.body.completedAt !== undefined && { completedAt: req.body.completedAt ? new Date(req.body.completedAt) : null }),
-      };
-      const actionItem = await storage.updateActionItem(req.params.id, updates);
+      const parsed = updateActionItemSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+      }
+      const actionItem = await storage.updateActionItem(req.params.id, parsed.data);
       if (!actionItem) {
         return res.status(404).json({ error: "Action item not found" });
       }

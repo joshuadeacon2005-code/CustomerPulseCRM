@@ -550,12 +550,7 @@ export const insertActionItemSchema = createInsertSchema(actionItems).omit({
   createdBy: z.string().min(1),
 });
 
-export const updateActionItemSchema = createInsertSchema(actionItems).omit({
-  id: true,
-  createdAt: true,
-  createdBy: true,
-  completedAt: true,
-}).partial().extend({
+export const updateActionItemSchema = z.object({
   description: z.string().min(1).optional(),
   dueDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
   visitDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),

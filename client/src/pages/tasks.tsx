@@ -330,12 +330,18 @@ export default function Tasks() {
     },
   });
 
+  const serializeDate = (d: Date | string | null | undefined): string | null | undefined => {
+    if (d === undefined) return undefined;
+    if (d === null) return null;
+    return d instanceof Date ? d.toISOString() : d;
+  };
+
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateActionItem }) => {
       const payload = {
         ...data,
-        dueDate: data.dueDate !== undefined ? (data.dueDate ? (data.dueDate as any).toISOString?.() || data.dueDate : null) : undefined,
-        visitDate: data.visitDate !== undefined ? (data.visitDate ? (data.visitDate as any).toISOString?.() || data.visitDate : null) : undefined,
+        dueDate: serializeDate(data.dueDate),
+        visitDate: serializeDate(data.visitDate),
       };
       return apiRequest("PATCH", `/api/action-items/${id}`, payload);
     },
