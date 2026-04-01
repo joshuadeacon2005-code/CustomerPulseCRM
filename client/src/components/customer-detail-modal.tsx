@@ -64,7 +64,7 @@ import {
   CustomerMonthlyTarget,
   STAGE_LABELS,
 } from "@shared/schema";
-import { formatCurrency, Currency } from "@/lib/currency";
+import { formatCurrency, Currency, formatAmountInput } from "@/lib/currency";
 import { 
   Mail, 
   Phone, 
@@ -1558,12 +1558,16 @@ export function CustomerDetailModal({
                             <TableCell className="text-right">
                               {isEditing ? (
                                 <Input
-                                  type="number"
-                                  step="0.01"
-                                  defaultValue={budget}
-                                  className="w-24"
+                                  type="text"
+                                  inputMode="decimal"
+                                  defaultValue={formatAmountInput(Math.round(budget).toString())}
+                                  className="w-28"
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                    e.target.value = formatAmountInput(raw);
+                                  }}
                                   onBlur={(e) => {
-                                    const value = e.target.value;
+                                    const value = e.target.value.replace(/,/g, "");
                                     if (value !== budget.toString()) {
                                       updateMonthlySalesMutation.mutate({
                                         id: record.id,
@@ -1580,12 +1584,16 @@ export function CustomerDetailModal({
                             <TableCell className="text-right">
                               {isEditing ? (
                                 <Input
-                                  type="number"
-                                  step="0.01"
-                                  defaultValue={actual}
-                                  className="w-24"
+                                  type="text"
+                                  inputMode="decimal"
+                                  defaultValue={formatAmountInput(Math.round(actual).toString())}
+                                  className="w-28"
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                    e.target.value = formatAmountInput(raw);
+                                  }}
                                   onBlur={(e) => {
-                                    const value = e.target.value;
+                                    const value = e.target.value.replace(/,/g, "");
                                     if (value !== actual.toString()) {
                                       updateMonthlySalesMutation.mutate({
                                         id: record.id,
@@ -2274,11 +2282,15 @@ function MonthlySalesForm({
               <FormLabel>Sale Amount</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g. 298,367,714"
                   {...field}
                   value={field.value || ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9.]/g, "");
+                    field.onChange(formatAmountInput(raw));
+                  }}
                   data-testid="input-actual"
                 />
               </FormControl>

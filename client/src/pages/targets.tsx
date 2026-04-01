@@ -16,7 +16,7 @@ import type { MonthlyTarget, UserRole } from "@shared/schema";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Edit, TrendingUp, Target as TargetIcon } from "lucide-react";
-import { formatCurrency, CURRENCY_SYMBOLS } from "@/lib/currency";
+import { formatCurrency, CURRENCY_SYMBOLS, formatAmountInput } from "@/lib/currency";
 import type { Currency } from "@shared/schema";
 
 const months = [
@@ -91,14 +91,14 @@ export default function TargetsPage() {
       form.reset({
         month: editingTarget.month,
         year: editingTarget.year,
-        targetAmount: editingTarget.targetAmount,
+        targetAmount: formatAmountInput(parseFloat(editingTarget.targetAmount).toFixed(0)),
         targetType: editingTarget.targetType as "personal" | "general",
       });
     } else if (selectedMonthTarget) {
       form.reset({
         month: selectedMonthTarget.month,
         year: selectedMonthTarget.year,
-        targetAmount: selectedMonthTarget.targetAmount,
+        targetAmount: formatAmountInput(parseFloat(selectedMonthTarget.targetAmount).toFixed(0)),
         targetType: selectedMonthTarget.targetType as "personal" | "general",
       });
     } else {
@@ -268,10 +268,16 @@ export default function TargetsPage() {
                 <Input
                   id="targetAmount"
                   data-testid="input-target-amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  {...form.register("targetAmount")}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g. 298,367,714"
+                  {...form.register("targetAmount", {
+                    onChange: (e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                      const formatted = formatAmountInput(raw);
+                      form.setValue("targetAmount", formatted, { shouldValidate: false });
+                    },
+                  })}
                 />
                 {form.formState.errors.targetAmount && (
                   <p className="text-sm text-destructive" data-testid="error-target-amount">

@@ -3,6 +3,14 @@ import { pgTable, text, varchar, integer, timestamp, decimal, boolean } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+const amountString = (requiredMessage?: string) =>
+  z.preprocess(
+    (val) => (typeof val === "string" ? val.replace(/,/g, "").trim() : val),
+    requiredMessage
+      ? z.string().min(1, requiredMessage).regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format")
+      : z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format")
+  );
+
 export const REGIONAL_OFFICES = [
   "Hong Kong",
   "Singapore", 
@@ -362,9 +370,9 @@ const insertSaleBaseSchema = createInsertSchema(sales).omit({
   customerName: z.string().min(1),
   customerId: z.string().optional().nullable(),
   product: z.string().optional().default("General Sale"),
-  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  amount: amountString("Sale amount is required"),
   currency: z.enum(CURRENCIES).optional().default("USD"),
-  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  baseCurrencyAmount: amountString().optional(),
   date: z.union([
     z.date(),
     z.string().transform((val) => val ? new Date(val) : new Date()),
@@ -479,9 +487,9 @@ const insertMonthlyTargetBaseSchema = createInsertSchema(monthlyTargets).omit({
   targetType: z.enum(["personal", "general"]).default("personal"),
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
-  targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  targetAmount: amountString("Target amount is required"),
   currency: z.enum(CURRENCIES).optional().default("USD"),
-  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  baseCurrencyAmount: amountString().optional(),
   salesmanId: z.string().optional().nullable(),
 });
 
@@ -520,9 +528,9 @@ const insertCustomerMonthlyTargetBaseSchema = createInsertSchema(customerMonthly
 }).extend({
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
-  targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  targetAmount: amountString("Target amount is required"),
   currency: z.enum(CURRENCIES).optional().default("USD"),
-  baseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  baseCurrencyAmount: amountString().optional(),
   customerId: z.string().min(1),
   createdBy: z.string().min(1),
 });
@@ -574,12 +582,12 @@ const insertMonthlySalesTrackingBaseSchema = createInsertSchema(monthlySalesTrac
 }).extend({
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2100),
-  budget: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional().default("0"),
+  budget: amountString().optional().default("0"),
   budgetCurrency: z.enum(CURRENCIES).optional().default("USD"),
-  budgetBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional().default("0"),
-  actual: z.string().min(1, "Sale amount is required").regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+  budgetBaseCurrencyAmount: amountString().optional().default("0"),
+  actual: amountString("Sale amount is required"),
   actualCurrency: z.enum(CURRENCIES).optional().default("USD"),
-  actualBaseCurrencyAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").optional(),
+  actualBaseCurrencyAmount: amountString().optional(),
 });
 
 // Export base schema for client-side composition

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatAmountInput } from "@/lib/currency";
 import type { Currency, MonthlySalesTracking } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -149,7 +149,7 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     form.reset({
       month: target.month,
       year: target.year,
-      targetAmount: target.targetAmount,
+      targetAmount: formatAmountInput(parseFloat(target.targetAmount).toFixed(0)),
     });
   };
 
@@ -319,11 +319,15 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                       <FormLabel>Target Amount</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="e.g. 298,367,714"
                           data-testid="input-target-amount"
                           {...field}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9.]/g, "");
+                            field.onChange(formatAmountInput(raw));
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -479,11 +483,15 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
                                   <FormLabel>Target Amount</FormLabel>
                                   <FormControl>
                                     <Input
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="0.00"
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="e.g. 298,367,714"
                                       data-testid="input-edit-target-amount"
                                       {...field}
+                                      onChange={(e) => {
+                                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                        field.onChange(formatAmountInput(raw));
+                                      }}
                                     />
                                   </FormControl>
                                   <FormMessage />

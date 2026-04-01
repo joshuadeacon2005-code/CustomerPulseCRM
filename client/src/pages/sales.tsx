@@ -23,7 +23,7 @@ import { Edit, TrendingUp, Target as TargetIcon, FileText, Download, Check, Chev
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { exportSalesReport } from "@/lib/export-utils";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatAmountInput } from "@/lib/currency";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -136,7 +136,7 @@ export default function SalesPage() {
     setEditingSale(sale);
     setEditForm({
       customerName: sale.customerName,
-      amount: parseFloat(sale.amount).toString(),
+      amount: formatAmountInput(parseFloat(sale.amount).toFixed(0)),
       currency: sale.currency,
       date: new Date(sale.date).toISOString().split("T")[0],
       description: sale.description || "",
@@ -146,7 +146,10 @@ export default function SalesPage() {
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSale) return;
-    updateSaleMutation.mutate({ id: editingSale.id, updates: editForm });
+    updateSaleMutation.mutate({ id: editingSale.id, updates: {
+      ...editForm,
+      amount: editForm.amount.replace(/,/g, ""),
+    }});
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -196,14 +199,14 @@ export default function SalesPage() {
       form.reset({
         month: editingTarget.month,
         year: editingTarget.year,
-        targetAmount: editingTarget.targetAmount,
+        targetAmount: formatAmountInput(parseFloat(editingTarget.targetAmount).toFixed(0)),
         targetType: editingTarget.targetType as "personal" | "general",
       });
     } else if (selectedMonthTarget) {
       form.reset({
         month: selectedMonthTarget.month,
         year: selectedMonthTarget.year,
-        targetAmount: selectedMonthTarget.targetAmount,
+        targetAmount: formatAmountInput(parseFloat(selectedMonthTarget.targetAmount).toFixed(0)),
         targetType: selectedMonthTarget.targetType as "personal" | "general",
       });
     } else {
@@ -427,10 +430,14 @@ export default function SalesPage() {
                   <Input
                     id="amount"
                     data-testid="input-amount"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 298,367,714"
                     value={saleData.amount}
-                    onChange={(e) => setSaleData({ ...saleData, amount: e.target.value })}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                      setSaleData({ ...saleData, amount: formatAmountInput(raw) });
+                    }}
                     required
                     className="flex-1"
                   />
@@ -606,10 +613,16 @@ export default function SalesPage() {
                   <Input
                     id="targetAmount"
                     data-testid="input-target-amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...form.register("targetAmount")}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 298,367,714"
+                    {...form.register("targetAmount", {
+                      onChange: (e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        const formatted = formatAmountInput(raw);
+                        form.setValue("targetAmount", formatted, { shouldValidate: false });
+                      },
+                    })}
                   />
                   {form.formState.errors.targetAmount && (
                     <p className="text-sm text-destructive" data-testid="error-target-amount">
@@ -765,10 +778,14 @@ export default function SalesPage() {
                 <Label htmlFor="edit-amount">Amount</Label>
                 <Input
                   id="edit-amount"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g. 298,367,714"
                   value={editForm.amount}
-                  onChange={(e) => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9.]/g, "");
+                    setEditForm(f => ({ ...f, amount: formatAmountInput(raw) }));
+                  }}
                   data-testid="input-edit-amount"
                 />
               </div>

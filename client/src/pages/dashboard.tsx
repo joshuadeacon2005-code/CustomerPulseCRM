@@ -34,7 +34,7 @@ import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
 import { AiNextActionCard } from "@/components/ai-next-action-card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { CURRENCY_SYMBOLS, formatCompactCurrency, formatCurrency } from "@/lib/currency";
+import { CURRENCY_SYMBOLS, formatCompactCurrency, formatCurrency, formatAmountInput } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -1405,7 +1405,7 @@ function PersonalTargetsWidget({
   });
 
   const handleSaveTarget = (month: number, year: number) => {
-    const amount = parseFloat(targetAmount);
+    const amount = parseFloat(targetAmount.replace(/,/g, ""));
     if (isNaN(amount) || amount <= 0) {
       toast({
         title: "Invalid amount",
@@ -1479,10 +1479,14 @@ function PersonalTargetsWidget({
                         {currencySymbol}
                       </span>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={targetAmount}
-                        onChange={(e) => setTargetAmount(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9.]/g, "");
+                          setTargetAmount(formatAmountInput(raw));
+                        }}
+                        placeholder="e.g. 298,367,714"
                         className="w-full pl-8 pr-2 py-1.5 border rounded text-xs"
                         autoFocus
                         data-testid={`input-target-${month}-${year}`}
@@ -1556,7 +1560,7 @@ function PersonalTargetsWidget({
                         className="w-full h-6 text-[10px] mt-1"
                         onClick={() => {
                           setEditingMonth({ month, year });
-                          setTargetAmount(Math.round(Number(target.targetAmount)).toString());
+                          setTargetAmount(formatAmountInput(Math.round(Number(target.targetAmount)).toString()));
                         }}
                         data-testid={`button-edit-target-${month}-${year}`}
                       >
@@ -1615,10 +1619,14 @@ function PersonalTargetsWidget({
                         {currencySymbol}
                       </span>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={targetAmount}
-                        onChange={(e) => setTargetAmount(e.target.value)}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9.]/g, "");
+                          setTargetAmount(formatAmountInput(raw));
+                        }}
+                        placeholder="e.g. 298,367,714"
                         className="w-full pl-8 pr-2 py-1.5 border rounded text-xs"
                         autoFocus
                         data-testid={`input-target-${month}-${year}`}
@@ -1686,7 +1694,7 @@ function PersonalTargetsWidget({
                             className="h-6 text-xs px-2"
                             onClick={() => {
                               setEditingMonth({ month, year });
-                              setTargetAmount(Math.round(targetAmt).toString());
+                              setTargetAmount(formatAmountInput(Math.round(targetAmt).toString()));
                             }}
                             data-testid={`button-edit-target-${month}-${year}`}
                           >

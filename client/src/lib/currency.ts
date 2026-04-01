@@ -156,6 +156,25 @@ export async function formatConvertedCurrency(
 }
 
 /**
+ * Formats a raw number string with thousand-separator commas for display in inputs.
+ * Strips existing commas, splits on decimal, formats integer part only.
+ */
+export function formatAmountInput(raw: string): string {
+  const stripped = raw.replace(/,/g, "");
+  if (!stripped) return "";
+  const [intPart, decPart] = stripped.split(".");
+  const formatted = parseInt(intPart || "0", 10).toLocaleString("en-US");
+  return decPart !== undefined ? `${formatted}.${decPart}` : formatted;
+}
+
+/**
+ * Strips commas from a formatted amount string before sending to the API.
+ */
+export function stripAmountCommas(val: string): string {
+  return val.replace(/,/g, "");
+}
+
+/**
  * Converts base currency amount (USD) to target currency
  */
 export async function convertFromBase(
