@@ -97,6 +97,7 @@ The application uses a React and TypeScript frontend, an Express.js and TypeScri
     - **Bulk Operations**: Select multiple customers for bulk status changes or bulk soft-delete
     - **Closure List Import**: Upload Excel file to match and bulk-close customers with preview/confirmation flow
 - **Data Retention Policy**: NEVER delete sales data or interaction records. All records must be preserved for historical tracking and audit purposes.
+- **Auto Idle Timeout**: Client-side inactivity detection using activity events (mousemove, keydown, click, scroll, touchstart). After 25 minutes idle, a countdown dialog appears with a 5-minute timer. At zero the user is automatically logged out and redirected to the login page. The "Stay Logged In" button resets the timer; "Log Out Now" exits immediately. Only active for authenticated users.
 - **AI-Powered Insights (via OpenAI GPT-4o-mini)**:
     - **Customer AI Insights**: In-modal analysis of sales, purchasing, and engagement with actionable recommendations.
     - **User Performance AI Summary**: Comprehensive performance analysis for users (admin/manager access).

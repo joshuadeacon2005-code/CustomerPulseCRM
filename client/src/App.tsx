@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { QuickActionMenu } from "@/components/quick-action-menu";
 import { SessionExpirationHandler } from "@/components/session-expiration-handler";
+import { IdleTimeoutDialog } from "@/components/idle-timeout-dialog";
 import { GlobalSearch } from "@/components/global-search";
 import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute, AdminRoute } from "@/components/ProtectedRoute";
@@ -120,6 +121,7 @@ function AuthenticatedApp() {
           </main>
         </div>
         <QuickActionMenu />
+        <IdleTimeoutDialog />
       </div>
     </SidebarProvider>
   );
