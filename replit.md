@@ -3,6 +3,12 @@
 ## Overview
 A comprehensive sales-focused CRM tool for Bloom & Grow Group, designed to streamline sales processes, manage customer journeys, and provide robust performance analytics. It supports role-based access, multi-country customer data management, brand assignments, monthly target setting, and detailed sales reporting with budget vs. actuals. The application aims to enhance sales team efficiency and provide actionable insights for business growth.
 
+## AGENT DATA SAFETY RULE — READ FIRST
+**The agent must NEVER modify, insert, update, or delete any data in the development database while working.**
+- All database access during development work is READ-ONLY (queries and inspection only).
+- The only exception is when the user explicitly asks for a specific data change and confirms it in the chat.
+- Code changes (schema, routes, UI) are fine — touching live data records is not, unless directly instructed.
+
 ## User Preferences
 - Default theme: Light mode
 - Design approach: Enterprise CRM (inspired by Linear/Notion/HubSpot)
