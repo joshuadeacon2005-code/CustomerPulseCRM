@@ -1143,6 +1143,7 @@ export default function Customers() {
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stage</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Brands</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Monthly Target</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quarterly Target</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
                   </tr>
@@ -1204,6 +1205,16 @@ export default function Customers() {
                                 <span className="text-xs text-muted-foreground">+{customer.brands.length - 2}</span>
                               )}
                             </div>
+                          ) : (
+                            <span className="text-muted-foreground/50 text-sm">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {(customer as any).currentMonthTarget ? (
+                            <span className="font-medium text-sm text-blue-600 dark:text-blue-400">
+                              {(customer as any).currentMonthTarget.currency}{" "}
+                              {Number((customer as any).currentMonthTarget.targetAmount).toLocaleString()}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground/50 text-sm">-</span>
                           )}

@@ -75,9 +75,15 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: string, done) => {
     try {
       const user = await storage.getUser(id);
+      if (!user) {
+        return done(null, false);
+      }
       done(null, user);
     } catch (error) {
-      done(error);
+      // Return false instead of propagating the error so a stale/invalid
+      // session never crashes the app — the user will just be treated as
+      // unauthenticated and redirected to login.
+      done(null, false);
     }
   });
 
