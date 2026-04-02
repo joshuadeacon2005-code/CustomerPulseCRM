@@ -3431,6 +3431,130 @@ Provide 2-3 specific, actionable recommendations to reduce churn risk and re-eng
     }
   });
 
+  // --- NetSuite Routes ---
+  const {
+    customerSyncFromNS,
+    salesOrderSyncFromNS,
+    productCatalogueSync,
+    pushCustomerToNS,
+    getNsCredentials,
+  } = await import("./netsuite/index");
+
+  // GET /api/netsuite/status
+  app.get("/api/netsuite/status", isAuthenticated, async (_req, res) => {
+    try {
+      const configured = !!getNsCredentials();
+      const logs = await storage.getSyncLogs(5);
+      res.json({ configured, recentLogs: logs });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch NetSuite status" });
+    }
+  });
+
+  // POST /api/netsuite/sync/customers
+  app.post("/api/netsuite/sync/customers", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const result = await customerSyncFromNS();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/netsuite/sync/orders
+  app.post("/api/netsuite/sync/orders", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const result = await salesOrderSyncFromNS();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/netsuite/sync/products
+  app.post("/api/netsuite/sync/products", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const result = await productCatalogueSync();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/netsuite/orders — all orders (admin) or filter by customerId
+  app.get("/api/netsuite/orders", isAuthenticated, async (req, res) => {
+    try {
+      const customerId = req.query.customerId as string | undefined;
+      const orders = await storage.getNsOrders(customerId);
+      res.json(orders);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch NetSuite orders" });
+    }
+  });
+
+  // GET /api/netsuite/orders/:customerId
+  app.get("/api/netsuite/orders/:customerId", isAuthenticated, async (req, res) => {
+    try {
+      const orders = await storage.getNsOrders(req.params.customerId);
+      res.json(orders);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
+  // GET /api/netsuite/products
+  app.get("/api/netsuite/products", isAuthenticated, async (_req, res) => {
+    try {
+      const products = await storage.getNsProducts();
+      res.json(products);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch NetSuite products" });
+    }
+  });
+
+  // GET /api/netsuite/conflicts
+  app.get("/api/netsuite/conflicts", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const resolved = req.query.resolved === "true";
+      const conflicts = await storage.getSyncConflicts(resolved);
+      res.json(conflicts);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch sync conflicts" });
+    }
+  });
+
+  // POST /api/netsuite/conflicts/:id/resolve
+  app.post("/api/netsuite/conflicts/:id/resolve", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ok = await storage.resolveSyncConflict(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Conflict not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to resolve conflict" });
+    }
+  });
+
+  // GET /api/netsuite/logs
+  app.get("/api/netsuite/logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+      const logs = await storage.getSyncLogs(limit);
+      res.json(logs);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch sync logs" });
+    }
+  });
+
+  // POST /api/netsuite/push/:customerId — push CRM customer to NS
+  app.post("/api/netsuite/push/:customerId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await pushCustomerToNS(req.params.customerId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

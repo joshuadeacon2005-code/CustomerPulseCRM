@@ -118,6 +118,8 @@ export const customers = pgTable("customers", {
   deletedAt: timestamp("deleted_at"),
   deletedBy: varchar("deleted_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  netsuiteInternalId: text("netsuite_internal_id"),
+  netsuiteSyncedAt: timestamp("netsuite_synced_at"),
 });
 
 export const interactions = pgTable("interactions", {
@@ -281,6 +283,64 @@ export const officeAssignments = pgTable("office_assignments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+
+// NetSuite integration tables
+export const netsuiteSyncLog = pgTable("netsuite_sync_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  syncType: text("sync_type").notNull(),
+  status: text("status").notNull(),
+  recordsProcessed: integer("records_processed").notNull().default(0),
+  recordsCreated: integer("records_created").notNull().default(0),
+  recordsUpdated: integer("records_updated").notNull().default(0),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const syncConflicts = pgTable("sync_conflicts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id"),
+  nsInternalId: text("ns_internal_id").notNull(),
+  conflictType: text("conflict_type").notNull(),
+  fieldName: text("field_name"),
+  crmValue: text("crm_value"),
+  nsValue: text("ns_value"),
+  resolved: boolean("resolved").notNull().default(false),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const netsuiteOrders = pgTable("netsuite_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nsOrderId: text("ns_order_id").notNull().unique(),
+  tranId: text("tran_id"),
+  customerId: varchar("customer_id"),
+  nsCustomerId: text("ns_customer_id").notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }),
+  currency: text("currency").default("USD"),
+  status: text("status"),
+  tranDate: timestamp("tran_date"),
+  items: text("items"),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+});
+
+export const netsuiteProducts = pgTable("netsuite_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nsItemId: text("ns_item_id").notNull().unique(),
+  itemId: text("item_id"),
+  displayName: text("display_name"),
+  salePrice: decimal("sale_price", { precision: 15, scale: 2 }),
+  currency: text("currency").default("USD"),
+  itemType: text("item_type"),
+  isActive: boolean("is_active").notNull().default(true),
+  syncedAt: timestamp("synced_at").notNull().defaultNow(),
+});
+
+export const syncCursors = pgTable("sync_cursors", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
 export const customerAssignments = pgTable("customer_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -742,6 +802,11 @@ export type InsertOfficeAssignment = z.infer<typeof insertOfficeAssignmentSchema
 export type OfficeRoleType = typeof OFFICE_ROLE_TYPES[number];
 export type CustomerAssignment = typeof customerAssignments.$inferSelect;
 export type InsertCustomerAssignment = z.infer<typeof insertCustomerAssignmentSchema>;
+export type NetsuiteSyncLog = typeof netsuiteSyncLog.$inferSelect;
+export type SyncConflict = typeof syncConflicts.$inferSelect;
+export type NetsuiteOrder = typeof netsuiteOrders.$inferSelect;
+export type NetsuiteProduct = typeof netsuiteProducts.$inferSelect;
+export type SyncCursor = typeof syncCursors.$inferSelect;
 
 export type UserRole = "ceo" | "sales_director" | "marketing_director" | "regional_manager" | "manager" | "salesman";
 export type Currency = typeof CURRENCIES[number];

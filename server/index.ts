@@ -60,6 +60,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const { startSyncScheduler } = await import("./netsuite/index");
+  startSyncScheduler();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

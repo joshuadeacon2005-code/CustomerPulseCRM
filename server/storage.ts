@@ -65,8 +65,16 @@ import {
   offices,
   officeAssignments,
   customerAssignments,
+  netsuiteSyncLog,
+  syncConflicts,
+  netsuiteOrders,
+  netsuiteProducts,
   type ExchangeRate,
   type InsertExchangeRate,
+  type NetsuiteSyncLog,
+  type SyncConflict,
+  type NetsuiteOrder,
+  type NetsuiteProduct,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, lt, and, sql, or, inArray, sum } from "drizzle-orm";
@@ -210,6 +218,13 @@ export interface IStorage {
   // Bulk operations
   bulkUpdateCustomerStatus(ids: string[], stage: string, closureReason?: string, closureReasonOther?: string): Promise<number>;
   bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number>;
+
+  // NetSuite
+  getNsOrders(customerId?: string): Promise<NetsuiteOrder[]>;
+  getNsProducts(): Promise<NetsuiteProduct[]>;
+  getSyncLogs(limit?: number): Promise<NetsuiteSyncLog[]>;
+  getSyncConflicts(resolved?: boolean): Promise<SyncConflict[]>;
+  resolveSyncConflict(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1865,7 +1880,7 @@ export class DatabaseStorage implements IStorage {
 
   async bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number> {
     if (ids.length === 0) return 0;
-    
+
     const result = await db
       .update(customers)
       .set({
@@ -1874,8 +1889,55 @@ export class DatabaseStorage implements IStorage {
         deletedBy,
       })
       .where(inArray(customers.id, ids));
-    
+
     return result.rowCount || 0;
+  }
+
+  async getNsOrders(customerId?: string): Promise<NetsuiteOrder[]> {
+    if (customerId) {
+      return db
+        .select()
+        .from(netsuiteOrders)
+        .where(eq(netsuiteOrders.customerId, customerId))
+        .orderBy(desc(netsuiteOrders.tranDate));
+    }
+    return db
+      .select()
+      .from(netsuiteOrders)
+      .orderBy(desc(netsuiteOrders.tranDate))
+      .limit(200);
+  }
+
+  async getNsProducts(): Promise<NetsuiteProduct[]> {
+    return db
+      .select()
+      .from(netsuiteProducts)
+      .where(eq(netsuiteProducts.isActive, true))
+      .orderBy(netsuiteProducts.displayName);
+  }
+
+  async getSyncLogs(limit = 50): Promise<NetsuiteSyncLog[]> {
+    return db
+      .select()
+      .from(netsuiteSyncLog)
+      .orderBy(desc(netsuiteSyncLog.startedAt))
+      .limit(limit);
+  }
+
+  async getSyncConflicts(resolved = false): Promise<SyncConflict[]> {
+    return db
+      .select()
+      .from(syncConflicts)
+      .where(eq(syncConflicts.resolved, resolved))
+      .orderBy(desc(syncConflicts.createdAt));
+  }
+
+  async resolveSyncConflict(id: string): Promise<boolean> {
+    const result = await db
+      .update(syncConflicts)
+      .set({ resolved: true, resolvedAt: new Date() })
+      .where(eq(syncConflicts.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
