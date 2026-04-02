@@ -615,6 +615,7 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       setEditingInteractionId(null);
       toast({ title: "Interaction updated successfully" });
     },

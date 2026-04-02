@@ -675,6 +675,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!interaction) {
         return res.status(404).json({ error: "Interaction not found" });
       }
+
+      // Recalculate lastContactDate from the most recent interaction for this customer
+      const customerId = existingInteraction.customerId;
+      const customerInteractions = await storage.getInteractionsByCustomer(customerId);
+      if (customerInteractions.length > 0) {
+        const mostRecent = customerInteractions.reduce((latest, curr) => {
+          const latestDate = latest.date ? new Date(latest.date) : new Date(0);
+          const currDate = curr.date ? new Date(curr.date) : new Date(0);
+          return currDate > latestDate ? curr : latest;
+        });
+        if (mostRecent.date) {
+          await storage.updateCustomer(customerId, { lastContactDate: new Date(mostRecent.date) });
+        }
+      }
+
       res.json(interaction);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {

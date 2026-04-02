@@ -603,7 +603,7 @@ export class DatabaseStorage implements IStorage {
     const monthStart = new Date(currentYear, currentMonth - 1, 1);
     const monthEnd = new Date(currentYear, currentMonth, 1);
 
-    const [batchTargets, batchActuals, batchSales] = customerIds.length > 0 ? await Promise.all([
+    const [batchTargets, batchActuals, batchSales, batchInteractionCounts] = customerIds.length > 0 ? await Promise.all([
       db.select().from(customerMonthlyTargets)
         .where(and(
           inArray(customerMonthlyTargets.customerId, customerIds),
@@ -636,11 +636,19 @@ export class DatabaseStorage implements IStorage {
           lt(sales.date, monthEnd)
         ))
         .groupBy(sales.customerId),
-    ]) : [[], [], []];
+      db.select({
+          customerId: interactions.customerId,
+          count: sql<number>`COUNT(*)::int`,
+        })
+        .from(interactions)
+        .where(inArray(interactions.customerId, customerIds))
+        .groupBy(interactions.customerId),
+    ]) : [[], [], [], []];
 
     const targetMap = new Map(batchTargets.map(t => [t.customerId, t]));
     const actualMap = new Map(batchActuals.map(a => [a.customerId, a]));
     const salesMap = new Map(batchSales.map(s => [s.customerId, s]));
+    const interactionCountMap = new Map(batchInteractionCounts.map(i => [i.customerId, i.count]));
 
     const customersWithBrands = await Promise.all(
       allCustomers.map(async (customer) => {
@@ -656,7 +664,7 @@ export class DatabaseStorage implements IStorage {
         const target = targetMap.get(customer.id);
         const actual = actualMap.get(customer.id);
         const salesData = salesMap.get(customer.id);
-        
+
         return {
           ...customer,
           brands: customerBrandsList,
@@ -664,6 +672,7 @@ export class DatabaseStorage implements IStorage {
           currentMonthTarget: target ? { targetAmount: target.targetAmount, currency: target.currency, baseCurrencyAmount: target.baseCurrencyAmount } : null,
           currentMonthActual: actual ? { actual: actual.actual ?? "0", actualCurrency: actual.actualCurrency ?? target?.currency ?? "HKD" } : null,
           currentMonthSalesBase: salesData ? salesData.totalBase : (actual?.actualBaseCurrencyAmount ?? null),
+          interactionCount: interactionCountMap.get(customer.id) ?? 0,
         };
       })
     );

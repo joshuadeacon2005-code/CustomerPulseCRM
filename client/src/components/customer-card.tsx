@@ -2,8 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Customer, CustomerWithBrands, STAGE_LABELS } from "@shared/schema";
-import { MapPin, AlertTriangle, Clock } from "lucide-react";
-import { differenceInDays } from "date-fns";
+import { MapPin, AlertTriangle, Clock, PhoneOff, Moon, PhoneMissed } from "lucide-react";
+import { differenceInDays, format } from "date-fns";
 import { formatCurrency, Currency } from "@/lib/currency";
 
 interface CustomerCardProps {
@@ -80,6 +80,10 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
   const config = stageConfig[customer.stage] || stageConfig.lead;
   const contactStatus = getContactStatus(customer.lastContactDate);
   const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
+  const interactionCount = 'interactionCount' in customer ? (customer.interactionCount ?? 0) : 0;
+  const isLead = ['lead', 'nurture', 'cold'].includes(customer.stage);
+  const isDisqualified = customer.stage === 'disqualified_price' || customer.stage === 'disqualified_unresponsive';
+  const isDormant = customer.stage === 'dormant';
 
   const monthlyTarget = 'currentMonthTarget' in customer ? customer.currentMonthTarget : null;
   const monthName = new Date().toLocaleString('default', { month: 'short' });
@@ -182,28 +186,59 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
             </div>
           </div>
 
-          {/* Last Contact Footer */}
-          <div className={`flex items-center gap-2 pt-2 border-t text-xs font-medium ${
-            contactStatus.status === 'critical' ? 'text-red-600 dark:text-red-400' :
-            contactStatus.status === 'warning' ? 'text-amber-600 dark:text-amber-400' :
-            'text-muted-foreground'
-          }`}>
-            {(contactStatus.status === 'critical' || contactStatus.status === 'never') && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
-            {(contactStatus.status === 'warning' || contactStatus.status === 'ok') && <Clock className="h-3.5 w-3.5 shrink-0" />}
-            <span>
-              {contactStatus.status === 'never'
-                ? 'Never contacted'
-                : `Last contact ${contactStatus.days} days ago`}
-            </span>
-            {needsAttention && (
-              <Badge
-                variant={contactStatus.status === 'critical' ? 'destructive' : 'secondary'}
-                className="text-[10px] ml-auto no-default-hover-elevate"
-              >
-                Needs Attention
-              </Badge>
-            )}
-          </div>
+          {/* Footer */}
+          {isDisqualified ? (
+            <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
+              <PhoneOff className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {customer.stage === 'disqualified_price' ? 'Price mismatch' : 'Unresponsive'}
+              </span>
+              {customer.closureDate && (
+                <span className="ml-auto text-[10px]">
+                  {format(new Date(customer.closureDate), 'dd MMM yyyy')}
+                </span>
+              )}
+            </div>
+          ) : isDormant ? (
+            <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
+              <Moon className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {customer.closureDate
+                  ? `Dormant since ${format(new Date(customer.closureDate), 'dd MMM yyyy')}`
+                  : 'Dormant'}
+              </span>
+            </div>
+          ) : isLead ? (
+            <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
+              <PhoneMissed className="h-3.5 w-3.5 shrink-0" />
+              <span>{interactionCount === 0 ? 'No contact attempts yet' : `${interactionCount} contact attempt${interactionCount === 1 ? '' : 's'}`}</span>
+              {contactStatus.status !== 'never' && (
+                <span className="ml-auto text-[10px]">{contactStatus.days}d ago</span>
+              )}
+            </div>
+          ) : (
+            <div className={`flex items-center gap-2 pt-2 border-t text-xs font-medium ${
+              contactStatus.status === 'critical' ? 'text-red-600 dark:text-red-400' :
+              contactStatus.status === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+              'text-muted-foreground'
+            }`}>
+              {(contactStatus.status === 'critical' || contactStatus.status === 'never') && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+              {(contactStatus.status === 'warning' || contactStatus.status === 'ok') && <Clock className="h-3.5 w-3.5 shrink-0" />}
+              <span>
+                {contactStatus.status === 'never'
+                  ? 'Never contacted'
+                  : `Last contact ${contactStatus.days} days ago`}
+              </span>
+              {needsAttention && (
+                <Badge
+                  variant={contactStatus.status === 'critical' ? 'destructive' : 'secondary'}
+                  className="text-[10px] ml-auto no-default-hover-elevate"
+                >
+                  Needs Attention
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

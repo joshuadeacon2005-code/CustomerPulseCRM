@@ -760,6 +760,7 @@ export type CustomerWithBrands = Customer & {
   currentMonthTarget?: { targetAmount: string; currency: string; baseCurrencyAmount: string } | null;
   currentMonthActual?: { actual: string; actualCurrency: string } | null;
   currentMonthSalesBase?: string | null;
+  interactionCount?: number;
 };
 
 export type CustomerWithDetails = Customer & {
