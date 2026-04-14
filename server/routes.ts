@@ -928,15 +928,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update customer's lastContactDate when an action item is created
       if (validatedData.customerId) {
-        try {
-          const contactDate = actionItem.dueDate ? new Date(actionItem.dueDate) : new Date();
-          const customer = await storage.getCustomer(validatedData.customerId);
-          if (customer && (!customer.lastContactDate || contactDate > new Date(customer.lastContactDate))) {
-            await storage.updateCustomer(validatedData.customerId, { lastContactDate: contactDate });
-          }
-        } catch (contactErr) {
-          console.error("Failed to update lastContactDate after action item creation:", contactErr);
-        }
+        const contactDate = actionItem.dueDate ? new Date(actionItem.dueDate) : new Date();
+        await storage.updateCustomer(validatedData.customerId, {
+          lastContactDate: contactDate
+        });
       }
 
       res.status(201).json(actionItem);
@@ -969,15 +964,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update customer's lastContactDate when an action item is completed
       if (parsed.data.completedAt && actionItem.customerId) {
-        try {
-          const completionDate = new Date(parsed.data.completedAt);
-          const customer = await storage.getCustomer(actionItem.customerId);
-          if (customer && (!customer.lastContactDate || completionDate > new Date(customer.lastContactDate))) {
-            await storage.updateCustomer(actionItem.customerId, { lastContactDate: completionDate });
-          }
-        } catch (contactErr) {
-          console.error("Failed to update lastContactDate after action item completion:", contactErr);
-        }
+        const completionDate = new Date(parsed.data.completedAt);
+        await storage.updateCustomer(actionItem.customerId, {
+          lastContactDate: completionDate
+        });
       }
 
       res.json(actionItem);
@@ -995,15 +985,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update customer's lastContactDate to completion time
       if (actionItem.customerId && actionItem.completedAt) {
-        try {
-          const completionDate = new Date(actionItem.completedAt);
-          const customer = await storage.getCustomer(actionItem.customerId);
-          if (customer && (!customer.lastContactDate || completionDate > new Date(customer.lastContactDate))) {
-            await storage.updateCustomer(actionItem.customerId, { lastContactDate: completionDate });
-          }
-        } catch (contactErr) {
-          console.error("Failed to update lastContactDate after action item completion:", contactErr);
-        }
+        const completionDate = new Date(actionItem.completedAt);
+        await storage.updateCustomer(actionItem.customerId, {
+          lastContactDate: completionDate
+        });
       }
 
       res.json(actionItem);
