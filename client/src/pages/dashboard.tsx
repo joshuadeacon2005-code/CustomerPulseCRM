@@ -1021,27 +1021,34 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {userCustomers.map((customer) => {
-              // Get current month sales tracking for this customer
-              const customerSales = monthlySales.filter(s => 
-                s.customerId === customer.id &&
-                s.month === currentMonth &&
-                s.year === currentYear
-              );
-              
-              const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
-              // Fallback to customer_monthly_targets if no MST budget
-              const cmtTarget = customerMonthlyTargets.find(
-                t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
-              );
-              const budget = mstBudget > 0 ? mstBudget : (cmtTarget ? Number(cmtTarget.targetAmount) : 0);
-              const budgetCurrency = mstBudget > 0
-                ? (customerSales[0]?.budgetCurrency as Currency || userCurrency)
-                : (cmtTarget?.currency as Currency || userCurrency);
-              const budgetSymbol = CURRENCY_SYMBOLS[budgetCurrency] || currencySymbol;
+            {userCustomers.map((customer: any) => {
+              // Use the same data source as customer cards: customer_monthly_targets + sales table
+              const monthlyTarget = customer.currentMonthTarget;
+              if (!monthlyTarget) return null;
 
-              const actual = customerSales.length > 0 && customerSales[0].actual ? Number(customerSales[0].actual) : 0;
-              const progress = budget > 0 ? Math.round((actual / budget) * 100) : 0;
+              const targetAmt = parseFloat(monthlyTarget.targetAmount || '0');
+              const targetBase = parseFloat(monthlyTarget.baseCurrencyAmount || '0');
+              const targetCurrency = (monthlyTarget.currency as Currency) || userCurrency;
+              const budgetSymbol = CURRENCY_SYMBOLS[targetCurrency] || currencySymbol;
+
+              // Get actual from MST for display, but use sales table base for percentage
+              const mstActual = customer.currentMonthActual
+                ? parseFloat(customer.currentMonthActual.actual || '0')
+                : 0;
+              const mstCurrency = (customer.currentMonthActual?.actualCurrency as Currency) || targetCurrency;
+              const actualSymbol = CURRENCY_SYMBOLS[mstCurrency] || budgetSymbol;
+
+              const salesBase = customer.currentMonthSalesBase
+                ? parseFloat(customer.currentMonthSalesBase)
+                : 0;
+
+              // Calculate progress from base currency (USD) — consistent with customer card
+              const progress = targetBase > 0 ? Math.round((salesBase / targetBase) * 100) : 0;
+
+              // Display values in original currency
+              const budget = targetAmt;
+              const actual = mstActual > 0 ? mstActual : (salesBase > 0 ? salesBase : 0);
+              const displayActualSymbol = mstActual > 0 ? actualSymbol : budgetSymbol;
               const variance = actual - budget;
 
               // Skip customers with no budget or target set
@@ -1054,10 +1061,12 @@ export default function Dashboard() {
                       <p className="font-medium">{customer.name}</p>
                       <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                         <span>Target: {budgetSymbol}{budget.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                        <span>Actual: {budgetSymbol}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                        <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                          {variance >= 0 ? '+' : ''}{budgetSymbol}{Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
+                        <span>Actual: {displayActualSymbol}{actual.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                        {mstActual > 0 && mstCurrency === targetCurrency && (
+                          <span className={variance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {variance >= 0 ? '+' : ''}{budgetSymbol}{Math.abs(variance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Badge variant={progress >= 100 ? "default" : progress >= 75 ? "secondary" : "outline"}>
@@ -1080,18 +1089,7 @@ export default function Dashboard() {
               );
             }).filter(Boolean)}
 
-            {userCustomers.every(customer => {
-              const customerSales = monthlySales.filter(s => 
-                s.customerId === customer.id &&
-                s.month === currentMonth &&
-                s.year === currentYear
-              );
-              const mstBudget = customerSales.length > 0 ? Number(customerSales[0].budget) : 0;
-              const cmtTarget = customerMonthlyTargets.find(
-                t => t.customerId === customer.id && t.month === currentMonth && t.year === currentYear
-              );
-              return mstBudget === 0 && !cmtTarget;
-            }) && (
+            {userCustomers.every((customer: any) => !customer.currentMonthTarget) && (
               <div className="text-center py-8">
                 <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">No targets set for this month</p>
