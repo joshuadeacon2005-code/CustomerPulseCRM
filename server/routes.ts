@@ -10,11 +10,20 @@ import multer from "multer";
 import OpenAI from "openai";
 import { aiRateLimiter, uploadRateLimiter, validateUuidParam, apiRateLimiter } from "./security";
 
-// Initialize OpenAI client with Replit AI Integrations
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Lazy-initialize OpenAI client — only created when an AI endpoint is called
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+      throw new Error("AI features require AI_INTEGRATIONS_OPENAI_API_KEY to be set");
+    }
+    _openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
 
 // Configure multer for file uploads (in-memory storage)
 const upload = multer({ 
@@ -2657,7 +2666,7 @@ Provide a concise analysis (3-4 paragraphs) covering:
 
 Be specific, data-driven, and focus on actionable insights.`;
 
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -2769,7 +2778,7 @@ Provide a detailed analysis (4-5 paragraphs) covering:
 
 Be professional, constructive, and data-driven.`;
 
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -2904,7 +2913,7 @@ Analyze the data and provide:
 
 Format your response as a structured analysis that's easy to parse for display.`;
 
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -2965,7 +2974,7 @@ Format your response as a structured analysis that's easy to parse for display.`
         return res.status(400).json({ error: "Note is too short to summarize. Minimum 50 characters required." });
       }
 
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -3045,7 +3054,7 @@ Format your response as a structured analysis that's easy to parse for display.`
         `- ${c.name} (${c.stage}): ${c.daysSinceContact} days since contact, ${c.interactionCount} total interactions, ${c.quarterlySoftTarget ? `$${c.quarterlySoftTarget} quarterly target` : 'no target set'}`
       ).join('\n');
       
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -3207,7 +3216,7 @@ Customer details:
 
 Provide 2-3 specific, actionable recommendations to reduce churn risk and re-engage this customer.`;
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAI().chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
