@@ -925,6 +925,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertActionItemSchema.parse(bodyWithDates);
       const actionItem = await storage.createActionItem(validatedData);
+
+      // Update customer's lastContactDate when an action item is created
+      if (validatedData.customerId) {
+        try {
+          const contactDate = actionItem.dueDate ? new Date(actionItem.dueDate) : new Date();
+          const customer = await storage.getCustomer(validatedData.customerId);
+          if (customer && (!customer.lastContactDate || contactDate > new Date(customer.lastContactDate))) {
+            await storage.updateCustomer(validatedData.customerId, { lastContactDate: contactDate });
+          }
+        } catch (contactErr) {
+          console.error("Failed to update lastContactDate after action item creation:", contactErr);
+        }
+      }
+
       res.status(201).json(actionItem);
     } catch (error: any) {
       if (error?.issues) {
@@ -952,6 +966,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!actionItem) {
         return res.status(404).json({ error: "Action item not found" });
       }
+
+      // Update customer's lastContactDate when an action item is completed
+      if (parsed.data.completedAt && actionItem.customerId) {
+        try {
+          const completionDate = new Date(parsed.data.completedAt);
+          const customer = await storage.getCustomer(actionItem.customerId);
+          if (customer && (!customer.lastContactDate || completionDate > new Date(customer.lastContactDate))) {
+            await storage.updateCustomer(actionItem.customerId, { lastContactDate: completionDate });
+          }
+        } catch (contactErr) {
+          console.error("Failed to update lastContactDate after action item completion:", contactErr);
+        }
+      }
+
       res.json(actionItem);
     } catch (error) {
       res.status(500).json({ error: "Failed to update action item" });
@@ -964,6 +992,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!actionItem) {
         return res.status(404).json({ error: "Action item not found" });
       }
+
+      // Update customer's lastContactDate to completion time
+      if (actionItem.customerId && actionItem.completedAt) {
+        try {
+          const completionDate = new Date(actionItem.completedAt);
+          const customer = await storage.getCustomer(actionItem.customerId);
+          if (customer && (!customer.lastContactDate || completionDate > new Date(customer.lastContactDate))) {
+            await storage.updateCustomer(actionItem.customerId, { lastContactDate: completionDate });
+          }
+        } catch (contactErr) {
+          console.error("Failed to update lastContactDate after action item completion:", contactErr);
+        }
+      }
+
       res.json(actionItem);
     } catch (error) {
       res.status(500).json({ error: "Failed to complete action item" });
@@ -1174,11 +1216,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthlySales = await storage.createMonthlySales(validatedData);
       res.status(201).json(monthlySales);
     } catch (error) {
-      console.error("Monthly sales creation error:", error);
+      console.error("Monthly sales creation error:", {
+        error,
+        customerId: req.body.customerId,
+        month: req.body.month,
+        year: req.body.year,
+        budget: req.body.budget,
+        actual: req.body.actual,
+      });
       if (error instanceof Error && 'issues' in error) {
         return res.status(400).json({ error: "Invalid monthly sales data", details: error });
       }
-      res.status(500).json({ error: "Failed to create monthly sales record" });
+      const message = error instanceof Error ? error.message : "Failed to create monthly sales record";
+      res.status(500).json({ error: message });
     }
   });
 
@@ -1236,7 +1286,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof Error && (error.message.includes("Exchange rate") || error.message.includes("mismatch"))) {
         return res.status(400).json({ error: error.message });
       }
-      res.status(500).json({ error: "Failed to update monthly sales record" });
+      console.error("Monthly sales update error:", {
+        error,
+        id: req.params.id,
+        customerId: req.body.customerId,
+        month: req.body.month,
+        year: req.body.year,
+        budget: req.body.budget,
+        actual: req.body.actual,
+      });
+      const message = error instanceof Error ? error.message : "Failed to update monthly sales record";
+      res.status(500).json({ error: message });
     }
   });
 
@@ -2961,9 +3021,14 @@ Format your response as a structured analysis that's easy to parse for display.`
         });
       }
       
+      // Exclude closed/dormant customers from AI recommendations
+      const activeCustomers = customers.filter((c: CustomerWithBrands) =>
+        c.stage !== 'closed' && c.stage !== 'dormant'
+      );
+
       // Gather customer data with interactions
       const customersWithData = await Promise.all(
-        customers.slice(0, 50).map(async (customer: CustomerWithBrands) => {
+        activeCustomers.slice(0, 50).map(async (customer: CustomerWithBrands) => {
           const interactions = await storage.getInteractionsByCustomer(customer.id);
           const lastInteraction = interactions[0];
           const daysSinceContact = customer.lastContactDate 

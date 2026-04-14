@@ -350,6 +350,7 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setEditingTask(null);
       toast({
         title: "To-do updated",
@@ -373,6 +374,7 @@ export default function Tasks() {
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=overdue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/action-items?filter=upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       toast({
         title: "To-do completed",
         description: "The to-do has been marked as complete.",

@@ -55,6 +55,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       toast({
         title: "Success",
         description: "Action item updated",
@@ -254,6 +255,8 @@ export default function Dashboard() {
 
   // Calculate customers needing follow-up (not contacted in 14+ days)
   const customersNeedingFollowUp = userCustomers.filter(customer => {
+    // Skip closed/dormant customers entirely
+    if (customer.stage === 'closed' || customer.stage === 'dormant') return false;
     if (!customer.lastContactDate) return true; // Never contacted
     const daysSinceContact = Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
     return daysSinceContact >= 14;
@@ -826,8 +829,11 @@ export default function Dashboard() {
       {(() => {
         // Calculate at-risk customers
         const atRiskCustomers = userCustomers.filter(customer => {
+          // Skip closed/dormant customers entirely
+          if (customer.stage === 'closed' || customer.stage === 'dormant') return false;
+
           // Check if not contacted recently (14+ days)
-          const needsFollowUp = !customer.lastContactDate || 
+          const needsFollowUp = !customer.lastContactDate ||
             Math.floor((Date.now() - new Date(customer.lastContactDate).getTime()) / (1000 * 60 * 60 * 24)) >= 14;
           
           // Check if below monthly target
@@ -1439,10 +1445,10 @@ function PersonalTargetsWidget({
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
           {monthsToShow.slice(0, 6).map(({ month, year, label, isCurrentMonth, isPastMonth }) => {
             const target = monthlyTargets.find(
-              t => t.month === month && t.year === year && 
+              t => t.month === month && t.year === year &&
                    (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
             );
-            
+
             const monthSales = monthlySales.filter(
               s => s.month === month && s.year === year && userCustomerIds.includes(s.customerId)
             );
@@ -1452,16 +1458,22 @@ function PersonalTargetsWidget({
             const actualSalesBase = monthSales.reduce(
               (total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0
             );
-            
+
+            // Sum of per-customer budgets for this month (use base currency for cross-currency accuracy)
+            const customerBudgetSumBase = monthSales.reduce(
+              (total, sale) => total + (sale.budgetBaseCurrencyAmount ? Number(sale.budgetBaseCurrencyAmount) : (sale.budget ? Number(sale.budget) : 0)), 0
+            );
+
             const targetAmt = target ? Number(target.targetAmount) : 0;
             const targetCcy = (target?.currency as Currency) || userCurrency;
             const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
             const progress = targetBaseUSD > 0 ? Math.min((actualSalesBase / targetBaseUSD) * 100, 100) : 0;
+            const budgetMismatch = targetBaseUSD > 0 && customerBudgetSumBase > 0 && Math.abs(customerBudgetSumBase - targetBaseUSD) > 1;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
-            
+
             return (
-              <div 
-                key={`${month}-${year}`} 
+              <div
+                key={`${month}-${year}`}
                 className={`rounded-lg border p-3 space-y-2 ${isCurrentMonth ? 'border-primary/50 bg-primary/5' : isPastMonth ? 'bg-muted/30' : 'bg-card'}`}
                 data-testid={`card-target-${month}-${year}`}
               >
@@ -1535,12 +1547,17 @@ function PersonalTargetsWidget({
                         <p className="text-[10px] text-muted-foreground">
                           {formatCompactCurrency(actualSales, targetCcy)} / {formatCompactCurrency(targetAmt, targetCcy)}
                         </p>
+                        {customerBudgetSumBase > 0 && (
+                          <p className={`text-[10px] ${budgetMismatch ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                            Cust: {formatCompactCurrency(customerBudgetSumBase, 'USD')}{budgetMismatch ? ' ⚠' : ''}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">No target set</p>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="w-full h-7 text-xs"
                           onClick={() => {
@@ -1592,11 +1609,17 @@ function PersonalTargetsWidget({
             const actualSalesBase = monthSales.reduce(
               (total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0
             );
-            
+
+            // Sum of per-customer budgets for this month (use base currency for cross-currency accuracy)
+            const customerBudgetSumBase = monthSales.reduce(
+              (total, sale) => total + (sale.budgetBaseCurrencyAmount ? Number(sale.budgetBaseCurrencyAmount) : (sale.budget ? Number(sale.budget) : 0)), 0
+            );
+
             const targetAmt = target ? Number(target.targetAmount) : 0;
             const targetCcy = (target?.currency as Currency) || userCurrency;
             const targetBaseUSD = target ? Number(target.baseCurrencyAmount || target.targetAmount) : 0;
             const progress = targetBaseUSD > 0 ? Math.min((actualSalesBase / targetBaseUSD) * 100, 100) : 0;
+            const budgetMismatch = targetBaseUSD > 0 && customerBudgetSumBase > 0 && Math.abs(customerBudgetSumBase - targetBaseUSD) > 1;
             const isEditing = editingMonth?.month === month && editingMonth?.year === year;
             
             return (
@@ -1688,9 +1711,9 @@ function PersonalTargetsWidget({
                           }`}>
                             {Math.round(progress)}%
                           </span>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="h-6 text-xs px-2"
                             onClick={() => {
                               setEditingMonth({ month, year });
@@ -1701,11 +1724,16 @@ function PersonalTargetsWidget({
                             Edit
                           </Button>
                         </div>
+                        {customerBudgetSumBase > 0 && (
+                          <p className={`text-[10px] ${budgetMismatch ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                            Cust: {formatCompactCurrency(customerBudgetSumBase, 'USD')}{budgetMismatch ? ' ⚠' : ''}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-1">
                         <p className="text-xs text-muted-foreground mb-1">No target</p>
-                        <Button 
+                        <Button
                           size="sm"
                           className="h-7 text-xs"
                           onClick={() => {

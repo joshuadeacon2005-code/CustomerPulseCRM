@@ -469,6 +469,7 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
       setIsAddingActionItem(false);
       toast({ title: "Action item created" });
@@ -498,6 +499,7 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/action-items'] });
       setEditingActionItemId(null);
       toast({ title: "Action item updated" });
@@ -513,11 +515,13 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/monthly-sales'] });
       setIsAddingSales(false);
       toast({ title: "Sales record created" });
     },
-    onError: () => {
-      toast({ title: "Failed to create sales record", variant: "destructive" });
+    onError: (error: any) => {
+      const message = error?.message || "Failed to create sales record. Please try again.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
@@ -527,11 +531,13 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/monthly-sales'] });
       setEditingSalesId(null);
       toast({ title: "Sales record updated" });
     },
-    onError: () => {
-      toast({ title: "Failed to update sales record", variant: "destructive" });
+    onError: (error: any) => {
+      const message = error?.message || "Failed to update sales record. Please try again.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
@@ -541,10 +547,12 @@ export function CustomerDetailModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/monthly-sales'] });
       toast({ title: "Sales record deleted" });
     },
-    onError: () => {
-      toast({ title: "Failed to delete sales record", variant: "destructive" });
+    onError: (error: any) => {
+      const message = error?.message || "Failed to delete sales record.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 

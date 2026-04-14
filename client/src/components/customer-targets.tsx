@@ -74,12 +74,20 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId, 'targets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/monthly-sales'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customer-targets'] });
       toast({ title: "Target created successfully" });
       setIsAddingTarget(false);
       form.reset();
     },
-    onError: () => {
-      toast({ title: "Failed to create target", variant: "destructive" });
+    onError: (error: any) => {
+      const message = error?.message || "Failed to create target. Please try again.";
+      toast({
+        title: "Error saving target",
+        description: message,
+        variant: "destructive",
+        action: <Button variant="outline" size="sm" onClick={() => form.handleSubmit(handleSubmit)()}>Retry</Button>,
+      });
     },
   });
 
@@ -94,12 +102,20 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId, 'targets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/monthly-sales'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customer-targets'] });
       toast({ title: "Target updated successfully" });
       setEditingTarget(null);
       form.reset();
     },
-    onError: () => {
-      toast({ title: "Failed to update target", variant: "destructive" });
+    onError: (error: any) => {
+      const message = error?.message || "Failed to update target. Please try again.";
+      toast({
+        title: "Error updating target",
+        description: message,
+        variant: "destructive",
+        action: <Button variant="outline" size="sm" onClick={() => editingTarget && form.handleSubmit(handleSubmit)()}>Retry</Button>,
+      });
     },
   });
 
@@ -127,12 +143,13 @@ export function CustomerTargets({ customerId }: CustomerTargetsProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
       toast({ title: "Target deleted successfully" });
     },
-    onError: (_err, _id, context) => {
+    onError: (error: any, _id: string, context: { previousTargets?: CustomerMonthlyTarget[] } | undefined) => {
       // Rollback on error
       if (context?.previousTargets) {
         queryClient.setQueryData(['/api/customers', customerId, 'targets'], context.previousTargets);
       }
-      toast({ title: "Failed to delete target", variant: "destructive" });
+      const message = error?.message || "Failed to delete target. Please try again.";
+      toast({ title: "Error deleting target", description: message, variant: "destructive" });
     },
   });
 

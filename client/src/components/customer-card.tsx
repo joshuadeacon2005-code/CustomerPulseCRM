@@ -79,7 +79,8 @@ function getContactStatus(lastContactDate: Date | null | undefined): {
 export function CustomerCard({ customer, onClick }: CustomerCardProps) {
   const config = stageConfig[customer.stage] || stageConfig.lead;
   const contactStatus = getContactStatus(customer.lastContactDate);
-  const needsAttention = contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never';
+  const isClosed = customer.stage === 'closed' || customer.stage === 'dormant';
+  const needsAttention = !isClosed && (contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never');
   const interactionCount = 'interactionCount' in customer ? (customer.interactionCount ?? 0) : 0;
   const isLead = ['lead', 'nurture', 'cold'].includes(customer.stage);
   const isDisqualified = customer.stage === 'disqualified_price' || customer.stage === 'disqualified_unresponsive';
