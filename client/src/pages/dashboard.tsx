@@ -481,6 +481,18 @@ export default function Dashboard() {
         />
       )}
 
+      {/* General Targets Widget - Team-wide targets for managers / CEOs */}
+      {(isCEO || isManager) && isViewingOwnDashboard && (
+        <GeneralTargetsWidget
+          monthlyTargets={monthlyTargets}
+          monthlySales={monthlySales}
+          customers={customers}
+          user={user}
+          currencySymbol={currencySymbol}
+          userCurrency={userCurrency}
+        />
+      )}
+
       {/* Quick Actions - Only show for own dashboard */}
       {isViewingOwnDashboard && (
         <div>
@@ -1849,6 +1861,492 @@ function PersonalTargetsWidget({
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// General Targets Widget Component (for CEO / Manager roles)
+function GeneralTargetsWidget({
+  monthlyTargets,
+  monthlySales,
+  customers,
+  user,
+  currencySymbol,
+  userCurrency,
+}: {
+  monthlyTargets: MonthlyTarget[];
+  monthlySales: MonthlySalesTracking[];
+  customers: Customer[];
+  user: User | null;
+  currencySymbol: string;
+  userCurrency: Currency;
+}) {
+  const { toast } = useToast();
+  const [editingMonth, setEditingMonth] = useState<{ month: number; year: number } | null>(null);
+  const [targetAmount, setTargetAmount] = useState<string>("");
+  const [breakdownMonth, setBreakdownMonth] = useState<{ month: number; year: number; label: string } | null>(null);
+
+  const canEditGeneralTargets =
+    user?.role === "ceo" ||
+    user?.role === "regional_manager" ||
+    user?.role === "sales_director";
+
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
+  const monthsToShow = Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    return {
+      month,
+      year: currentYear,
+      label: format(new Date(currentYear, i, 1), "MMM"),
+      isCurrentMonth: month === currentMonth,
+      isPastMonth: month < currentMonth,
+    };
+  });
+
+  const generalTargets = monthlyTargets.filter(
+    (t) => t.targetType === "general" && !t.salesmanId
+  );
+
+  const saveTargetMutation = useMutation({
+    mutationFn: async ({
+      month,
+      year,
+      amount,
+    }: {
+      month: number;
+      year: number;
+      amount: number;
+    }) => {
+      const existing = generalTargets.find(
+        (t) => t.month === month && t.year === year
+      );
+      if (existing) {
+        return apiRequest("PATCH", `/api/targets/${existing.id}`, {
+          targetAmount: amount.toString(),
+        });
+      }
+      return apiRequest("POST", "/api/targets", {
+        month,
+        year,
+        targetAmount: amount.toString(),
+        targetType: "general",
+        salesmanId: null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/targets"] });
+      setEditingMonth(null);
+      setTargetAmount("");
+      toast({ title: "Target saved", description: "General target updated." });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save target.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveTarget = (month: number, year: number) => {
+    const amount = parseFloat(targetAmount.replace(/,/g, ""));
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid positive amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveTargetMutation.mutate({ month, year, amount });
+  };
+
+  // Don't render if there are no general targets and the user can't create them
+  const hasAnyData =
+    generalTargets.length > 0 ||
+    monthlySales.some((s) => Number(s.actual) > 0);
+  if (!hasAnyData && !canEditGeneralTargets) return null;
+
+  const renderMonthCard = ({
+    month,
+    year,
+    label,
+    isCurrentMonth,
+    isPastMonth,
+  }: {
+    month: number;
+    year: number;
+    label: string;
+    isCurrentMonth: boolean;
+    isPastMonth: boolean;
+  }) => {
+    const target = generalTargets.find(
+      (t) => t.month === month && t.year === year
+    );
+    const monthSales = monthlySales.filter(
+      (s) => s.month === month && s.year === year && Number(s.actual) > 0
+    );
+    const actualSales = monthSales.reduce(
+      (total, s) => total + Number(s.actual),
+      0
+    );
+    const actualSalesBase = monthSales.reduce(
+      (total, s) => total + (s.actualBaseCurrencyAmount ? Number(s.actualBaseCurrencyAmount) : 0),
+      0
+    );
+    const targetAmt = target ? Number(target.targetAmount) : 0;
+    const targetCcy = (target?.currency as Currency) || userCurrency;
+    const targetBaseUSD = target
+      ? Number(target.baseCurrencyAmount || target.targetAmount)
+      : 0;
+    const progress =
+      targetBaseUSD > 0
+        ? Math.min((actualSalesBase / targetBaseUSD) * 100, 100)
+        : 0;
+    const isEditing =
+      editingMonth?.month === month && editingMonth?.year === year;
+
+    return (
+      <div
+        key={`${month}-${year}`}
+        className={`rounded-lg border p-3 space-y-2 ${
+          isCurrentMonth
+            ? "border-primary/50 bg-primary/5"
+            : isPastMonth
+            ? "bg-muted/30"
+            : "bg-card"
+        }`}
+        data-testid={`card-general-target-${month}-${year}`}
+      >
+        <div className="flex items-center justify-between gap-1">
+          <p
+            className={`font-medium text-sm ${
+              isPastMonth ? "text-muted-foreground" : ""
+            }`}
+          >
+            {label}
+          </p>
+          {isCurrentMonth && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              Now
+            </Badge>
+          )}
+        </div>
+
+        {isEditing ? (
+          <div className="space-y-2">
+            <div className="relative">
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                {currencySymbol}
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={targetAmount}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                  setTargetAmount(formatAmountInput(raw));
+                }}
+                placeholder="e.g. 500,000"
+                className="w-full pl-8 pr-2 py-1.5 border rounded text-xs"
+                autoFocus
+                data-testid={`input-general-target-${month}-${year}`}
+              />
+            </div>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                className="flex-1 h-7 text-xs"
+                onClick={() => handleSaveTarget(month, year)}
+                disabled={saveTargetMutation.isPending}
+                data-testid={`button-save-general-target-${month}-${year}`}
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs px-2"
+                onClick={() => {
+                  setEditingMonth(null);
+                  setTargetAmount("");
+                }}
+                data-testid={`button-cancel-general-target-${month}-${year}`}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {targetAmt > 0 ? (
+              <div className="space-y-1">
+                <div className="text-center">
+                  <div className="text-lg font-bold">
+                    {formatCompactCurrency(actualSales, targetCcy)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    / {formatCompactCurrency(targetAmt, targetCcy)}
+                  </div>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      progress >= 100
+                        ? "bg-green-600"
+                        : progress >= 75
+                        ? "bg-blue-600"
+                        : progress >= 50
+                        ? "bg-amber-600"
+                        : "bg-red-600"
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p
+                  className={`text-xs font-medium text-center ${
+                    progress >= 100
+                      ? "text-green-600 dark:text-green-400"
+                      : progress >= 75
+                      ? "text-blue-600 dark:text-blue-400"
+                      : progress >= 50
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {Math.round(progress)}%
+                </p>
+                {canEditGeneralTargets && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full h-6 text-[10px] mt-1"
+                    onClick={() => {
+                      setEditingMonth({ month, year });
+                      setTargetAmount(
+                        formatAmountInput(
+                          Math.round(Number(target!.targetAmount)).toString()
+                        )
+                      );
+                    }}
+                    data-testid={`button-edit-general-target-${month}-${year}`}
+                  >
+                    Edit
+                  </Button>
+                )}
+                {actualSales > 0 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full h-6 text-[10px]"
+                    onClick={() => setBreakdownMonth({ month, year, label })}
+                    data-testid={`button-general-breakdown-${month}-${year}`}
+                  >
+                    Details
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-1">
+                {actualSales > 0 && (
+                  <div className="mb-1 space-y-1">
+                    <div className="text-lg font-bold">
+                      {formatCompactCurrency(actualSales, userCurrency)}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      No target set
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full h-6 text-[10px]"
+                      onClick={() => setBreakdownMonth({ month, year, label })}
+                      data-testid={`button-general-breakdown-${month}-${year}`}
+                    >
+                      Details
+                    </Button>
+                  </div>
+                )}
+                {!actualSales && (
+                  <p className="text-xs text-muted-foreground mb-1">No target</p>
+                )}
+                {canEditGeneralTargets && (
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setEditingMonth({ month, year });
+                      setTargetAmount("");
+                    }}
+                    data-testid={`button-set-general-target-${month}-${year}`}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Set
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Card data-testid="card-general-targets">
+      <CardHeader>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <TargetIcon className="h-5 w-5 text-primary" />
+            <CardTitle>General / Team Targets</CardTitle>
+          </div>
+          <Link href="/targets">
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-manage-general-targets"
+            >
+              Manage Targets
+            </Button>
+          </Link>
+        </div>
+        <CardDescription>
+          Team-wide monthly sales targets and contributions
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="text-xs text-muted-foreground font-medium">
+            Jan - Jun
+          </div>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
+            {monthsToShow.slice(0, 6).map(renderMonthCard)}
+          </div>
+          <div className="text-xs text-muted-foreground font-medium">
+            Jul - Dec
+          </div>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
+            {monthsToShow.slice(6, 12).map(renderMonthCard)}
+          </div>
+        </div>
+      </CardContent>
+
+      {/* Breakdown Dialog */}
+      <Dialog
+        open={!!breakdownMonth}
+        onOpenChange={(open) => !open && setBreakdownMonth(null)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {breakdownMonth?.label} {breakdownMonth?.year} — Team Sales
+              Breakdown
+            </DialogTitle>
+          </DialogHeader>
+          {breakdownMonth &&
+            (() => {
+              const bSales = monthlySales
+                .filter(
+                  (s) =>
+                    s.month === breakdownMonth.month &&
+                    s.year === breakdownMonth.year &&
+                    Number(s.actual) > 0
+                )
+                .sort((a, b) => Number(b.actual) - Number(a.actual));
+
+              const target = generalTargets.find(
+                (t) =>
+                  t.month === breakdownMonth.month &&
+                  t.year === breakdownMonth.year
+              );
+              const targetCcy = (target?.currency as Currency) || userCurrency;
+              const totalActual = bSales.reduce(
+                (sum, s) => sum + Number(s.actual),
+                0
+              );
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm text-muted-foreground border-b pb-2">
+                    <span>Total team actual</span>
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(
+                        totalActual,
+                        (bSales[0]?.actualCurrency as Currency) || targetCcy
+                      )}
+                    </span>
+                  </div>
+                  {bSales.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No sales recorded for this month.
+                    </p>
+                  ) : (
+                    <div className="space-y-1 max-h-80 overflow-y-auto">
+                      {bSales.map((s) => {
+                        const customer = customers.find(
+                          (c) => c.id === s.customerId
+                        );
+                        const pct =
+                          totalActual > 0
+                            ? (Number(s.actual) / totalActual) * 100
+                            : 0;
+                        return (
+                          <div
+                            key={s.id}
+                            className="flex flex-col gap-1 py-2 border-b last:border-0"
+                            data-testid={`general-breakdown-row-${s.id}`}
+                          >
+                            <div className="flex justify-between items-center gap-2">
+                              <span
+                                className="text-sm font-medium truncate flex-1"
+                                data-testid={`general-breakdown-customer-${s.id}`}
+                              >
+                                {customer?.name || "Unknown customer"}
+                              </span>
+                              <span
+                                className="text-sm font-semibold shrink-0"
+                                data-testid={`general-breakdown-amount-${s.id}`}
+                              >
+                                {formatCurrency(
+                                  Number(s.actual),
+                                  (s.actualCurrency as Currency) || targetCcy
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground w-8 text-right">
+                                {pct.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {target && (
+                    <div className="flex justify-between text-sm border-t pt-2">
+                      <span className="text-muted-foreground">
+                        General Target
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(Number(target.targetAmount), targetCcy)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
         </DialogContent>
       </Dialog>
     </Card>
