@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -472,6 +473,7 @@ export default function Dashboard() {
           monthlyTargets={monthlyTargets}
           monthlySales={monthlySales}
           userCustomerIds={userCustomerIds}
+          customers={customers}
           effectiveUserId={effectiveUserId}
           user={user}
           currencySymbol={currencySymbol}
@@ -1337,6 +1339,7 @@ function PersonalTargetsWidget({
   monthlyTargets,
   monthlySales,
   userCustomerIds,
+  customers,
   effectiveUserId,
   user,
   currencySymbol,
@@ -1345,6 +1348,7 @@ function PersonalTargetsWidget({
   monthlyTargets: MonthlyTarget[];
   monthlySales: MonthlySalesTracking[];
   userCustomerIds: string[];
+  customers: Customer[];
   effectiveUserId: string | undefined;
   user: User | null;
   currencySymbol: string;
@@ -1353,6 +1357,7 @@ function PersonalTargetsWidget({
   const { toast } = useToast();
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
   const [targetAmount, setTargetAmount] = useState<string>("");
+  const [breakdownMonth, setBreakdownMonth] = useState<{month: number; year: number; label: string} | null>(null);
 
   // Generate array of all 12 months for the current year (Jan-Dec)
   const today = new Date();
@@ -1582,6 +1587,17 @@ function PersonalTargetsWidget({
                         Edit
                       </Button>
                     )}
+                    {target && actualSales > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full h-6 text-[10px]"
+                        onClick={() => setBreakdownMonth({ month, year, label })}
+                        data-testid={`button-breakdown-${month}-${year}`}
+                      >
+                        Details
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -1727,6 +1743,17 @@ function PersonalTargetsWidget({
                             Cust: {formatCompactCurrency(customerBudgetSumBase, 'USD')}{budgetMismatch ? ' ⚠' : ''}
                           </p>
                         )}
+                        {actualSales > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-full h-6 text-[10px]"
+                            onClick={() => setBreakdownMonth({ month, year, label })}
+                            data-testid={`button-breakdown-${month}-${year}`}
+                          >
+                            Details
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-1">
@@ -1753,6 +1780,77 @@ function PersonalTargetsWidget({
           </div>
         </div>
       </CardContent>
+
+      {/* Breakdown Dialog */}
+      <Dialog open={!!breakdownMonth} onOpenChange={(open) => !open && setBreakdownMonth(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {breakdownMonth?.label} {breakdownMonth?.year} — Sales Breakdown
+            </DialogTitle>
+          </DialogHeader>
+          {breakdownMonth && (() => {
+            const bSales = monthlySales.filter(
+              s => s.month === breakdownMonth.month && s.year === breakdownMonth.year && userCustomerIds.includes(s.customerId)
+            ).filter(s => Number(s.actual) > 0)
+             .sort((a, b) => Number(b.actual) - Number(a.actual));
+
+            const target = monthlyTargets.find(
+              t => t.month === breakdownMonth.month && t.year === breakdownMonth.year &&
+                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+            );
+            const targetCcy = (target?.currency as Currency) || userCurrency;
+            const totalActual = bSales.reduce((sum, s) => sum + Number(s.actual), 0);
+
+            return (
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm text-muted-foreground border-b pb-2">
+                  <span>Total actual</span>
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(totalActual, (bSales[0]?.actualCurrency as Currency) || targetCcy)}
+                  </span>
+                </div>
+                {bSales.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No sales recorded for this month.</p>
+                ) : (
+                  <div className="space-y-1 max-h-80 overflow-y-auto">
+                    {bSales.map(s => {
+                      const customer = customers.find(c => c.id === s.customerId);
+                      const pct = totalActual > 0 ? (Number(s.actual) / totalActual) * 100 : 0;
+                      return (
+                        <div key={s.id} className="flex flex-col gap-1 py-2 border-b last:border-0" data-testid={`breakdown-row-${s.id}`}>
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-medium truncate flex-1" data-testid={`breakdown-customer-${s.id}`}>
+                              {customer?.name || "Unknown customer"}
+                            </span>
+                            <span className="text-sm font-semibold shrink-0" data-testid={`breakdown-amount-${s.id}`}>
+                              {formatCurrency(Number(s.actual), (s.actualCurrency as Currency) || targetCcy)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground w-8 text-right">{pct.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {target && (
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-muted-foreground">Target</span>
+                    <span className="font-semibold">
+                      {formatCurrency(Number(target.targetAmount), targetCcy)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
