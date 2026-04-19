@@ -29,7 +29,8 @@ import {
   Check,
   ChevronsUpDown,
 } from "lucide-react";
-import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency, CustomerMonthlyTarget } from "@shared/schema";
+import type { Customer, MonthlyTarget, ActionItem, User, MonthlySalesTracking, Interaction, Currency, CustomerMonthlyTarget, CustomerWithDetails, UpdateCustomer, InsertInteraction } from "@shared/schema";
+import { CustomerDetailModal } from "@/components/customer-detail-modal";
 import { format, isToday, isPast, parseISO } from "date-fns";
 import { CalendarView } from "@/components/calendar-view";
 import { AiForecastCard } from "@/components/ai-forecast-card";
@@ -1370,6 +1371,59 @@ function PersonalTargetsWidget({
   const [editingMonth, setEditingMonth] = useState<{month: number; year: number} | null>(null);
   const [targetAmount, setTargetAmount] = useState<string>("");
   const [breakdownMonth, setBreakdownMonth] = useState<{month: number; year: number; label: string} | null>(null);
+  const [selectedCustomerIdInBreakdown, setSelectedCustomerIdInBreakdown] = useState<string | null>(null);
+
+  const { data: selectedCustomerDetail } = useQuery<CustomerWithDetails>({
+    queryKey: ["/api/customers", selectedCustomerIdInBreakdown],
+    enabled: !!selectedCustomerIdInBreakdown,
+  });
+
+  const selectedCustomerForModal: CustomerWithDetails | null = (() => {
+    if (selectedCustomerDetail) return selectedCustomerDetail;
+    if (!selectedCustomerIdInBreakdown) return null;
+    const base = customers.find(c => c.id === selectedCustomerIdInBreakdown);
+    if (!base) return null;
+    return {
+      ...base,
+      interactions: [],
+      brands: [],
+      actionItems: [],
+      monthlySales: [],
+      additionalContacts: [],
+      addresses: [],
+    };
+  })();
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateCustomer }) =>
+      apiRequest("PATCH", `/api/customers/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({ title: "Customer updated", description: "The customer has been successfully updated." });
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Failed to update customer.";
+      toast({ title: "Error updating customer", description: message, variant: "destructive" });
+    },
+  });
+
+  const addInteractionMutation = useMutation({
+    mutationFn: async (data: InsertInteraction) => {
+      const response = await apiRequest("POST", "/api/interactions", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/interactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({ title: "Interaction logged", description: "The interaction has been saved." });
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Could not save the interaction.";
+      toast({ title: "Failed to save interaction", description: message, variant: "destructive" });
+    },
+  });
 
   // Generate array of all 12 months for the current year (Jan-Dec)
   const today = new Date();
@@ -1832,9 +1886,22 @@ function PersonalTargetsWidget({
                       return (
                         <div key={s.id} className="flex flex-col gap-1 py-2 border-b last:border-0" data-testid={`breakdown-row-${s.id}`}>
                           <div className="flex justify-between items-center gap-2">
-                            <span className="text-sm font-medium truncate flex-1" data-testid={`breakdown-customer-${s.id}`}>
-                              {customer?.name || "Unknown customer"}
-                            </span>
+                            {customer ? (
+                              <button
+                                className="text-sm font-medium truncate flex-1 text-left hover:underline text-foreground"
+                                data-testid={`breakdown-customer-${s.id}`}
+                                onClick={() => {
+                                  setBreakdownMonth(null);
+                                  setSelectedCustomerIdInBreakdown(customer.id);
+                                }}
+                              >
+                                {customer.name}
+                              </button>
+                            ) : (
+                              <span className="text-sm font-medium truncate flex-1 text-muted-foreground" data-testid={`breakdown-customer-${s.id}`}>
+                                Unknown customer
+                              </span>
+                            )}
                             <span className="text-sm font-semibold shrink-0" data-testid={`breakdown-amount-${s.id}`}>
                               {formatCurrency(Number(s.actual), (s.actualCurrency as Currency) || targetCcy)}
                             </span>
@@ -1863,6 +1930,20 @@ function PersonalTargetsWidget({
           })()}
         </DialogContent>
       </Dialog>
+
+      <CustomerDetailModal
+        customer={selectedCustomerForModal}
+        open={!!selectedCustomerIdInBreakdown}
+        onClose={() => setSelectedCustomerIdInBreakdown(null)}
+        onUpdate={(data) => {
+          if (selectedCustomerIdInBreakdown) {
+            updateCustomerMutation.mutate({ id: selectedCustomerIdInBreakdown, data });
+          }
+        }}
+        onAddInteraction={(data) => addInteractionMutation.mutate(data)}
+        isUpdating={updateCustomerMutation.isPending}
+        isAddingInteraction={addInteractionMutation.isPending}
+      />
     </Card>
   );
 }
