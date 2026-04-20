@@ -285,19 +285,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/customers/:id/status", isAuthenticated, async (req, res) => {
     try {
-      const { stage, closureReason, closureReasonOther } = req.body;
+      const { stage, closureReason, closureReasonOther, kivReviewDate } = req.body;
       if (!stage) {
         return res.status(400).json({ error: "stage is required" });
       }
       const updateData: Record<string, any> = { stage };
-      if (stage === "dormant" || stage === "closed") {
+      if (stage === "kiv") {
+        updateData.closureDate = null;
+        updateData.closureReason = null;
+        updateData.closureReasonOther = null;
+        updateData.kivReviewDate = kivReviewDate ? new Date(kivReviewDate) : null;
+      } else if (stage === "dormant" || stage === "closed") {
         updateData.closureDate = new Date();
+        updateData.kivReviewDate = null;
         if (closureReason) updateData.closureReason = closureReason;
         if (closureReasonOther) updateData.closureReasonOther = closureReasonOther;
       } else {
         updateData.closureDate = null;
         updateData.closureReason = null;
         updateData.closureReasonOther = null;
+        updateData.kivReviewDate = null;
       }
       const customer = await storage.updateCustomer(req.params.id, updateData);
       if (!customer) {

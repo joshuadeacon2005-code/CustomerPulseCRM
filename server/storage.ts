@@ -77,7 +77,7 @@ import {
   type NetsuiteProduct,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, lt, and, sql, or, inArray, sum } from "drizzle-orm";
+import { eq, desc, gte, lt, lte, and, sql, or, inArray, sum } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -218,6 +218,7 @@ export interface IStorage {
   // Bulk operations
   bulkUpdateCustomerStatus(ids: string[], stage: string, closureReason?: string, closureReasonOther?: string): Promise<number>;
   bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number>;
+  expireKivCustomers(): Promise<number>;
 
   // NetSuite
   getNsOrders(customerId?: string): Promise<NetsuiteOrder[]>;
@@ -1860,22 +1861,43 @@ export class DatabaseStorage implements IStorage {
     
     const updateData: Record<string, any> = { stage };
     
-    if (stage === "dormant" || stage === "closed") {
+    if (stage === "kiv") {
+      updateData.closureDate = null;
+      updateData.closureReason = null;
+      updateData.closureReasonOther = null;
+      updateData.kivReviewDate = null;
+    } else if (stage === "dormant" || stage === "closed") {
       updateData.closureDate = new Date();
+      updateData.kivReviewDate = null;
       if (closureReason) updateData.closureReason = closureReason;
       if (closureReasonOther) updateData.closureReasonOther = closureReasonOther;
     } else {
       updateData.closureDate = null;
       updateData.closureReason = null;
       updateData.closureReasonOther = null;
+      updateData.kivReviewDate = null;
     }
-    
+
     const result = await db
       .update(customers)
       .set(updateData)
       .where(inArray(customers.id, ids));
-    
+
     return result.rowCount || 0;
+  }
+
+  async expireKivCustomers(): Promise<number> {
+    const result = await db
+      .update(customers)
+      .set({ stage: "dormant", closureDate: new Date(), kivReviewDate: null })
+      .where(
+        and(
+          eq(customers.stage, "kiv"),
+          lte(customers.kivReviewDate, new Date()),
+          eq(customers.isDeleted, false)
+        )
+      );
+    return result.rowCount ?? 0;
   }
 
   async bulkSoftDeleteCustomers(ids: string[], deletedBy: string): Promise<number> {

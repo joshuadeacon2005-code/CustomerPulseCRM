@@ -114,6 +114,7 @@ export const customers = pgTable("customers", {
   closureDate: timestamp("closure_date"),
   closureReason: text("closure_reason"),
   closureReasonOther: text("closure_reason_other"),
+  kivReviewDate: timestamp("kiv_review_date"),
   isDeleted: boolean("is_deleted").notNull().default(false),
   deletedAt: timestamp("deleted_at"),
   deletedBy: varchar("deleted_by"),
@@ -394,6 +395,7 @@ export const CUSTOMER_STAGES = [
   "prospect",
   "customer",
   "dormant",
+  "kiv",
   "closed",
 ] as const;
 
@@ -406,6 +408,7 @@ export const STAGE_LABELS: Record<string, string> = {
   prospect: "Prospect",
   customer: "Customer",
   dormant: "Dormant",
+  kiv: "Keep In View",
   closed: "Closed",
 };
 
@@ -500,6 +503,7 @@ export const updateCustomerSchema = createInsertSchema(customers).omit({
   closureDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
   closureReason: z.string().optional().nullable(),
   closureReasonOther: z.string().optional().nullable(),
+  kivReviewDate: z.union([z.date(), z.string().transform((val) => val ? new Date(val) : null)]).optional().nullable(),
   isDeleted: z.boolean().optional(),
 });
 

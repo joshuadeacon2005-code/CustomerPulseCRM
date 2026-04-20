@@ -466,9 +466,9 @@ export default function Customers() {
     const matchesCountry = countryFilter === "all" || 
       (customer.country || "").toLowerCase() === countryFilter.toLowerCase();
     
-    // Attention filter — closed/dormant customers never count as "needs attention"
+    // Attention filter — closed/dormant/kiv customers never count as "needs attention"
     const contactStatus = getContactStatus(customer.lastContactDate);
-    const isClosedOrDormant = customer.stage === 'closed' || customer.stage === 'dormant';
+    const isClosedOrDormant = customer.stage === 'closed' || customer.stage === 'dormant' || customer.stage === 'kiv';
     const needsAttention = !isClosedOrDormant && (contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never');
     const matchesAttention = attentionFilter === "all" ||
       (attentionFilter === "needs_attention" && needsAttention) ||
@@ -552,7 +552,7 @@ export default function Customers() {
     dormant: customerList.filter(c => c.stage === 'dormant').length,
     closed: customerList.filter(c => c.stage === 'closed').length,
     needsAttention: customerList.filter(c => {
-      if (c.stage === 'closed' || c.stage === 'dormant') return false;
+      if (c.stage === 'closed' || c.stage === 'dormant' || c.stage === 'kiv') return false;
       const status = getContactStatus(c.lastContactDate);
       return status.status === 'critical' || status.status === 'warning' || status.status === 'never';
     }).length,
@@ -956,6 +956,10 @@ export default function Customers() {
                 <SelectGroup>
                   <SelectLabel className="text-xs text-muted-foreground">Converted</SelectLabel>
                   <SelectItem value="customer">Customer</SelectItem>
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel className="text-xs text-muted-foreground">To Review</SelectLabel>
+                  <SelectItem value="kiv">Keep In View</SelectItem>
                 </SelectGroup>
                 <SelectGroup>
                   <SelectLabel className="text-xs text-muted-foreground">Inactive</SelectLabel>

@@ -52,6 +52,11 @@ const stageConfig: Record<string, { bg: string; text: string; badgeBg: string }>
     text: "text-gray-600 dark:text-gray-400",
     badgeBg: "bg-gray-400/10 border-gray-400/30"
   },
+  kiv: {
+    bg: "bg-violet-500",
+    text: "text-violet-700 dark:text-violet-400",
+    badgeBg: "bg-violet-500/10 border-violet-500/30"
+  },
   closed: {
     bg: "bg-red-500",
     text: "text-red-700 dark:text-red-400",
@@ -80,7 +85,8 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
   const config = stageConfig[customer.stage] || stageConfig.lead;
   const contactStatus = getContactStatus(customer.lastContactDate);
   const isClosedStage = customer.stage === 'closed';
-  const isClosed = isClosedStage || customer.stage === 'dormant';
+  const isKiv = customer.stage === 'kiv';
+  const isClosed = isClosedStage || customer.stage === 'dormant' || isKiv;
   const needsAttention = !isClosed && (contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never');
   const interactionCount = 'interactionCount' in customer ? (customer.interactionCount ?? 0) : 0;
   const isLead = ['lead', 'nurture', 'cold'].includes(customer.stage);
@@ -208,6 +214,15 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
                 {customer.closureDate
                   ? `Closed ${format(new Date(customer.closureDate), 'dd MMM yyyy')}`
                   : 'Closed'}
+              </span>
+            </div>
+          ) : isKiv ? (
+            <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {customer.kivReviewDate
+                  ? `Review by ${format(new Date(customer.kivReviewDate), 'dd MMM yyyy')}`
+                  : 'Keep In View'}
               </span>
             </div>
           ) : isDormant ? (

@@ -171,6 +171,7 @@ const stageColors: Record<string, string> = {
   prospect: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   customer: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
   dormant: "bg-gray-400/10 text-gray-600 dark:text-gray-400 border-gray-400/20",
+  kiv: "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
   closed: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
 
@@ -195,6 +196,12 @@ const STAGE_GROUPS = [
     label: "Converted",
     stages: [
       { value: "customer", color: "bg-green-500" },
+    ],
+  },
+  {
+    label: "To Review",
+    stages: [
+      { value: "kiv", color: "bg-violet-500" },
     ],
   },
   {
@@ -300,6 +307,70 @@ function DisqualificationNoteInline({
           data-testid="button-edit-disqualification-note"
         >
           {note || <span className="italic opacity-60">Click to add a reason or note…</span>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function KivReviewDateInline({
+  customer,
+  onSave,
+}: {
+  customer: { kivReviewDate?: Date | string | null };
+  onSave: (date: string) => void;
+}) {
+  const existing = customer.kivReviewDate
+    ? new Date(customer.kivReviewDate).toISOString().split("T")[0]
+    : "";
+  const [date, setDate] = useState(existing);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    setDate(
+      customer.kivReviewDate
+        ? new Date(customer.kivReviewDate).toISOString().split("T")[0]
+        : ""
+    );
+  }, [customer.kivReviewDate]);
+
+  return (
+    <div className="mt-1 space-y-1">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Review Date
+      </p>
+      {editing ? (
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="date"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            autoFocus
+          />
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => { if (date) { onSave(date); setEditing(false); } }}
+              className="px-3 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => { setDate(existing); setEditing(false); }}
+              className="px-3 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full text-left text-sm text-muted-foreground hover:text-foreground px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition-colors"
+        >
+          {date
+            ? format(new Date(date), "dd MMM yyyy")
+            : <span className="italic opacity-60">Click to set review date…</span>}
         </button>
       )}
     </div>
@@ -445,8 +516,8 @@ export function CustomerDetailModal({
   });
 
   const updateStageMutation = useMutation({
-    mutationFn: async ({ stage, disqualificationNote }: { stage: string; disqualificationNote?: string | null }) => {
-      return await apiRequest('PATCH', `/api/customers/${customer?.id}`, { stage, disqualificationNote: disqualificationNote ?? null });
+    mutationFn: async ({ stage, disqualificationNote, kivReviewDate }: { stage: string; disqualificationNote?: string | null; kivReviewDate?: string | null }) => {
+      return await apiRequest('PATCH', `/api/customers/${customer?.id}`, { stage, disqualificationNote: disqualificationNote ?? null, kivReviewDate: kivReviewDate ?? null });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', customer?.id] });
@@ -863,16 +934,23 @@ export function CustomerDetailModal({
           <div className="mt-4 px-2 space-y-3">
             <StageSlider
               currentStage={customer.stage}
-              onStageChange={(stage) =>
+              onStageChange={(stage) => {
+                const defaultKivDate = stage === 'kiv'
+                  ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+                  : null;
                 updateStageMutation.mutate({
                   stage,
                   disqualificationNote: stage.startsWith("disqualified") ? (customer.disqualificationNote ?? "") : null,
-                })
-              }
+                  kivReviewDate: defaultKivDate,
+                });
+              }}
               isUpdating={updateStageMutation.isPending}
             />
             {customer.stage?.startsWith("disqualified") && (
               <DisqualificationNoteInline customer={customer} onSave={(note) => updateStageMutation.mutate({ stage: customer.stage, disqualificationNote: note })} />
+            )}
+            {customer.stage === 'kiv' && (
+              <KivReviewDateInline customer={customer} onSave={(date) => updateStageMutation.mutate({ stage: 'kiv', kivReviewDate: date })} />
             )}
           </div>
         )}

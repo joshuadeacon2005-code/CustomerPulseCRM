@@ -63,6 +63,10 @@ app.use((req, res, next) => {
   const { startSyncScheduler } = await import("./netsuite/index");
   startSyncScheduler();
 
+  const { storage } = await import("./storage");
+  storage.expireKivCustomers().catch(() => {});
+  setInterval(() => storage.expireKivCustomers().catch(() => {}), 24 * 60 * 60 * 1000);
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
