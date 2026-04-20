@@ -79,7 +79,8 @@ function getContactStatus(lastContactDate: Date | null | undefined): {
 export function CustomerCard({ customer, onClick }: CustomerCardProps) {
   const config = stageConfig[customer.stage] || stageConfig.lead;
   const contactStatus = getContactStatus(customer.lastContactDate);
-  const isClosed = customer.stage === 'closed' || customer.stage === 'dormant';
+  const isClosedStage = customer.stage === 'closed';
+  const isClosed = isClosedStage || customer.stage === 'dormant';
   const needsAttention = !isClosed && (contactStatus.status === 'critical' || contactStatus.status === 'warning' || contactStatus.status === 'never');
   const interactionCount = 'interactionCount' in customer ? (customer.interactionCount ?? 0) : 0;
   const isLead = ['lead', 'nurture', 'cold'].includes(customer.stage);
@@ -199,6 +200,15 @@ export function CustomerCard({ customer, onClick }: CustomerCardProps) {
                   {format(new Date(customer.closureDate), 'dd MMM yyyy')}
                 </span>
               )}
+            </div>
+          ) : isClosedStage ? (
+            <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
+              <PhoneOff className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {customer.closureDate
+                  ? `Closed ${format(new Date(customer.closureDate), 'dd MMM yyyy')}`
+                  : 'Closed'}
+              </span>
             </div>
           ) : isDormant ? (
             <div className="flex items-center gap-2 pt-2 border-t text-xs font-medium text-muted-foreground">
