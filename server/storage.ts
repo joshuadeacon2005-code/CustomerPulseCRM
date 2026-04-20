@@ -931,7 +931,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMonthlyTargets(userId: string, userRole: UserRole): Promise<MonthlyTarget[]> {
-    const effectiveRole = (userRole === "sales_director" || userRole === "marketing_director") ? "ceo" : userRole;
+    const effectiveRole = (userRole === "sales_director" || userRole === "marketing_director") ? "ceo"
+      : (userRole === "regional_manager") ? "manager"
+      : userRole;
     if (effectiveRole === "ceo") {
       return await db
         .select()
