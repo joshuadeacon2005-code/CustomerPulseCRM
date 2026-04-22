@@ -938,7 +938,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(monthlyTargets)
-        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month), desc(monthlyTargets.createdAt));
     } else if (effectiveRole === "manager") {
       const teamMembers = await this.getTeamMembers(userId);
       const teamMemberIds = teamMembers.map(member => member.id);
@@ -953,7 +953,7 @@ export class DatabaseStorage implements IStorage {
             eq(monthlyTargets.targetType, "general")
           )
         )
-        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month), desc(monthlyTargets.createdAt));
     } else {
       return await db
         .select()
@@ -964,7 +964,7 @@ export class DatabaseStorage implements IStorage {
             eq(monthlyTargets.targetType, "general")
           )
         )
-        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month));
+        .orderBy(desc(monthlyTargets.year), desc(monthlyTargets.month), desc(monthlyTargets.createdAt));
     }
   }
 

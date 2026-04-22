@@ -213,7 +213,8 @@ export default function UserDetailsPage() {
   const currentMonthTarget = monthlyTargets.find(t =>
     t.month === currentMonth &&
     t.year === currentYear &&
-    (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId))
+    t.targetType === "personal" &&
+    t.salesmanId === userId
   );
 
   const currentMonthSales = monthlySales
@@ -317,7 +318,8 @@ export default function UserDetailsPage() {
 
       const monthTarget = monthlyTargets.find(t =>
         t.month === m && t.year === year &&
-        (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId))
+        t.targetType === "personal" &&
+        t.salesmanId === userId
       );
 
       trendData.push({
@@ -369,7 +371,7 @@ export default function UserDetailsPage() {
     const avgDealSize = salesCount > 0 ? yearSales / salesCount : 0;
 
     const yearTargetBase = monthlyTargets
-      .filter(t => t.year === year && (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId)))
+      .filter(t => t.year === year && t.targetType === "personal" && t.salesmanId === userId)
       .reduce((sum, t) => sum + Number(t.baseCurrencyAmount || t.targetAmount), 0);
 
     const targetAchievement = yearTargetBase > 0 ? Math.round((yearSalesBase / yearTargetBase) * 100) : 0;
@@ -387,7 +389,7 @@ export default function UserDetailsPage() {
       }
     });
     monthlyTargets.forEach(t => {
-      if (t.salesmanId === userId || (t.targetType === "general" && !t.salesmanId)) {
+      if (t.targetType === "personal" && t.salesmanId === userId) {
         years.add(t.year);
       }
     });

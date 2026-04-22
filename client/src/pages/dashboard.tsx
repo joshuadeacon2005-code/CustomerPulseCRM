@@ -138,16 +138,18 @@ export default function Dashboard() {
 
   // Find target for current user (or selected team member)
   const currentMonthTarget = monthlyTargets.find(
-    t => t.month === currentMonth && 
+    t => t.month === currentMonth &&
          t.year === currentYear &&
-         (t.salesmanId === effectiveUserId || (t.targetType === "general" && !t.salesmanId))
+         t.targetType === "personal" &&
+         t.salesmanId === effectiveUserId
   );
 
   // Find previous month's target
   const previousMonthTarget = monthlyTargets.find(
-    t => t.month === prevMonth && 
+    t => t.month === prevMonth &&
          t.year === prevYear &&
-         (t.salesmanId === effectiveUserId || (t.targetType === "general" && !t.salesmanId))
+         t.targetType === "personal" &&
+         t.salesmanId === effectiveUserId
   );
 
   // Calculate actual sales for current month
@@ -965,9 +967,10 @@ export default function Dashboard() {
                   const memberSalesBase = memberSalesData.reduce((total, sale) => total + (sale.actualBaseCurrencyAmount ? Number(sale.actualBaseCurrencyAmount) : 0), 0);
                   
                   const memberTarget = monthlyTargets.find(
-                    t => t.month === currentMonth && 
+                    t => t.month === currentMonth &&
                          t.year === currentYear &&
-                         (t.salesmanId === member.id || (t.targetType === "general" && !t.salesmanId))
+                         t.targetType === "personal" &&
+                         t.salesmanId === member.id
                   );
                   
                   const memberTargetAmount = memberTarget 
@@ -1515,7 +1518,8 @@ function PersonalTargetsWidget({
           {monthsToShow.slice(0, 6).map(({ month, year, label, isCurrentMonth, isPastMonth }) => {
             const target = monthlyTargets.find(
               t => t.month === month && t.year === year &&
-                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+                   t.targetType === 'personal' &&
+                   t.salesmanId === effectiveUserId
             );
 
             const monthSales = monthlySales.filter(
@@ -1675,8 +1679,9 @@ function PersonalTargetsWidget({
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
           {monthsToShow.slice(6, 12).map(({ month, year, label, isCurrentMonth, isPastMonth }) => {
             const target = monthlyTargets.find(
-              t => t.month === month && t.year === year && 
-                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+              t => t.month === month && t.year === year &&
+                   t.targetType === 'personal' &&
+                   t.salesmanId === effectiveUserId
             );
             
             // Calculate actual sales for this month
@@ -1863,7 +1868,8 @@ function PersonalTargetsWidget({
 
             const target = monthlyTargets.find(
               t => t.month === breakdownMonth.month && t.year === breakdownMonth.year &&
-                   (t.salesmanId === effectiveUserId || (t.targetType === 'general' && !t.salesmanId))
+                   t.targetType === 'personal' &&
+                   t.salesmanId === effectiveUserId
             );
             const targetCcy = (target?.currency as Currency) || userCurrency;
             const totalActual = bSales.reduce((sum, s) => sum + Number(s.actual), 0);
